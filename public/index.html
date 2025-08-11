@@ -4,18 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>API 자동화 모니터링</title>
-  <meta name="color-scheme" content="light">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/ansi_up@5.2.1/ansi_up.js"></script>
-  <style>
-    * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-    ::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
-    pre,code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
-    #toast{position:fixed;right:20px;bottom:20px;z-index:50}
-  </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-  <div id="toast" class="hidden"></div>
   <div class="max-w-7xl mx-auto p-6 space-y-6">
     <header class="flex items-center justify-between">
       <h1 class="text-2xl font-bold">API 자동화 모니터링</h1>
@@ -23,213 +15,173 @@
     </header>
 
     <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-      <div class="xl:col-span-1 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-5 space-y-4">
-        <div class="space-y-2">
-          <label class="text-xs font-medium text-slate-600">잡</label>
-          <select id="jobSelect" class="w-full border border-slate-200 rounded-lg px-3 py-2"></select>
-        </div>
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div class="text-sm font-semibold">잡 선택 및 실행</div>
+        <select id="jobSelect" class="w-full border rounded px-3 py-2"></select>
         <div class="flex gap-2">
           <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50">실행</button>
-          <button id="clearConsole" class="px-3 py-2 rounded-xl border">콘솔 지우기</button>
+          <button id="clearConsole" class="px-4 py-2 rounded-xl border">콘솔 지우기</button>
         </div>
         <div class="text-xs text-slate-500">현재 잡 설정</div>
-        <pre id="jobDetails" class="h-32 overflow-auto text-xs bg-slate-900 text-slate-100 rounded p-3"></pre>
-
-        <div class="pt-2 border-t border-slate-200">
-          <div class="flex items-center gap-2 mb-2">
-            <h3 class="text-sm font-semibold">스케줄</h3>
-            <span class="text-[10px] text-slate-500">(예: */5 * * * *)</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <input id="cron" class="flex-1 border border-slate-200 rounded-lg px-3 py-2" placeholder="CRON 표현식">
-            <button id="addSched" class="px-3 py-2 rounded-xl bg-emerald-600 text-white">추가</button>
-          </div>
-          <table class="w-full text-xs mt-2"><tbody id="schedTbody"></tbody></table>
-        </div>
+        <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[40px]"></div>
       </div>
 
-      <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-5">
+      <div class="xl:col-span-2 bg-white rounded-2xl shadow p-4">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold">실행 이력</h2>
+          <div class="text-sm font-semibold">실행 이력</div>
           <div class="flex items-center gap-2 text-xs">
             <label>페이지</label>
             <select id="pageSize" class="border rounded px-2 py-1"><option>20</option><option selected>50</option><option>100</option></select>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-end gap-3 mb-3">
+        <div class="flex items-end gap-3 mb-3">
           <div>
             <label class="block text-xs mb-1">잡</label>
-            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]">
-              <option value="">(전체)</option>
-            </select>
+            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">전체</option></select>
           </div>
           <div>
             <label class="block text-xs mb-1">기간</label>
-            <select id="filterPeriod" class="border rounded px-2 py-1">
+            <select id="range" class="border rounded px-2 py-1">
               <option value="">전체</option>
               <option value="24h">최근 24시간</option>
               <option value="7d">최근 7일</option>
             </select>
           </div>
           <div class="flex-1">
-            <label class="block text-xs mb-1">검색(잡/요약)</label>
+            <label class="block text-xs mb-1">키워드</label>
             <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="예: OTP / 9992">
           </div>
-          <button id="applyFilter" class="px-3 py-2 rounded-xl border">필터 적용</button>
-          <button id="resetFilter" class="px-3 py-2 rounded-xl border">초기화</button>
+          <button id="applyFilter" class="px-3 py-2 rounded border">적용</button>
+          <button id="resetFilter" class="px-3 py-2 rounded border">초기화</button>
         </div>
 
         <div class="overflow-auto">
           <table class="min-w-full text-sm">
-            <thead>
-              <tr class="text-left text-slate-500">
-                <th class="py-2 pr-4 cursor-pointer" data-sort="timestamp">시간</th>
-                <th class="py-2 pr-4 cursor-pointer" data-sort="job">잡</th>
-                <th class="py-2 pr-4">유형</th>
-                <th class="py-2 pr-4 cursor-pointer" data-sort="exitCode">상태</th>
-                <th class="py-2 pr-4">요약</th>
-                <th class="py-2 pr-4">리포트</th>
-                <th class="py-2">로그</th>
-              </tr>
-            </thead>
+            <thead><tr class="text-left text-slate-500">
+              <th class="py-2 pr-4" data-sort="timestamp">시간</th>
+              <th class="py-2 pr-4" data-sort="job">잡</th>
+              <th class="py-2 pr-4">유형</th>
+              <th class="py-2 pr-4" data-sort="exitCode">상태</th>
+              <th class="py-2 pr-4">요약</th>
+              <th class="py-2 pr-4">리포트</th>
+              <th class="py-2">로그</th>
+            </tr></thead>
             <tbody id="histTbody"></tbody>
           </table>
         </div>
       </div>
     </section>
 
-    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-5">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold">실시간 콘솔 (Newman 원본)</h2>
-        <label class="text-xs"><input id="autoScroll" type="checkbox" checked> 자동 스크롤</label>
-      </div>
-      <pre id="console" class="h-[420px] overflow-auto text-xs bg-slate-900 text-slate-100 rounded p-4 mt-3"></pre>
+    <section class="bg-white rounded-2xl shadow p-4">
+      <div class="text-sm font-semibold">실시간 콘솔 (Newman 원본)</div>
+      <pre id="console" class="h-[420px] overflow-auto text-xs bg-slate-900 text-slate-100 rounded p-3"></pre>
     </section>
   </div>
 
 <script>
-const $ = s=>document.querySelector(s);
-const toast=(m)=>{const t=document.getElementById('toast'); t.className=''; t.innerHTML=`<div class="bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow">${m}</div>`; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1600);};
-let ansiUp=new AnsiUp();
-let jobs=[], running=null, pageSize=50, historyRaw=[], historyView=[], sortKey='timestamp', sortAsc=false;
+let jobs=[], running=null, pageSize=50, historyRaw=[], historyView=[];
+let ansiUp = new AnsiUp();
 
-function formatKST(ts){ if(!ts) return ''; const d=new Date(ts.replace(' ','T')+'+09:00'); const p=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d); const g=t=>p.find(x=>x.type===t)?.value.padStart(2,'0'); return `${g('year')}-${g('month')}-${g('day')} ${g('hour')}:${g('minute')}:${g('second')}`; }
-
-function setStatusChip(){ const chip=$('#statusChip'); if(running){ chip.textContent=`실행 중: ${running.job}`; chip.className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-800"; $('#runBtn').disabled=true; } else { chip.textContent="대기"; chip.className="text-xs px-2 py-1 rounded bg-slate-200"; $('#runBtn').disabled=false; } }
+function setStatusChip(){
+  const chip=document.getElementById('statusChip');
+  chip.textContent = running ? ('실행 중: '+running.job) : '대기';
+  chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
+}
 
 async function loadJobs(){
   const res = await fetch('/api/jobs', { cache:'no-store' });
   jobs = await res.json();
-  const sel = $('#jobSelect'); const fj = $('#filterJob');
-  sel.innerHTML=''; fj.innerHTML='<option value="">(전체)</option>';
+  const sel=document.getElementById('jobSelect'); const fsel=document.getElementById('filterJob');
+  sel.innerHTML=''; fsel.innerHTML='<option value="">전체</option>';
   jobs.forEach(j=>{
     sel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`);
-    fj.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
+    fsel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
   });
-  if(!jobs.length){ alert('jobs 폴더가 비어있습니다. 서버 콘솔의 [JOBS] 로그를 확인하세요.'); }
-  updateJobDetails();
+  if (jobs.length===0) {
+    document.getElementById('jobSummary').textContent='jobs 폴더가 비어 있습니다.';
+  } else {
+    updateJobSummary();
+  }
+}
+function updateJobSummary(){
+  const name=document.getElementById('jobSelect').value;
+  const j=jobs.find(x=>x.name===name);
+  const chips=[`컬렉션: ${j?.collection?.split('/').pop()||'-'}`,`환경: ${j?.environment?.split('/').pop()||'-'}`];
+  document.getElementById('jobSummary').innerHTML = chips.map(c=>`<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`).join('');
 }
 
-function updateJobDetails(){
-  const name=$('#jobSelect').value; const j=jobs.find(x=>x.name===name);
-  $('#jobDetails').textContent=JSON.stringify(j||{},null,2);
+async function fetchHistory(){
+  const r=await fetch(`/api/history?page=1&size=${pageSize}`); const {items, running:run}=await r.json();
+  running=run||null; setStatusChip();
+  historyRaw=items||[]; historyView=historyRaw.slice(); renderHistory();
 }
-
-function withinPeriod(ts, period){
-  if(!period) return true;
-  const t = Date.parse(ts.replace(' ','T')+'+09:00');
-  const now=Date.now();
-  if(period==='24h') return (now - t) <= 24*3600*1000;
-  if(period==='7d')  return (now - t) <= 7*24*3600*1000;
-  return true;
-}
-function matchText(row, q){ if(!q) return true; const hay=(row.job||'')+' '+(row.summary||''); return hay.toLowerCase().includes(q.toLowerCase()); }
-
 function applyFilters(){
-  const fj=$('#filterJob').value; const per=$('#filterPeriod').value; const q=$('#searchText').value.trim();
-  historyView = historyRaw.filter(r => (!fj || r.job===fj) && withinPeriod(r.timestamp, per) && matchText(r, q));
+  const job=document.getElementById('filterJob').value;
+  const range=document.getElementById('range').value;
+  const q=document.getElementById('searchText').value.trim().toLowerCase();
+  const now=Date.now();
+  function inRange(ts){
+    if(!range) return true;
+    const t = Date.parse(ts.replace(' ','T')+'+09:00');
+    if(range==='24h') return (now - t) <= (24*3600*1000);
+    if(range==='7d')  return (now - t) <= (7*24*3600*1000);
+    return true;
+  }
+  historyView = historyRaw.filter(r => (!job || r.job===job) && inRange(r.timestamp) && (!q || ((r.job||'')+(r.summary||'')).toLowerCase().includes(q)));
   renderHistory();
 }
-function resetFilters(){ $('#filterJob').value=''; $('#filterPeriod').value=''; $('#searchText').value=''; historyView=historyRaw.slice(); renderHistory(); }
+function resetFilters(){ document.getElementById('filterJob').value=''; document.getElementById('range').value=''; document.getElementById('searchText').value=''; historyView=historyRaw.slice(); renderHistory(); }
 
-function sortHistory(){
-  historyView.sort((a,b)=>{
-    let va=a[sortKey], vb=b[sortKey];
-    if(sortKey==='timestamp'){ va=Date.parse(a.timestamp.replace(' ','T')+'+09:00'); vb=Date.parse(b.timestamp.replace(' ','T')+'+09:00'); }
-    if(va<vb) return sortAsc?-1:1; if(va>vb) return sortAsc?1:-1; return 0;
-  });
-}
 function renderHistory(){
-  sortHistory();
-  const tb=$('#histTbody'); tb.innerHTML='';
+  const tb=document.getElementById('histTbody'); tb.innerHTML='';
   historyView.slice().reverse().forEach(row=>{
     const ok=row.exitCode===0;
-    tb.insertAdjacentHTML('beforeend',`
+    tb.insertAdjacentHTML('beforeend', `
       <tr class="${ok?'':'bg-rose-50/40'}">
-        <td class="py-1 pr-4">${formatKST(row.timestamp)}</td>
+        <td class="py-1 pr-4">${row.timestamp||''}</td>
         <td class="py-1 pr-4">${row.job||''}</td>
         <td class="py-1 pr-4">${row.type||''}</td>
         <td class="py-1 pr-4">${ok?'<span class="text-emerald-700">성공</span>':'<span class="text-rose-700">실패</span>'}</td>
         <td class="py-1 pr-4">${(row.summary||'').replace(/</g,'&lt;')}</td>
-        <td class="py-1 pr-4">${row.report?('<a class="text-indigo-600 underline" href="'+row.report.replace(/^.*[\\\/]reports[\\\/]/,'/reports/')+'" target="_blank">HTML</a>'):''}</td>
+        <td class="py-1 pr-4">${row.report?('<a class="text-indigo-600 underline" href="'+row.report.replace(/^.*[\\/]reports[\\/]/,'/reports/')+'" target="_blank">HTML</a>'):''}</td>
         <td class="py-1"><a class="text-slate-700 underline" href="/logs/${row.stdout}" target="_blank">stdout</a></td>
       </tr>`);
   });
 }
 
-async function fetchHistory(){
-  const r=await fetch(`/api/history?page=1&size=${pageSize}`);
-  const { items, running: run } = await r.json();
-  running=run||null; setStatusChip();
-  historyRaw=items||[]; historyView=historyRaw.slice(); renderHistory();
-}
-
-function appendConsole(line){
-  const con=$('#console'); const html=(new AnsiUp()).ansi_to_html(line);
-  con.insertAdjacentHTML('beforeend', html+'<br/>');
-  if($('#autoScroll').checked) con.scrollTop=con.scrollHeight;
-}
-
 function startSSE(){
   const esState=new EventSource('/api/stream/state');
   esState.addEventListener('state', e=>{
-    const payload=JSON.parse(e.data);
-    const was=!!running; running=payload.running||null; setStatusChip();
-    if(was && !running){ fetchHistory(); toast('실행 완료'); }
-    $('#runBtn').disabled=!!running;
+    const payload=JSON.parse(e.data); const was=!!running;
+    running=payload.running||null; setStatusChip();
+    if(was && !running) fetchHistory();
+    document.getElementById('runBtn').disabled=!!running;
   });
   const esLog=new EventSource('/api/stream/logs');
-  esLog.addEventListener('log', e=>{ const {line}=JSON.parse(e.data); appendConsole(line); });
-}
-
-function bindUI(){
-  $('#jobSelect').onchange=updateJobDetails;
-  $('#pageSize').onchange=e=>{ pageSize=+e.target.value||50; fetchHistory(); };
-  $('#runBtn').onclick=async()=>{
-    const name=$('#jobSelect').value; if(!name){ toast('잡을 선택하세요'); return; }
-    $('#runBtn').disabled=true; $('#console').innerHTML='';
-    try{ const r=await fetch('/api/run/'+name,{method:'POST'}); if(!r.ok) throw new Error(await r.text()); toast('실행 시작'); }
-    catch(e){ toast('실행 실패'); $('#runBtn').disabled=false; }
-  };
-  $('#clearConsole').onclick=()=>$('#console').innerHTML='';
-  $('#applyFilter').onclick=applyFilters;
-  $('#resetFilter').onclick=resetFilters;
-  document.querySelectorAll('th[data-sort]').forEach(th=>{
-    th.addEventListener('click',()=>{ const key=th.getAttribute('data-sort'); if(sortKey===key) sortAsc=!sortAsc; else { sortKey=key; sortAsc=true; } renderHistory(); });
+  esLog.addEventListener('log', e=>{
+    const {line}=JSON.parse(e.data);
+    const con=document.getElementById('console');
+    con.insertAdjacentHTML('beforeend', (new AnsiUp()).ansi_to_html(line) + '<br/>');
+    con.scrollTop=con.scrollHeight;
   });
 }
 
+document.getElementById('jobSelect').onchange=updateJobSummary;
+document.getElementById('runBtn').onclick=async ()=>{
+  const name=document.getElementById('jobSelect').value;
+  document.getElementById('console').innerHTML='';
+  if(!name){ alert('잡이 없습니다. jobs/*.json을 확인하세요.'); return; }
+  await fetch('/api/run/'+name, { method:'POST' });
+};
+document.getElementById('clearConsole').onclick=()=> document.getElementById('console').innerHTML='';
+document.getElementById('applyFilter').onclick=applyFilters;
+document.getElementById('resetFilter').onclick=resetFilters;
+
 (async function init(){
-  bindUI();
   await loadJobs();
   await fetchHistory();
-  // schedules
-  const r=await fetch('/api/schedule'); const arr=await r.json(); const tb=$('#schedTbody');
-  tb.innerHTML=''; (arr||[]).forEach(s=> tb.insertAdjacentHTML('beforeend', `<tr><td class="py-1 pr-3">${s.name}</td><td class="py-1 pr-3">${s.cronExpr}</td><td class="py-1"><button data-del="${s.name}" class="text-rose-700 underline">삭제</button></td></tr>`));
-  tb.querySelectorAll('button[data-del]').forEach(b=> b.onclick=async()=>{ await fetch('/api/schedule/'+b.dataset.del,{method:'DELETE'}); location.reload(); });
   startSSE();
-  setStatusChip();
 })();
 </script>
 </body>
