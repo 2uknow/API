@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알람 설정 - API 자동화 모니터링</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div class="max-w-4xl mx-auto p-6 space-y-6">
+        <!-- 헤더 -->
+        <header class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">알람 설정</h1>
+                <p class="text-sm text-slate-500">API 테스트 실행 결과 알람을 설정합니다</p>
+            </div>
+            <a href="/" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">
+                대시보드로 돌아가기
+            </a>
+        </header>
+
+        <!-- 현재 설정 상태 -->
+        <section class="bg-white rounded-2xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">현재 설정 상태</h2>
+            <div id="currentStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </section>
+
+        <!-- 알람 설정 -->
+        <section class="bg-white rounded-2xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">알람 설정</h2>
+            <form id="alertConfigForm" class="space-y-6">
+                <!-- 전체 알람 활성화 -->
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                    <div>
+                        <h3 class="font-medium">알람 시스템 활성화</h3>
+                        <p class="text-sm text-slate-600">모든 알람 기능의 총 스위치입니다</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="run_event_alert" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <!-- 세부 알람 설정 -->
+                <div id="detailSettings" class="space-y-4 opacity-50 pointer-events-none">
+                    <h3 class="font-medium text-slate-700">세부 알람 설정</h3>
+                    
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" id="alert_on_start" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <div>
+                                <span class="font-medium">실행 시작 알람</span>
+                                <p class="text-sm text-slate-600">테스트 실행이 시작될 때 알람을 보냅니다</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" id="alert_on_success" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <div>
+                                <span class="font-medium">실행 성공 알람</span>
+                                <p class="text-sm text-slate-600">테스트가 성공적으로 완료되었을 때 알람을 보냅니다</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" id="alert_on_error" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                            <div>
+                                <span class="font-medium">실행 실패 알람</span>
+                                <p class="text-sm text-slate-600">테스트가 실패했을 때 알람을 보냅니다</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- 알람 방식 선택 -->
+                    <div class="pt-4">
+                        <h4 class="font-medium mb-3">알람 방식</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-3">
+                                <input type="radio" name="alert_method" value="text" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-medium">텍스트 메시지</span>
+                                    <p class="text-sm text-slate-600">간단한 텍스트 형태로 알람을 보냅니다</p>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center space-x-3">
+                                <input type="radio" name="alert_method" value="flex" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-medium">Flex 메시지</span>
+                                    <p class="text-sm text-slate-600">구조화된 카드 형태로 알람을 보냅니다 (LINE 등)</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 저장 버튼 -->
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <button type="button" id="testConnection" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                        연결 테스트
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        설정 저장
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 테스트 알람 -->
+        <section class="bg-white rounded-2xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">테스트 알람</h2>
+            <p class="text-sm text-slate-600 mb-4">설정된 알람이 제대로 작동하는지 테스트해보세요</p>
+            
+            <div class="flex flex-wrap gap-3">
+                <button type="button" class="test-alert-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" data-type="start">
+                    🚀 시작 알람 테스트
+                </button>
+                <button type="button" class="test-alert-btn px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600" data-type="success">
+                    ✅ 성공 알람 테스트
+                </button>
+                <button type="button" class="test-alert-btn px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600" data-type="error">
+                    ❌ 실패 알람 테스트
+                </button>
+            </div>
+        </section>
+
+        <!-- 웹훅 URL 설정 안내 -->
+        <section class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+            <h2 class="text-lg font-semibold mb-4 text-yellow-800">웹훅 URL 설정</h2>
+            <div class="text-sm text-yellow-700 space-y-2">
+                <p>알람을 받으려면 <code class="bg-yellow-100 px-2 py-1 rounded">config/settings.json</code> 파일에 웹훅 URL을 설정해야 합니다:</p>
+                <pre class="bg-yellow-100 p-3 rounded mt-3 overflow-x-auto"><code>{
+  "webhook_url": "https://your-webhook-url.com/webhook",
+  "run_event_alert": true,
+  "alert_on_start": true,
+  "alert_on_success": true,
+  "alert_on_error": true,
+  "alert_method": "flex"
+}</code></pre>
+                <p class="pt-2">또는 환경변수 <code class="bg-yellow-100 px-2 py-1 rounded">NW_HOOK</code>을 설정할 수도 있습니다.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- 알림 토스트 -->
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
+        <div class="bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[300px]">
+            <div class="flex items-start">
+                <div id="toast-icon" class="flex-shrink-0 w-5 h-5 mt-0.5"></div>
+                <div class="ml-3 flex-1">
+                    <p id="toast-message" class="text-sm font-medium text-gray-900"></p>
+                    <p id="toast-detail" class="text-sm text-gray-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="hideToast()" class="ml-4 text-gray-400 hover:text-gray-600">
+                    <span class="sr-only">닫기</span>
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 현재 설정 로드
+        async function loadCurrentConfig() {
+            try {
+                const response = await fetch('/api/alert/config');
+                const config = await response.json();
+                
+                // 현재 상태 표시
+                updateStatusDisplay(config);
+                
+                // 폼 필드 설정
+                document.getElementById('run_event_alert').checked = config.run_event_alert;
+                document.getElementById('alert_on_start').checked = config.alert_on_start;
+                document.getElementById('alert_on_success').checked = config.alert_on_success;
+                document.getElementById('alert_on_error').checked = config.alert_on_error;
+                
+                const methodRadio = document.querySelector(`input[name="alert_method"][value="${config.alert_method}"]`);
+                if (methodRadio) methodRadio.checked = true;
+                
+                // 상세 설정 활성화/비활성화
+                toggleDetailSettings(config.run_event_alert);
+                
+            } catch (error) {
+                showToast('오류', '설정을 불러오는 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // 상태 표시 업데이트
+        function updateStatusDisplay(config) {
+            const statusContainer = document.getElementById('currentStatus');
+            statusContainer.innerHTML = `
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span class="text-sm font-medium">알람 시스템</span>
+                    <span class="px-2 py-1 text-xs rounded-full ${config.run_event_alert ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${config.run_event_alert ? '활성화' : '비활성화'}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span class="text-sm font-medium">웹훅 URL</span>
+                    <span class="px-2 py-1 text-xs rounded-full ${config.webhook_url === '설정됨' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${config.webhook_url}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span class="text-sm font-medium">알람 방식</span>
+                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                        ${config.alert_method === 'flex' ? 'Flex 메시지' : '텍스트 메시지'}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span class="text-sm font-medium">활성화된 알람</span>
+                    <span class="text-xs text-slate-600">
+                        ${[
+                            config.alert_on_start && '시작',
+                            config.alert_on_success && '성공', 
+                            config.alert_on_error && '실패'
+                        ].filter(Boolean).join(', ') || '없음'}
+                    </span>
+                </div>
+            `;
+        }
+
+        // 상세 설정 토글
+        function toggleDetailSettings(enabled) {
+            const detailSettings = document.getElementById('detailSettings');
+            if (enabled) {
+                detailSettings.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                detailSettings.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        // 토스트 메시지 표시
+        function showToast(title, message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const titleEl = document.getElementById('toast-message');
+            const messageEl = document.getElementById('toast-detail');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            // 아이콘 설정
+            const iconColors = {
+                success: 'text-green-500',
+                error: 'text-red-500',
+                warning: 'text-yellow-500',
+                info: 'text-blue-500'
+            };
+            
+            icon.className = `flex-shrink-0 w-5 h-5 mt-0.5 ${iconColors[type] || iconColors.info}`;
+            icon.innerHTML = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
+            
+            toast.classList.remove('hidden');
+            
+            // 3초 후 자동 숨김
+            setTimeout(hideToast, 3000);
+        }
+
+        function hideToast() {
+            document.getElementById('toast').classList.add('hidden');
+        }
+
+        // 이벤트 리스너 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentConfig();
+            
+            // 메인 스위치 변경 시
+            document.getElementById('run_event_alert').addEventListener('change', function() {
+                toggleDetailSettings(this.checked);
+            });
+            
+            // 폼 제출
+            document.getElementById('alertConfigForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    run_event_alert: document.getElementById('run_event_alert').checked,
+                    alert_on_start: document.getElementById('alert_on_start').checked,
+                    alert_on_success: document.getElementById('alert_on_success').checked,
+                    alert_on_error: document.getElementById('alert_on_error').checked,
+                    alert_method: document.querySelector('input[name="alert_method"]:checked')?.value || 'text'
+                };
+                
+                try {
+                    const response = await fetch('/api/alert/config', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast('성공', '설정이 저장되었습니다.', 'success');
+                        loadCurrentConfig(); // 설정 다시 로드
+                    } else {
+                        showToast('오류', result.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('오류', '설정 저장 중 오류가 발생했습니다.', 'error');
+                }
+            });
+            
+            // 연결 테스트
+            document.getElementById('testConnection').addEventListener('click', async function() {
+                this.disabled = true;
+                this.textContent = '테스트 중...';
+                
+                try {
+                    const response = await fetch('/api/alert/test', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ type: 'success' })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast('연결 성공', '웹훅 연결이 정상적으로 작동합니다.', 'success');
+                    } else {
+                        showToast('연결 실패', result.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('연결 오류', '연결 테스트 중 오류가 발생했습니다.', 'error');
+                } finally {
+                    this.disabled = false;
+                    this.textContent = '연결 테스트';
+                }
+            });
+            
+            // 테스트 알람 버튼들
+            document.querySelectorAll('.test-alert-btn').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const type = this.dataset.type;
+                    const originalText = this.textContent;
+                    
+                    this.disabled = true;
+                    this.textContent = '전송 중...';
+                    
+                    try {
+                        const response = await fetch('/api/alert/test', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ type })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showToast('테스트 성공', `${type} 알람이 전송되었습니다.`, 'success');
+                        } else {
+                            showToast('테스트 실패', result.message, 'error');
+                        }
+                    } catch (error) {
+                        showToast('테스트 오류', '테스트 알람 전송 중 오류가 발생했습니다.', 'error');
+                    } finally {
+                        this.disabled = false;
+                        this.textContent = originalText;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

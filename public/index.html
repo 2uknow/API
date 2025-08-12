@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>API 자동화 모니터링</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/ansi_up@5.2.1/ansi_up.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <header class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">API 자동화 모니터링</h1>
+        <p class="text-sm text-slate-500">Postman Newman 기반 API 테스트 자동화 시스템</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">대기</span>
+        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          ⚙️ 알람 설정
+        </a>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div class="text-sm font-semibold">잡 선택 및 실행</div>
+        <select id="jobSelect" class="w-full border rounded px-3 py-2"></select>
+        <div class="flex gap-2">
+          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50">실행</button>
+          <button id="clearConsole" class="px-4 py-2 rounded-xl border">콘솔 지우기</button>
+        </div>
+        <div class="text-xs text-slate-500">현재 잡 설정</div>
+        <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[40px]"></div>
+        
+        <!-- 알람 상태 표시 -->
+        <div id="alertStatus" class="text-xs bg-blue-50 border border-blue-200 rounded p-3">
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-blue-700">알람 상태</span>
+            <span id="alertIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="xl:col-span-2 bg-white rounded-2xl shadow p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-semibold">실행 이력</div>
+          <div class="flex items-center gap-2 text-xs">
+            <label>페이지</label>
+            <select id="pageSize" class="border rounded px-2 py-1"><option>20</option><option selected>50</option><option>100</option></select>
+          </div>
+        </div>
+
+        <div class="flex items-end gap-3 mb-3">
+          <div>
+            <label class="block text-xs mb-1">잡</label>
+            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">전체</option></select>
+          </div>
+          <div>
+            <label class="block text-xs mb-1">기간</label>
+            <select id="range" class="border rounded px-2 py-1">
+              <option value="">전체</option>
+              <option value="24h">최근 24시간</option>
+              <option value="7d">최근 7일</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs mb-1">키워드</label>
+            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="성공 / 실패">
+          </div>
+          <button id="applyFilter" class="px-3 py-2 rounded border">적용</button>
+          <button id="resetFilter" class="px-3 py-2 rounded border">초기화</button>
+        </div>
+
+        <div class="overflow-auto">
+          <table class="min-w-full text-sm">
+            <thead><tr class="text-left text-slate-500">
+              <th class="py-2 pr-4" data-sort="timestamp">시간</th>
+              <th class="py-2 pr-4" data-sort="job">잡</th>
+              <th class="py-2 pr-4">유형</th>
+              <th class="py-2 pr-4" data-sort="exitCode">상태</th>
+              <th class="py-2 pr-4">요약</th>
+              <th class="py-2 pr-4">실행시간</th>
+              <th class="py-2 pr-4">리포트</th>
+              <th class="py-2">로그</th>
+            </tr></thead>
+            <tbody id="histTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-semibold">실시간 콘솔 (Newman 원본)</div>
+        <div class="flex items-center space-x-2 text-xs">
+          <span class="text-slate-500">실시간 로그</span>
+          <div id="logIndicator" class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+        </div>
+      </div>
+      <pre id="console" class="h-[420px] overflow-auto text-xs bg-slate-900 text-slate-100 rounded p-3 font-mono"></pre>
+    </section>
+  </div>
+
+<script>
+let jobs=[], running=null, pageSize=50, historyRaw=[], historyView=[];
+let ansiUp = new AnsiUp();
+
+function setStatusChip(){
+  const chip=document.getElementById('statusChip');
+  chip.textContent = running ? ('실행 중: '+running.job) : '대기';
+  chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
+}
+
+// 알람 상태 확인 및 표시
+async function checkAlertStatus() {
+  try {
+    const response = await fetch('/api/alert/config');
+    const config = await response.json();
+    const indicator = document.getElementById('alertIndicator');
+    
+    if (config.run_event_alert && config.webhook_url === '설정됨') {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
+      indicator.textContent = '활성화';
+    } else if (config.run_event_alert && config.webhook_url === '미설정') {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800';
+      indicator.textContent = 'URL 미설정';
+    } else {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
+      indicator.textContent = '비활성화';
+    }
+  } catch (error) {
+    console.warn('알람 상태 확인 실패:', error);
+    const indicator = document.getElementById('alertIndicator');
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
+    indicator.textContent = '오류';
+  }
+}
+
+async function loadJobs(){
+  const res = await fetch('/api/jobs', { cache:'no-store' });
+  jobs = await res.json();
+  const sel=document.getElementById('jobSelect'); const fsel=document.getElementById('filterJob');
+  sel.innerHTML=''; fsel.innerHTML='<option value="">전체</option>';
+  jobs.forEach(j=>{
+    sel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`);
+    fsel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
+  });
+  if (jobs.length===0) {
+    document.getElementById('jobSummary').textContent='jobs 폴더가 비어 있습니다.';
+  } else {
+    updateJobSummary();
+  }
+}
+
+function updateJobSummary(){
+  const name=document.getElementById('jobSelect').value;
+  const j=jobs.find(x=>x.name===name);
+  const chips=[`컬렉션: ${j?.collection?.split('/').pop()||'-'}`,`환경: ${j?.environment?.split('/').pop()||'-'}`];
+  document.getElementById('jobSummary').innerHTML = chips.map(c=>`<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`).join('');
+}
+
+async function fetchHistory(){
+  const r=await fetch(`/api/history?page=1&size=${pageSize}`); 
+  const {items, running:run}=await r.json();
+  running=run||null; setStatusChip();
+  historyRaw=items||[]; historyView=historyRaw.slice(); renderHistory();
+}
+
+function applyFilters(){
+  const job=document.getElementById('filterJob').value;
+  const range=document.getElementById('range').value;
+  const q=document.getElementById('searchText').value.trim().toLowerCase();
+  const now=Date.now();
+  function inRange(ts){
+    if(!range) return true;
+    const t = Date.parse(ts.replace(' ','T')+'+09:00');
+    if(range==='24h') return (now - t) <= (24*3600*1000);
+    if(range==='7d')  return (now - t) <= (7*24*3600*1000);
+    return true;
+  }
+  historyView = historyRaw.filter(r => (!job || r.job===job) && inRange(r.timestamp) && (!q || ((r.job||'')+(r.summary||'')).toLowerCase().includes(q)));
+  renderHistory();
+}
+
+function resetFilters(){ 
+  document.getElementById('filterJob').value=''; 
+  document.getElementById('range').value=''; 
+  document.getElementById('searchText').value=''; 
+  historyView=historyRaw.slice(); 
+  renderHistory(); 
+}
+
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return '-';
+  if (seconds < 60) return `${seconds}초`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}분 ${remainingSeconds}초`;
+}
+
+function renderHistory(){
+  const tb=document.getElementById('histTbody'); tb.innerHTML='';
+  historyView.slice().reverse().forEach(row=>{
+    const ok=row.exitCode===0;
+    const duration = formatDuration(row.duration);
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="${ok?'':'bg-rose-50/40'}">
+        <td class="py-1 pr-4 text-xs">${row.timestamp||''}</td>
+        <td class="py-1 pr-4 font-medium">${row.job||''}</td>
+        <td class="py-1 pr-4 text-xs">${row.type||''}</td>
+        <td class="py-1 pr-4">${ok?'<span class="text-emerald-700 text-sm">✅ 성공</span>':'<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
+        <td class="py-1 pr-4 text-xs">${(row.summary||'').replace(/</g,'&lt;')}</td>
+        <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
+        <td class="py-1 pr-4">${row.report?('<a class="text-indigo-600 underline text-xs" href="'+row.report.replace(/^.*[\\/]reports[\\/]/,'/reports/')+'" target="_blank">📊 HTML</a>'):''}</td>
+        <td class="py-1"><a class="text-slate-700 underline text-xs" href="/logs/${row.stdout}" target="_blank">📄 stdout</a></td>
+      </tr>`);
+  });
+}
+
+function startSSE(){
+  const esState=new EventSource('/api/stream/state');
+  esState.addEventListener('state', e=>{
+    const payload=JSON.parse(e.data); const was=!!running;
+    running=payload.running||null; setStatusChip();
+    if(was && !running) {
+      fetchHistory();
+      // 실행 완료 시 알람 상태도 다시 확인
+      setTimeout(checkAlertStatus, 1000);
+    }
+    document.getElementById('runBtn').disabled=!!running;
+  });
+  
+  const esLog=new EventSource('/api/stream/logs');
+  esLog.addEventListener('log', e=>{
+    const {line}=JSON.parse(e.data);
+    const con=document.getElementById('console');
+    con.insertAdjacentHTML('beforeend', ansiUp.ansi_to_html(line) + '<br/>');
+    con.scrollTop=con.scrollHeight;
+  });
+
+  // 연결 상태 표시
+  esState.addEventListener('open', () => {
+    document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+  });
+  
+  esState.addEventListener('error', () => {
+    document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+  });
+}
+
+// 이벤트 리스너 설정
+document.getElementById('jobSelect').onchange=updateJobSummary;
+
+document.getElementById('runBtn').onclick=async ()=>{
+  const name=document.getElementById('jobSelect').value;
+  document.getElementById('console').innerHTML='';
+  if(!name){ 
+    alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
+    return; 
+  }
+  
+  try {
+    const response = await fetch('/api/run/'+name, { method:'POST' });
+    if (!response.ok) {
+      const error = await response.json();
+      alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
+    }
+  } catch (error) {
+    alert(`요청 실패: ${error.message}`);
+  }
+};
+
+document.getElementById('clearConsole').onclick=()=> {
+  document.getElementById('console').innerHTML='';
+};
+
+document.getElementById('applyFilter').onclick=applyFilters;
+document.getElementById('resetFilter').onclick=resetFilters;
+
+// 페이지 크기 변경 시 히스토리 다시 로드
+document.getElementById('pageSize').onchange=()=>{
+  pageSize = parseInt(document.getElementById('pageSize').value);
+  fetchHistory();
+};
+
+// 검색창에서 엔터키로 필터 적용
+document.getElementById('searchText').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    applyFilters();
+  }
+});
+
+// 초기화 함수
+(async function init(){
+  await loadJobs();
+  await fetchHistory();
+  await checkAlertStatus();
+  startSSE();
+  
+  // 주기적으로 알람 상태 확인 (5분마다)
+  setInterval(checkAlertStatus, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
