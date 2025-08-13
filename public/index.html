@@ -12,10 +12,11 @@
     <header class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">API 자동화 모니터링</h1>
-        <p class="text-sm text-slate-500">Postman Newman 기반 API 테스트 자동화 시스템</p>
+        <p class="text-sm text-slate-500">Newman API 테스트 실행 및 모니터링</p>
       </div>
       <div class="flex items-center space-x-3">
         <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">대기</span>
+        <span id="connectionStatus" class="text-xs px-2 py-1 rounded bg-green-100 text-green-800">연결됨</span>
         <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
           ⚙️ 알람 설정
         </a>
@@ -27,47 +28,55 @@
         <div class="text-sm font-semibold">잡 선택 및 실행</div>
         <select id="jobSelect" class="w-full border rounded px-3 py-2"></select>
         <div class="flex gap-2">
-          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50">실행</button>
+          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">실행</button>
           <button id="clearConsole" class="px-4 py-2 rounded-xl border">콘솔 지우기</button>
         </div>
-        <div class="text-xs text-slate-500">현재 잡 설정</div>
-        <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[40px]"></div>
+        <div class="text-xs text-slate-500">잡 설정</div>
+        <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[120px]"></div>
         
-        <!-- 알람 상태 표시 -->
-        <div id="alertStatus" class="text-xs bg-blue-50 border border-blue-200 rounded p-3">
+        <!-- 실행 상태 표시 -->
+        <div id="runningStatus" class="hidden text-xs bg-blue-50 border border-blue-200 rounded p-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span class="text-blue-700 font-medium">실행 중...</span>
+          </div>
+          <div id="runningJob" class="text-blue-600 mt-1"></div>
+        </div>
+
+        <!-- 알람 상태 -->
+        <div class="text-xs text-slate-500">알람 설정</div>
+        <div id="alertStatus" class="text-xs bg-slate-50 border rounded p-3">
           <div class="flex items-center justify-between">
-            <span class="font-medium text-blue-700">알람 상태</span>
-            <span id="alertIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
+            <span>상태 확인 중...</span>
+ hover:text-indigo-800">새로고침</button>
           </div>
         </div>
       </div>
 
       <div class="xl:col-span-2 bg-white rounded-2xl shadow p-4">
         <div class="flex items-center justify-between mb-3">
-          <div class="text-sm font-semibold">실행 이력</div>
-          <div class="flex items-center gap-2 text-xs">
-            <label>페이지</label>
-            <select id="pageSize" class="border rounded px-2 py-1"><option>20</option><option selected>50</option><option>100</option></select>
+          <div class="text-sm font-semibold">실행 히스토리</div>
+          <div class="flex items-center space-x-2 text-xs">
+            <button id="refreshHistory" class="px-2 py-1 border rounded hover:bg-slate-50">새로고침</button>
+            <select id="pageSize" class="border rounded px-2 py-1">
+              <option value="20">20개</option>
+              <option value="50" selected>50개</option>
+              <option value="100">100개</option>
+            </select>
           </div>
         </div>
 
-        <div class="flex items-end gap-3 mb-3">
-          <div>
-            <label class="block text-xs mb-1">잡</label>
-            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">전체</option></select>
-          </div>
-          <div>
-            <label class="block text-xs mb-1">기간</label>
-            <select id="range" class="border rounded px-2 py-1">
-              <option value="">전체</option>
-              <option value="24h">최근 24시간</option>
-              <option value="7d">최근 7일</option>
-            </select>
-          </div>
-          <div class="flex-1">
-            <label class="block text-xs mb-1">키워드</label>
-            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="성공 / 실패">
-          </div>
+        <!-- 필터 -->
+        <div class="mb-3 flex flex-wrap gap-2 text-xs">
+          <select id="filterJob" class="border rounded px-2 py-1">
+            <option value="">모든 잡</option>
+          </select>
+          <select id="filterStatus" class="border rounded px-2 py-1">
+            <option value="">모든 상태</option>
+            <option value="0">성공</option>
+            <option value="1">실패</option>
+          </select>
+          <input id="filterDate" type="date" class="border rounded px-2 py-1" />
           <button id="applyFilter" class="px-3 py-2 rounded border">적용</button>
           <button id="resetFilter" class="px-3 py-2 rounded border">초기화</button>
         </div>
@@ -103,204 +112,609 @@
   </div>
 
 <script>
-let jobs=[], running=null, pageSize=50, historyRaw=[], historyView=[];
+let jobs = [], running = null, pageSize = 50, historyRaw = [], historyView = [];
 let ansiUp = new AnsiUp();
+let stateEventSource = null, logEventSource = null;
+let isConnected = false;
 
-function setStatusChip(){
-  const chip=document.getElementById('statusChip');
-  chip.textContent = running ? ('실행 중: '+running.job) : '대기';
-  chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
+// 연결 상태 관리 강화
+function updateConnectionStatus(connected) {
+  const status = document.getElementById('connectionStatus');
+  isConnected = connected;
+  if (connected) {
+    status.className = 'text-xs px-2 py-1 rounded bg-green-100 text-green-800';
+    status.textContent = '연결됨';
+  } else {
+    status.className = 'text-xs px-2 py-1 rounded bg-red-100 text-red-800';
+    status.textContent = '연결 끊김';
+    
+    // 연결이 끊어지면 즉시 재연결 시도
+    setTimeout(() => {
+      if (!isConnected) {
+        console.log('[CONNECTION] 재연결 시도 중...');
+        startSSE();
+      }
+    }, 1000);
+  }
 }
 
-// 알람 상태 확인 및 표시
+function setStatusChip() {
+  const chip = document.getElementById('statusChip');
+  const runningStatus = document.getElementById('runningStatus');
+  const runningJob = document.getElementById('runningJob');
+  const runBtn = document.getElementById('runBtn');
+  
+  if (running) {
+    chip.textContent = '실행 중: ' + running.job;
+    chip.className = 'text-xs px-2 py-1 rounded bg-amber-100 text-amber-800';
+    runningStatus.classList.remove('hidden');
+    runningJob.textContent = `잡: ${running.job} (시작: ${running.startAt})`;
+    runBtn.disabled = true;
+    runBtn.textContent = '실행 중...';
+    runBtn.className = 'px-4 py-2 rounded-xl bg-gray-400 text-white cursor-not-allowed';
+  } else {
+    chip.textContent = '대기';
+    chip.className = 'text-xs px-2 py-1 rounded bg-slate-200';
+    runningStatus.classList.add('hidden');
+    runBtn.disabled = false;
+    runBtn.textContent = '실행';
+    runBtn.className = 'px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700';
+  }
+}
+
+async function fetchJobs() {
+  try {
+    console.log('[UI] 잡 목록 요청 시작...');
+    const resp = await fetch('/api/jobs?' + Date.now()); // 캐시 방지
+    console.log(`[UI] 잡 목록 응답 상태: ${resp.status}`);
+    
+    jobs = await resp.json();
+    console.log(`[UI] 받은 잡 목록 (${jobs.length}개):`, jobs);
+    
+    const sel = document.getElementById('jobSelect');
+    sel.innerHTML = '<option value="">잡을 선택하세요</option>';
+    
+    if (jobs.length === 0) {
+      console.log('[UI] ⚠️ 잡이 없습니다!');
+      sel.innerHTML = '<option value="">❌ 잡이 없습니다</option>';
+    } else {
+      jobs.forEach(j => {
+        console.log(`[UI] 잡 추가: ${j.name} (${j.type})`);
+        sel.innerHTML += `<option value="${j.name}">${j.name} (${j.type})</option>`;
+      });
+    }
+    
+    // 필터 옵션도 업데이트
+    const filterJob = document.getElementById('filterJob');
+    const currentFilter = filterJob.value;
+    filterJob.innerHTML = '<option value="">모든 잡</option>';
+    const uniqueJobs = [...new Set(jobs.map(j => j.name))];
+    uniqueJobs.forEach(name => {
+      filterJob.innerHTML += `<option value="${name}" ${currentFilter === name ? 'selected' : ''}>${name}</option>`;
+    });
+    
+    console.log('[UI] 잡 목록 업데이트 완료');
+  } catch (err) {
+    console.error('[UI] ❌ 잡 로딩 실패:', err);
+    const sel = document.getElementById('jobSelect');
+    sel.innerHTML = '<option value="">❌ 로딩 실패</option>';
+  }
+}
+
+// 히스토리 자동 갱신 추가
+let historyUpdateInterval = null;
+
+async function fetchHistory() {
+  try {
+    const resp = await fetch(`/api/history?page=1&size=${pageSize}`);
+    const data = await resp.json();
+    historyRaw = data.items || [];
+    
+    // 서버에서 받은 실행 상태도 업데이트
+    if (data.running !== undefined) {
+      const wasRunning = !!running;
+      running = data.running;
+      setStatusChip();
+      
+      // 실행 시작 시 자동 갱신 시작
+      if (!wasRunning && running) {
+        startHistoryAutoUpdate();
+      }
+      // 실행 완료 시 자동 갱신 중지
+      else if (wasRunning && !running) {
+        stopHistoryAutoUpdate();
+      }
+    }
+    
+    applyFilters();
+  } catch (err) {
+    console.error('히스토리 로딩 실패:', err);
+  }
+}
+
+// 히스토리 자동 갱신 시작
+function startHistoryAutoUpdate() {
+  if (historyUpdateInterval) return; // 이미 실행 중이면 중복 방지
+  
+  console.log('[HISTORY] 자동 갱신 시작');
+  historyUpdateInterval = setInterval(() => {
+    if (running) {
+      fetchHistory();
+    } else {
+      stopHistoryAutoUpdate();
+    }
+  }, 3000); // 3초마다 갱신
+}
+
+// 히스토리 자동 갱신 중지
+function stopHistoryAutoUpdate() {
+  if (historyUpdateInterval) {
+    console.log('[HISTORY] 자동 갱신 중지');
+    clearInterval(historyUpdateInterval);
+    historyUpdateInterval = null;
+  }
+}
+
+// 서버 상태 확인
+async function checkServerStatus() {
+  try {
+    const resp = await fetch('/api/status');
+    const data = await resp.json();
+    running = data.running;
+    setStatusChip();
+    return true;
+  } catch (err) {
+    console.error('서버 상태 확인 실패:', err);
+    return false;
+  }
+}
+
+function updateJobSummary() {
+  const name = document.getElementById('jobSelect').value;
+  const div = document.getElementById('jobSummary');
+  if (!name) {
+    div.innerHTML = '<div class="text-center text-slate-400 py-4">잡을 선택해주세요</div>';
+    return;
+  }
+  const job = jobs.find(j => j.name === name);
+  if (!job) {
+    div.innerHTML = '<div class="text-center text-red-500 py-4">❌ 잡을 찾을 수 없습니다</div>';
+    return;
+  }
+  
+  // 멋진 카드 형태로 표시
+  const collectionName = job.collection.split('/').pop().replace('.postman_collection.json', '');
+  const envName = job.environment ? job.environment.split('/').pop().replace('.postman_environment.json', '') : null;
+  
+  div.innerHTML = `
+    <div class="space-y-3">
+      <div class="flex items-center space-x-2">
+        <div class="w-2 h-2 bg-indigo-500 rounded-full"></div>
+        <span class="font-semibold text-indigo-700">${job.name}</span>
+      </div>
+      
+      <div class="grid grid-cols-1 gap-2 text-xs">
+        <div class="flex items-center justify-between p-2 bg-slate-100 rounded">
+          <span class="text-slate-600">📁 컬렉션</span>
+          <span class="font-medium">${collectionName}</span>
+        </div>
+        ${envName ? `
+        <div class="flex items-center justify-between p-2 bg-slate-100 rounded">
+          <span class="text-slate-600">🌍 환경</span>
+          <span class="font-medium">${envName}</span>
+        </div>` : ''}
+        <div class="flex items-center justify-between p-2 bg-slate-100 rounded">
+          <span class="text-slate-600">📊 리포터</span>
+          <span class="font-medium">${job.reporters.length}개</span>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap gap-1">
+        ${job.reporters.map(r => `<span class="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded">${r}</span>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
 async function checkAlertStatus() {
   try {
-    const response = await fetch('/api/alert/config');
-    const config = await response.json();
-    const indicator = document.getElementById('alertIndicator');
+    const resp = await fetch('/api/alert/config');
+    const config = await resp.json();
+    const div = document.getElementById('alertStatus');
     
-    if (config.run_event_alert && config.webhook_url === '설정됨') {
-      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
-      indicator.textContent = '활성화';
-    } else if (config.run_event_alert && config.webhook_url === '미설정') {
-      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800';
-      indicator.textContent = 'URL 미설정';
-    } else {
-      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
-      indicator.textContent = '비활성화';
+    const enabled = config.run_event_alert;
+    const webhook = config.webhook_url !== '미설정';
+    
+    let statusText = enabled ? '활성화' : '비활성화';
+    let statusClass = enabled && webhook ? 'text-green-600' : 'text-slate-500';
+    
+    div.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="${statusClass}">${statusText}</span>
+          ${!webhook ? '<span class="text-red-500 ml-2">(웹훅 미설정)</span>' : ''}
+        </div>
+        <button id="refreshAlert" class="text-indigo-600 hover:text-indigo-800">새로고침</button>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">
+        시작: ${config.alert_on_start ? '✓' : '✗'} | 
+        성공: ${config.alert_on_success ? '✓' : '✗'} | 
+        실패: ${config.alert_on_error ? '✓' : '✗'}
+      </div>
+    `;
+    
+    document.getElementById('refreshAlert').onclick = checkAlertStatus;
+  } catch (err) {
+    console.error('알람 상태 확인 실패:', err);
+    document.getElementById('alertStatus').innerHTML = '<span class="text-red-500">상태 확인 실패</span>';
+  }
+}
+
+function applyFilters() {
+  const jobFilter = document.getElementById('filterJob').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+  const dateFilter = document.getElementById('filterDate').value;
+  
+  historyView = historyRaw.filter(row => {
+    // 잡 필터
+    if (jobFilter && row.job !== jobFilter) return false;
+    
+    // 상태 필터
+    if (statusFilter && row.exitCode.toString() !== statusFilter) return false;
+    
+    // 날짜 필터 (간단하게 수정)
+    if (dateFilter) {
+      const rowDate = new Date(row.timestamp);
+      const filterDate = new Date(dateFilter);
+      
+      const rowDateStr = rowDate.toISOString().split('T')[0];
+      const filterDateStr = filterDate.toISOString().split('T')[0];
+      
+      if (rowDateStr !== filterDateStr) return false;
     }
-  } catch (error) {
-    console.warn('알람 상태 확인 실패:', error);
-    const indicator = document.getElementById('alertIndicator');
-    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
-    indicator.textContent = '오류';
-  }
-}
-
-async function loadJobs(){
-  const res = await fetch('/api/jobs', { cache:'no-store' });
-  jobs = await res.json();
-  const sel=document.getElementById('jobSelect'); const fsel=document.getElementById('filterJob');
-  sel.innerHTML=''; fsel.innerHTML='<option value="">전체</option>';
-  jobs.forEach(j=>{
-    sel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`);
-    fsel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
-  });
-  if (jobs.length===0) {
-    document.getElementById('jobSummary').textContent='jobs 폴더가 비어 있습니다.';
-  } else {
-    updateJobSummary();
-  }
-}
-
-function updateJobSummary(){
-  const name=document.getElementById('jobSelect').value;
-  const j=jobs.find(x=>x.name===name);
-  const chips=[`컬렉션: ${j?.collection?.split('/').pop()||'-'}`,`환경: ${j?.environment?.split('/').pop()||'-'}`];
-  document.getElementById('jobSummary').innerHTML = chips.map(c=>`<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`).join('');
-}
-
-async function fetchHistory(){
-  const r=await fetch(`/api/history?page=1&size=${pageSize}`); 
-  const {items, running:run}=await r.json();
-  running=run||null; setStatusChip();
-  historyRaw=items||[]; historyView=historyRaw.slice(); renderHistory();
-}
-
-function applyFilters(){
-  const job=document.getElementById('filterJob').value;
-  const range=document.getElementById('range').value;
-  const q=document.getElementById('searchText').value.trim().toLowerCase();
-  const now=Date.now();
-  function inRange(ts){
-    if(!range) return true;
-    const t = Date.parse(ts.replace(' ','T')+'+09:00');
-    if(range==='24h') return (now - t) <= (24*3600*1000);
-    if(range==='7d')  return (now - t) <= (7*24*3600*1000);
+    
     return true;
-  }
-  historyView = historyRaw.filter(r => (!job || r.job===job) && inRange(r.timestamp) && (!q || ((r.job||'')+(r.summary||'')).toLowerCase().includes(q)));
+  });
+  
   renderHistory();
 }
 
-function resetFilters(){ 
-  document.getElementById('filterJob').value=''; 
-  document.getElementById('range').value=''; 
-  document.getElementById('searchText').value=''; 
-  historyView=historyRaw.slice(); 
-  renderHistory(); 
-}
-
-function formatDuration(seconds) {
-  if (!seconds && seconds !== 0) return '-';
-  if (seconds < 60) return `${seconds}초`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}분 ${remainingSeconds}초`;
-}
-
-function renderHistory(){
-  const tb=document.getElementById('histTbody'); tb.innerHTML='';
-  historyView.slice().reverse().forEach(row=>{
-    const ok=row.exitCode===0;
-    const duration = formatDuration(row.duration);
-    tb.insertAdjacentHTML('beforeend', `
-      <tr class="${ok?'':'bg-rose-50/40'}">
-        <td class="py-1 pr-4 text-xs">${row.timestamp||''}</td>
-        <td class="py-1 pr-4 font-medium">${row.job||''}</td>
-        <td class="py-1 pr-4 text-xs">${row.type||''}</td>
-        <td class="py-1 pr-4">${ok?'<span class="text-emerald-700 text-sm">✅ 성공</span>':'<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
-        <td class="py-1 pr-4 text-xs">${(row.summary||'').replace(/</g,'&lt;')}</td>
+function renderHistory() {
+  const tbody = document.getElementById('histTbody');
+  tbody.innerHTML = '';
+  
+  // 최신 순으로 정렬 (timestamp 내림차순)
+  const sortedHistory = [...historyView].sort((a, b) => b.timestamp - a.timestamp);
+  
+  sortedHistory.forEach(row => {
+    // 한국 시간으로 변환 (깔끔한 형식)
+    const date = new Date(row.timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    const displayTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    
+    const duration = row.duration ? `${row.duration}초` : '-';
+    tbody.innerHTML += `
+      <tr class="border-b hover:bg-slate-50">
+        <td class="py-1 pr-4 text-xs text-slate-600">${displayTime}</td>
+        <td class="py-1 pr-4 text-xs font-medium">${row.job}</td>
+        <td class="py-1 pr-4 text-xs">${row.type}</td>
+        <td class="py-1 pr-4">${row.exitCode === 0 ? 
+          '<span class="text-emerald-700 text-sm">✅ 성공</span>' : 
+          '<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
+        <td class="py-1 pr-4 text-xs">${(row.summary || '').replace(/</g, '&lt;')}</td>
         <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
-        <td class="py-1 pr-4">${row.report?('<a class="text-indigo-600 underline text-xs" href="'+row.report.replace(/^.*[\\/]reports[\\/]/,'/reports/')+'" target="_blank">📊 HTML</a>'):''}</td>
+        <td class="py-1 pr-4">${row.report ? 
+          ('<a class="text-indigo-600 underline text-xs" href="' + 
+           row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + 
+           '" target="_blank">📊 HTML</a>') : ''}</td>
         <td class="py-1"><a class="text-slate-700 underline text-xs" href="/logs/${row.stdout}" target="_blank">📄 stdout</a></td>
-      </tr>`);
+      </tr>`;
   });
 }
 
-function startSSE(){
-  const esState=new EventSource('/api/stream/state');
-  esState.addEventListener('state', e=>{
-    const payload=JSON.parse(e.data); const was=!!running;
-    running=payload.running||null; setStatusChip();
-    if(was && !running) {
-      fetchHistory();
-      // 실행 완료 시 알람 상태도 다시 확인
-      setTimeout(checkAlertStatus, 1000);
-    }
-    document.getElementById('runBtn').disabled=!!running;
+// SSE 연결 강화 - 연결 문제 해결
+function startSSE() {
+  // 기존 연결 정리
+  if (stateEventSource) {
+    stateEventSource.close();
+    stateEventSource = null;
+  }
+  if (logEventSource) {
+    logEventSource.close();
+    logEventSource = null;
+  }
+
+  console.log('[SSE] 연결 시작...');
+
+  // State EventSource - 연결 강화
+  stateEventSource = new EventSource('/api/stream/state');
+  
+  stateEventSource.addEventListener('connected', e => {
+    console.log('[SSE] State 스트림 연결 확인됨');
+    updateConnectionStatus(true);
   });
   
-  const esLog=new EventSource('/api/stream/logs');
-  esLog.addEventListener('log', e=>{
-    const {line}=JSON.parse(e.data);
-    const con=document.getElementById('console');
-    con.insertAdjacentHTML('beforeend', ansiUp.ansi_to_html(line) + '<br/>');
-    con.scrollTop=con.scrollHeight;
+  stateEventSource.addEventListener('state', e => {
+    const payload = JSON.parse(e.data);
+    const wasRunning = !!running;
+    
+    // 서버 상태로 덮어쓰기
+    running = payload.running || null;
+    setStatusChip();
+    
+    console.log('[SSE] 상태 업데이트:', running ? `실행 중 (${running.job})` : '대기');
+    
+    if (wasRunning && !running) {
+      // 실행 완료 시 즉시 히스토리 새로고침
+      console.log('[SSE] 실행 완료 - 히스토리 새로고침');
+      fetchHistory();
+      setTimeout(checkAlertStatus, 500);
+    }
+  });
+  
+  stateEventSource.addEventListener('heartbeat', e => {
+    console.log('[SSE] State heartbeat received');
+  });
+  
+  stateEventSource.addEventListener('open', () => {
+    console.log('[SSE] State 연결 성공');
+    updateConnectionStatus(true);
+  });
+  
+  stateEventSource.addEventListener('error', (e) => {
+    console.log('[SSE] State 연결 오류:', e);
+    updateConnectionStatus(false);
+    
+    // 즉시 재연결 시도
+    if (stateEventSource.readyState === EventSource.CLOSED) {
+      setTimeout(() => {
+        console.log('[SSE] State 재연결 시도...');
+        startSSE();
+      }, 2000);
+    }
   });
 
-  // 연결 상태 표시
-  esState.addEventListener('open', () => {
+  // Log EventSource - 연결 강화
+  logEventSource = new EventSource('/api/stream/logs?recent=true');
+  
+  logEventSource.addEventListener('connected', e => {
+    console.log('[SSE] Log 스트림 연결 확인됨');
     document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
   });
   
-  esState.addEventListener('error', () => {
+  logEventSource.addEventListener('log', e => {
+    const { line, id } = JSON.parse(e.data);
+    const con = document.getElementById('console');
+    
+    // 중복 로그 방지
+    if (!con.dataset.lastLogId || con.dataset.lastLogId !== id.toString()) {
+      con.insertAdjacentHTML('beforeend', ansiUp.ansi_to_html(line) + '<br/>');
+      con.dataset.lastLogId = id.toString();
+      con.scrollTop = con.scrollHeight;
+    }
+  });
+  
+  logEventSource.addEventListener('heartbeat', e => {
+    // heartbeat은 로그에 출력하지 않음
+  });
+  
+  logEventSource.addEventListener('open', () => {
+    console.log('[SSE] Log 연결 성공');
+    document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+  });
+  
+  logEventSource.addEventListener('error', (e) => {
+    console.log('[SSE] Log 연결 오류');
     document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+    
+    // 재연결 시도
+    if (logEventSource.readyState === EventSource.CLOSED) {
+      setTimeout(() => {
+        console.log('[SSE] Log 재연결 시도...');
+        startSSE();
+      }, 2000);
+    }
   });
 }
 
-// 이벤트 리스너 설정
-document.getElementById('jobSelect').onchange=updateJobSummary;
-
-document.getElementById('runBtn').onclick=async ()=>{
-  const name=document.getElementById('jobSelect').value;
-  document.getElementById('console').innerHTML='';
-  if(!name){ 
-    alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
-    return; 
-  }
-  
-  try {
-    const response = await fetch('/api/run/'+name, { method:'POST' });
-    if (!response.ok) {
-      const error = await response.json();
-      alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
+// 페이지 가시성 변경 시 연결 관리
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // 페이지가 보이게 되었을 때 서버 상태 확인
+    setTimeout(checkServerStatus, 1000);
+    
+    // 연결이 끊어졌다면 재연결 시도
+    if (!isConnected) {
+      setTimeout(startSSE, 1000);
     }
-  } catch (error) {
-    alert(`요청 실패: ${error.message}`);
-  }
-};
-
-document.getElementById('clearConsole').onclick=()=> {
-  document.getElementById('console').innerHTML='';
-};
-
-document.getElementById('applyFilter').onclick=applyFilters;
-document.getElementById('resetFilter').onclick=resetFilters;
-
-// 페이지 크기 변경 시 히스토리 다시 로드
-document.getElementById('pageSize').onchange=()=>{
-  pageSize = parseInt(document.getElementById('pageSize').value);
-  fetchHistory();
-};
-
-// 검색창에서 엔터키로 필터 적용
-document.getElementById('searchText').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    applyFilters();
   }
 });
 
-// 초기화 함수
-(async function init(){
-  await loadJobs();
+// 이벤트 리스너 설정
+document.getElementById('jobSelect').onchange = updateJobSummary;
+
+document.getElementById('runBtn').onclick = async () => {
+  const name = document.getElementById('jobSelect').value;
+  const btn = document.getElementById('runBtn');
+  
+  if (!name) {
+    alert('잡을 선택해주세요.');
+    return;
+  }
+  
+  if (running) {
+    alert('이미 실행 중인 잡이 있습니다.');
+    return;
+  }
+  
+  console.log(`[UI] 잡 실행 요청: ${name}`);
+  
+  // 즉시 UI 업데이트
+  btn.disabled = true;
+  btn.textContent = '요청 중...';
+  btn.className = 'px-4 py-2 rounded-xl bg-yellow-400 text-white cursor-not-allowed';
+  
+  // 콘솔 클리어
+  document.getElementById('console').innerHTML = '';
+  
+  try {
+    console.log(`[UI] API 호출 시작: POST /api/run/${name}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+    
+    const resp = await fetch(`/api/run/${name}?` + Date.now(), {  // 캐시 방지
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log(`[UI] API 응답 상태: ${resp.status} ${resp.statusText}`);
+    console.log(`[UI] 응답 헤더:`, [...resp.headers.entries()]);
+    
+    const contentType = resp.headers.get('content-type');
+    let result;
+    
+    if (contentType && contentType.includes('application/json')) {
+      result = await resp.json();
+    } else {
+      const text = await resp.text();
+      console.log(`[UI] 텍스트 응답:`, text);
+      throw new Error(`서버가 JSON이 아닌 응답을 반환했습니다: ${text.substring(0, 100)}`);
+    }
+    
+    console.log(`[UI] API 응답 내용:`, result);
+    
+    if (!resp.ok) {
+      console.error(`[UI] 실행 실패 (${resp.status}):`, result);
+      
+      // 409 에러 (이미 실행 중)인 경우 특별 처리
+      if (resp.status === 409) {
+        alert(`다른 탭에서 이미 실행 중입니다: ${result.current?.job || '알 수 없는 잡'}`);
+      } else {
+        alert(`실행 실패 (${resp.status}): ${result.message || result.error || '알 수 없는 오류'}`);
+      }
+      
+      // 실패 시 버튼 복원
+      btn.disabled = false;
+      btn.textContent = '실행';
+      btn.className = 'px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700';
+    } else {
+      console.log(`[UI] ✅ 실행 요청 성공:`, result);
+      
+      // 성공 시 즉시 로컬 상태 설정
+      running = { job: name, startAt: new Date().toLocaleTimeString('ko-KR') };
+      setStatusChip();
+      
+      console.log(`[UI] 로컬 상태 설정 완료, SSE 대기 중...`);
+    }
+  } catch (err) {
+    console.error('[UI] ❌ 요청 오류:', err);
+    
+    if (err.name === 'AbortError') {
+      alert('요청이 10초 내에 완료되지 않아 취소되었습니다. 서버 상태를 확인해주세요.');
+    } else {
+      alert(`요청 오류: ${err.message}`);
+    }
+    
+    // 오류 시 버튼 복원
+    btn.disabled = false;
+    btn.textContent = '실행';
+    btn.className = 'px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700';
+  }
+};
+
+document.getElementById('clearConsole').onclick = async () => {
+  // 서버에 로그 초기화 요청
+  try {
+    await fetch('/api/logs/clear', { method: 'POST' });
+  } catch (err) {
+    console.error('로그 초기화 실패:', err);
+  }
+  
+  // 로컬 콘솔도 즉시 지우기
+  const con = document.getElementById('console');
+  con.innerHTML = '';
+  con.dataset.lastLogId = '';
+};
+
+document.getElementById('refreshHistory').onclick = fetchHistory;
+
+document.getElementById('pageSize').onchange = (e) => {
+  pageSize = parseInt(e.target.value);
+  fetchHistory();
+};
+
+document.getElementById('applyFilter').onclick = applyFilters;
+document.getElementById('resetFilter').onclick = () => {
+  document.getElementById('filterJob').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterDate').value = '';
+  applyFilters();
+};
+
+// 초기화
+async function init() {
+  console.log('[INIT] 애플리케이션 초기화...');
+  
+  // 서버 상태 먼저 확인
+  const serverOk = await checkServerStatus();
+  if (!serverOk) {
+    updateConnectionStatus(false);
+  }
+  
+  await fetchJobs();
   await fetchHistory();
   await checkAlertStatus();
+  
   startSSE();
   
-  // 주기적으로 알람 상태 확인 (5분마다)
-  setInterval(checkAlertStatus, 5 * 60 * 1000);
-})();
+  console.log('[INIT] 초기화 완료');
+}
+
+// 페이지 로드 시 초기화
+window.addEventListener('load', init);
+
+// 페이지 언로드 시 연결 정리 강화
+window.addEventListener('beforeunload', () => {
+  console.log('[CLEANUP] 페이지 종료 - 연결 정리');
+  if (stateEventSource) {
+    stateEventSource.close();
+    stateEventSource = null;
+  }
+  if (logEventSource) {
+    logEventSource.close();
+    logEventSource = null;
+  }
+});
+
+// 페이지 숨김 시에도 연결 정리
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    console.log('[CLEANUP] 페이지 숨김 - 연결 정리');
+    if (stateEventSource) stateEventSource.close();
+    if (logEventSource) logEventSource.close();
+  } else if (document.visibilityState === 'visible') {
+    console.log('[CLEANUP] 페이지 표시 - 연결 재시작');
+    // 페이지가 다시 보이면 연결 재시작
+    setTimeout(() => {
+      if (!stateEventSource || stateEventSource.readyState === EventSource.CLOSED) {
+        startSSE();
+      }
+    }, 1000);
+  }
+});
 </script>
 </body>
 </html>
