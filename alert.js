@@ -311,64 +311,59 @@ export function buildRunStatusFlex(kind, data) {
 
   // Footer 추가 (리포트가 있는 경우 성공/실패 구분없이)
   if (data.reportPath) {
-    let footerContents = [];
     const reportUrl = buildReportUrl(data.reportPath);
+    const dashboardUrl = buildDashboardUrl();
 
-    if (reportUrl && validateUrl(reportUrl)) {
+    if (reportUrl && validateUrl(reportUrl) && validateUrl(dashboardUrl)) {
+      let footerContents = [];
+
       if (kind === 'error') {
-        // 실패 시: 실패 리포트 링크 (Primary)
+        // 실패 시: 실패 리포트 링크
         footerContents.push({
-          type: "button",
-          style: "primary",
-          color: "#C62828",
-          height: "sm",
-          action: {
-            type: "uri",
-            label: "실패보고서 보기",
-            uri: reportUrl
+          "type": "button",
+          "style": "primary",
+          "color": "#C62828",
+          "height": "sm",
+          "action": {
+            "type": "uri",
+            "label": "🔍 실패보고서 보기",
+            "uri": reportUrl
           }
         });
       } else if (kind === 'success') {
-        // 성공 시: 성공 리포트 링크 (Primary)
+        // 성공 시: 성공 리포트 링크
         footerContents.push({
-          type: "button",
-          style: "primary", 
-          color: "#2E7D32",
-          height: "sm",
-          action: {
-            type: "uri",
-            label: "상세보고서 보기",
-            uri: reportUrl
+          "type": "button",
+          "style": "primary",
+          "color": "#2E7D32",
+          "height": "sm",
+          "action": {
+            "type": "uri",
+            "label": "📊 상세보고서 보기",
+            "uri": reportUrl
           }
         });
       }
-    }
 
-    // 공통: 대시보드 링크 (Secondary 버튼)
-    if (footerContents.length > 0) {
-      const dashboardUrl = buildDashboardUrl();
-      if (validateUrl(dashboardUrl)) {
-        footerContents.push({
-          type: "button",
-          style: "secondary",
-          height: "sm",
-          action: {
-            type: "uri",
-            label: "대시보드",
-            uri: dashboardUrl
-          }
-        });
-      }
-    }
+      // 대시보드 링크 추가 (두 번째 버튼)
+      footerContents.push({
+        "type": "button",
+        "style": "secondary",
+        "color": "#0E71EB",
+        "height": "sm",
+        "action": {
+          "type": "uri",
+          "label": "🖥️ 대시보드",
+          "uri": dashboardUrl
+        }
+      });
 
-    // Footer가 있는 경우에만 추가
-    if (footerContents.length > 0) {
+      // Footer 추가
       flexMessage.content.contents.footer = {
-        type: "box",
-        layout: "vertical",
-        spacing: "sm",
-        contents: footerContents,
-        paddingAll: "15px"
+        "type": "box",
+        "layout": "vertical",
+        "spacing": "sm",
+        "contents": footerContents
       };
     }
   }
