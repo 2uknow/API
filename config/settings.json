@@ -1,23 +1,46 @@
 {
-  "site_port": 3000,
+  "// === 서버 기본 설정 ===": "주석은 실제 사용 시 제거",
+  "site_port": 3001,
+  "history_keep": 500,
+  "report_keep_days": 30,
   "timezone": "Asia/Seoul",
-  "history_keep": 1000,
-  "report_keep_days": 60,
   "run_mode": "cli",
-  "webhook_enabled": true,
-  "webhook_url": "https://naverworks.danal.co.kr/message/direct/service/channels/NEWMAN",
-  "webhook_timeout_ms": 8000,
-  "webhook_insecure_tls": true,
-  "notify_on": [
-    "start",
-    "success",
-    "fail",
-    "info"
-  ],
-  "webhook_format": "flex",
+
+  "// === URL 설정 (우선순위: 환경변수 > base_url > domain > 자동감지) ===": "",
+  "// 방법 1: 직접 URL 지정 (현재 상황에 적합)": "",
+  "base_url": "http://192.168.1.100:3000",
+  
+  "// 방법 2: 도메인 기반 설정 (미래 확장용, base_url 주석처리 후 사용)": "",
+  "// domain": "api-monitor.company.com",
+  "// use_https": false,
+
+  "// === 알람 시스템 설정 ===": "",
+  "webhook_url": "YOUR_NAVER_WORKS_WEBHOOK_URL_HERE",
   "run_event_alert": true,
-  "alert_on_start": false,
-  "alert_on_success": false,
+  "alert_on_start": true,
+  "alert_on_success": true,
   "alert_on_error": true,
-  "alert_method": "flex"
+  "alert_method": "flex",
+
+  "// === 설정 시나리오별 예시 ===": "",
+  "// 현재 개발 환경: base_url 사용": "",
+  "// 팀 내부 서버: base_url을 팀 서버 IP로 변경": "",
+  "// 도메인 적용 후: base_url 주석처리하고 domain, use_https 사용": "",
+  "// 클라우드 배포: 환경변수 BASE_URL 사용": "",
+
+  "// === 도메인 설정 예시들 ===": "",
+  "// HTTP 도메인": "",
+  "// \"domain\": \"api-monitor.company.com\",": "",
+  "// \"use_https\": false,": "",
+  "// \"site_port\": 80": "",
+
+  "// HTTPS 도메인": "",
+  "// \"domain\": \"api-monitor.company.com\",": "",
+  "// \"use_https\": true,": "",
+  "// \"site_port\": 443": "",
+
+  "// 커스텀 포트": "",
+  "// \"domain\": \"api-monitor.company.com\",": "",
+  "// \"use_https\": true,": "",
+  "// \"site_port\": 8080": ""
 }

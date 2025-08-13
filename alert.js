@@ -1,8 +1,9 @@
-// alert.js (개선된 알람 시스템)
+// alert.js (확장성 있는 URL 관리 버전)
 import https from 'https';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 const cfgPath = path.join(process.cwd(), 'config', 'settings.json');
 
@@ -21,6 +22,81 @@ function getHookUrl() {
   return process.env.NW_HOOK || webhook_url || '';
 }
 
+// IP 주소 자동 감지 함수
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // IPv4이고 내부 주소가 아닌 것 찾기
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost'; // 기본값
+}
+
+// 확장성 있는 베이스 URL 관리
+function getBaseUrl() {
+  const config = readCfg();
+  
+  // 1순위: 환경변수 BASE_URL (배포 시 유용)
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL.replace(/\/$/, ''); // 끝의 / 제거
+  }
+  
+  // 2순위: 설정 파일의 base_url (수동 설정)
+  if (config.base_url) {
+    return config.base_url.replace(/\/$/, '');
+  }
+  
+  // 3순위: 도메인 설정이 있는 경우
+  if (config.domain) {
+    const protocol = config.use_https ? 'https' : 'http';
+    const port = config.use_https && config.site_port === 443 ? '' 
+               : !config.use_https && config.site_port === 80 ? ''
+               : `:${config.site_port || 3001}`;  // 동적으로 포트 읽기
+    return `${protocol}://${config.domain}${port}`;
+  }
+  
+  // 4순위: IP 자동 감지 (개발 환경)
+  const ip = getLocalIP();
+  const port = config.site_port || 3001;  // 동적으로 포트 읽기
+  return `http://${ip}:${port}`;
+}
+
+// URL 빌더 헬퍼 함수들
+export function buildDashboardUrl() {
+  return getBaseUrl();
+}
+
+export function buildReportUrl(reportPath) {
+  if (!reportPath) return null;
+  const baseUrl = getBaseUrl();
+  const fileName = path.basename(reportPath);
+  return `${baseUrl}/reports/${fileName}`;
+}
+
+export function buildLogsUrl() {
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}/logs`;
+}
+
+export function buildHistoryUrl() {
+  const baseUrl = getBaseUrl();
+  return `${baseUrl}/#history`;
+}
+
+// URL 검증 함수
+function validateUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export async function sendTextMessage(text) {
   const url = getHookUrl();
   if (!url) {
@@ -28,9 +104,7 @@ export async function sendTextMessage(text) {
     return { ok:false, status:0, body:'No webhook_url configured' };
   }
 
-  // 일부 환경에서 text/plain을 요구하면 아래 주석 해제
   const asText = !!process.env.TEXT_ONLY;
-
   const body = asText ? text : JSON.stringify({ content: { type:'text', text } });
   const headers = asText
     ? { 'Content-Type': 'text/plain;charset=UTF-8' }
@@ -84,7 +158,7 @@ export async function sendFlexMessage(flex) {
   }
 }
 
-/** 실행 상태 알림을 위한 Flex 메시지 생성 */
+/** 실행 상태 알림을 위한 Flex 메시지 생성 (확장성 있는 Footer 링크 포함) */
 export function buildRunStatusFlex(kind, data) {
   const headerText = kind === 'start' ? '🚀 실행 시작'
                     : kind === 'success' ? '✅ 실행 성공'
@@ -152,9 +226,20 @@ export function buildRunStatusFlex(kind, data) {
         color: '#666666'
       });
     }
+
+    // 실패 시에도 리포트 생성됨을 알림
+    if (data.reportPath) {
+      bodyContents.push({
+        type: 'text',
+        text: '📊 실패 상세 리포트가 생성되었습니다.',
+        wrap: true,
+        size: 'xs',
+        color: '#C62828'
+      });
+    }
   }
 
-  // 성공한 경우 리포트 링크 추가 (옵션)
+  // 성공한 경우 리포트 링크 추가
   if (kind === 'success' && data.reportPath) {
     bodyContents.push({
       type: 'separator',
@@ -184,6 +269,7 @@ export function buildRunStatusFlex(kind, data) {
     align: 'end'
   });
 
+  // Flex 메시지 기본 구조
   const flexMessage = {
     content: {
       type: 'flex',
@@ -223,10 +309,74 @@ export function buildRunStatusFlex(kind, data) {
     }
   };
 
+  // Footer 추가 (리포트가 있는 경우 성공/실패 구분없이)
+  if (data.reportPath) {
+    let footerContents = [];
+    const reportUrl = buildReportUrl(data.reportPath);
+
+    if (reportUrl && validateUrl(reportUrl)) {
+      if (kind === 'error') {
+        // 실패 시: 실패 리포트 링크 (Primary)
+        footerContents.push({
+          type: "button",
+          style: "primary",
+          color: "#C62828",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "실패보고서 보기",
+            uri: reportUrl
+          }
+        });
+      } else if (kind === 'success') {
+        // 성공 시: 성공 리포트 링크 (Primary)
+        footerContents.push({
+          type: "button",
+          style: "primary", 
+          color: "#2E7D32",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "상세보고서 보기",
+            uri: reportUrl
+          }
+        });
+      }
+    }
+
+    // 공통: 대시보드 링크 (Secondary 버튼)
+    if (footerContents.length > 0) {
+      const dashboardUrl = buildDashboardUrl();
+      if (validateUrl(dashboardUrl)) {
+        footerContents.push({
+          type: "button",
+          style: "secondary",
+          height: "sm",
+          action: {
+            type: "uri",
+            label: "대시보드",
+            uri: dashboardUrl
+          }
+        });
+      }
+    }
+
+    // Footer가 있는 경우에만 추가
+    if (footerContents.length > 0) {
+      flexMessage.content.contents.footer = {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: footerContents,
+        paddingAll: "15px"
+      };
+    }
+  }
+
   return flexMessage;
 }
 
-/** 간단한 상태 알림을 위한 텍스트 생성 */
+/** 간단한 상태 알림을 위한 텍스트 생성 (확장성 있는 링크 포함) */
 export function buildStatusText(kind, data) {
   let message = '';
   
@@ -243,6 +393,19 @@ export function buildStatusText(kind, data) {
     message += `잡: ${data.jobName}\n`;
     message += `실행시간: ${data.duration}초\n`;
     message += `종료시간: ${data.endTime}`;
+    
+    // 성공 시에도 링크 추가
+    if (data.reportPath) {
+      const reportUrl = buildReportUrl(data.reportPath);
+      if (reportUrl && validateUrl(reportUrl)) {
+        message += `\n\n📊 상세보고서: ${reportUrl}`;
+      }
+    }
+    
+    const dashboardUrl = buildDashboardUrl();
+    if (validateUrl(dashboardUrl)) {
+      message += `\n🖥️ 대시보드: ${dashboardUrl}`;
+    }
   } else if (kind === 'error') {
     message = `❌ API 테스트 실행 실패\n`;
     message += `잡: ${data.jobName}\n`;
@@ -252,45 +415,50 @@ export function buildStatusText(kind, data) {
     if (data.errorSummary) {
       message += `\n오류: ${data.errorSummary}`;
     }
+    
+    // 실패 시에도 리포트 링크 추가 (있는 경우)
+    if (data.reportPath) {
+      const reportUrl = buildReportUrl(data.reportPath);
+      if (reportUrl && validateUrl(reportUrl)) {
+        message += `\n\n📊 실패보고서: ${reportUrl}`;
+      }
+    }
+    
+    // 대시보드 링크 추가
+    const dashboardUrl = buildDashboardUrl();
+    if (validateUrl(dashboardUrl)) {
+      message += `\n🖥️ 대시보드: ${dashboardUrl}`;
+    }
   }
   
   return message;
 }
 
-/** 웹훅 URL 유효성 검사 */
-export function validateWebhookUrl(url) {
-  if (!url) return { valid: false, message: 'URL이 비어있습니다.' };
-  
-  try {
-    const parsed = new URL(url);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return { valid: false, message: 'HTTP 또는 HTTPS URL이어야 합니다.' };
-    }
-    return { valid: true, message: 'URL이 유효합니다.' };
-  } catch (e) {
-    return { valid: false, message: '유효하지 않은 URL 형식입니다.' };
-  }
-}
-
-/** 알람 설정 검증 */
-export function validateAlertConfig(config) {
-  const errors = [];
-  
-  if (config.run_event_alert && !getHookUrl()) {
-    errors.push('알람이 활성화되어 있지만 webhook_url이 설정되지 않았습니다.');
-  }
-  
-  if (config.alert_method && !['text', 'flex'].includes(config.alert_method)) {
-    errors.push('alert_method는 "text" 또는 "flex"여야 합니다.');
-  }
+// 디버깅 및 설정 확인을 위한 함수들
+export function getUrlInfo() {
+  const config = readCfg();
+  const baseUrl = getBaseUrl();
   
   return {
-    valid: errors.length === 0,
-    errors: errors
+    baseUrl,
+    source: process.env.BASE_URL ? 'environment' 
+          : config.base_url ? 'config_base_url'
+          : config.domain ? 'config_domain'
+          : 'auto_detected',
+    config: {
+      domain: config.domain || null,
+      use_https: config.use_https || false,
+      site_port: config.site_port || 3001,  // 동적으로 읽기
+      base_url: config.base_url || null
+    },
+    environment: {
+      BASE_URL: process.env.BASE_URL || null
+    },
+    auto_detected_ip: getLocalIP()
   };
 }
 
-/** 연결 테스트 */
+// 연결 테스트 함수
 export async function testWebhookConnection() {
   const url = getHookUrl();
   if (!url) {
@@ -304,7 +472,7 @@ export async function testWebhookConnection() {
     const testMessage = {
       content: {
         type: 'text',
-        text: '🔧 API 자동화 모니터링 시스템 연결 테스트\n테스트 시간: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+        text: '🔧 Danal External API 모니터링 시스템 연결 테스트\n테스트 시간: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       }
     };
 
@@ -344,4 +512,52 @@ export async function testWebhookConnection() {
       error: error.message
     };
   }
+}
+
+// 설정 예시를 위한 함수
+export function getConfigExamples() {
+  return {
+    development: {
+      description: "개발 환경 (IP 자동 감지)",
+      config: {
+        site_port: 3000
+      }
+    },
+    production_ip: {
+      description: "운영 환경 (IP 기반)",
+      config: {
+        base_url: "http://192.168.1.100:3000"
+      }
+    },
+    production_domain_http: {
+      description: "운영 환경 (도메인, HTTP)",
+      config: {
+        domain: "danal-api-monitor.company.com",
+        site_port: 80,
+        use_https: false
+      }
+    },
+    production_domain_https: {
+      description: "운영 환경 (도메인, HTTPS)",
+      config: {
+        domain: "danal-api-monitor.company.com", 
+        site_port: 443,
+        use_https: true
+      }
+    },
+    production_domain_custom_port: {
+      description: "운영 환경 (도메인, 커스텀 포트)",
+      config: {
+        domain: "danal-api-monitor.company.com",
+        site_port: 8080,
+        use_https: true
+      }
+    },
+    docker_compose: {
+      description: "Docker Compose 환경",
+      environment: {
+        BASE_URL: "https://danal-api-monitor.company.com"
+      }
+    }
+  };
 }
