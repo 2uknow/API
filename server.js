@@ -221,6 +221,7 @@ function cleanupOldReports(){
   } 
 }
 
+// alert.js의 sendAlert 함수에서 올바른 메시지 생성 함수 호출
 async function sendAlert(type, data) {
   const config = readCfg();
   
@@ -239,24 +240,12 @@ async function sendAlert(type, data) {
     let result;
     
     if (config.alert_method === 'flex') {
-      // 통계 정보가 있으면 buildRunStatusFlexWithStats 사용, 없으면 기본 함수 사용
-      const flexData = data.stats 
-        ? buildRunStatusFlexWithStats(type, data)
-        : buildRunStatusFlex(type, data);
+      // Flex 메시지 전송 (Newman 결과 포함)
+      const flexData = buildRunStatusFlex(type, data);
       result = await sendFlexMessage(flexData);
     } else {
-      // 텍스트 메시지 전송
-      let message;
-      if (type === 'start') {
-        message = `🚀 API 테스트 실행 시작\n잡: ${data.jobName}\n시간: ${data.startTime}`;
-      } else if (type === 'success') {
-        message = `✅ API 테스트 실행 성공\n잡: ${data.jobName}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
-      } else if (type === 'error') {
-        message = `❌ API 테스트 실행 실패\n잡: ${data.jobName}\n종료코드: ${data.exitCode}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
-        if (data.errorSummary) {
-          message += `\n오류: ${data.errorSummary}`;
-        }
-      }
+      // 텍스트 메시지 전송 (Newman 결과 포함)
+      const message = buildStatusText(type, data);  // ← 이 함수를 사용해야 함
       result = await sendTextMessage(message);
     }
 
@@ -271,7 +260,45 @@ async function sendAlert(type, data) {
   }
 }
 
-
+// Newman JSON 리포트 파싱 함수 추가
+function parseNewmanJsonReport(jsonReportPath) {
+  try {
+    if (!fs.existsSync(jsonReportPath)) {
+      return null;
+    }
+    
+    const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf-8'));
+    const run = reportData.run;
+    
+    if (!run) return null;
+    
+    const stats = run.stats;
+    const failures = run.failures || [];
+    
+    return {
+      summary: {
+        iterations: stats.iterations,
+        requests: stats.requests,
+        testScripts: stats.testScripts,
+        prerequestScripts: stats.prerequestScripts,
+        assertions: stats.assertions
+      },
+      failures: failures.map(failure => ({
+        source: failure.source?.name || 'Unknown',
+        error: failure.error?.message || 'Unknown error',
+        test: failure.error?.test || null
+      })),
+      timings: {
+        responseAverage: run.timings?.responseAverage || 0,
+        responseMin: run.timings?.responseMin || 0,
+        responseMax: run.timings?.responseMax || 0
+      }
+    };
+  } catch (error) {
+    console.error('JSON 리포트 파싱 오류:', error);
+    return null;
+  }
+}
 // API: jobs
 app.get('/api/jobs', (req,res)=>{
   const dir = path.join(root, 'jobs');
@@ -606,43 +633,38 @@ async function runJob(jobName){
       s.split(/\r?\n/).forEach(line => line && broadcastLog(`[${jobName}] ${line}`));
     });
     
-    proc.on('close', async (code)=>{
+   proc.on('close', async (code)=>{
       outStream.end(); 
       errStream.end();
       
       const endTime = nowInTZString();
       const duration = Math.round((Date.now() - startTs) / 1000);
       
-      // Newman 결과 파싱
-      const newmanStats = parseNewmanResults(jsonReport);
-      
-      // 해당 잡을 실행 중 목록에서 제거
-      state.runningJobs.delete(jobName);
-      
-      broadcastLog(`[END] ${jobName} - Exit Code: ${code} (${state.runningJobs.size}개 잡 남음)`);
+      broadcastLog(`[DONE] exit=${code}`);
 
-      // 상태 브로드캐스트
-      broadcastState({ 
-        runningJobs: Array.from(state.runningJobs.keys()),
-        totalRunning: state.runningJobs.size 
-      });
+      // Newman JSON 리포트에서 상세 결과 파싱
+      let newmanResults = null;
+      try {
+        // JSON 리포트 파일이 생성될 때까지 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        newmanResults = parseNewmanJsonReport(jsonReport);
+      } catch (error) {
+        console.error('Newman 결과 파싱 실패:', error);
+      }
 
-      // history 저장 - Newman 통계 포함
+      // history 저장
       const history = histRead();
       const historyEntry = {
         timestamp: endTime,
         job: jobName,
         type: job.type,
         exitCode: code,
-        summary: newmanStats ? 
-          `${newmanStats.tests.passed}/${newmanStats.tests.total} 테스트 통과, ${newmanStats.requests.passed}/${newmanStats.requests.total} 요청 성공` :
-          `duration=${duration}s`,
-        report: fs.existsSync(htmlReport) ? htmlReport : null,
+        summary: `cli=${path.basename(cliExport)}`,
+        report: htmlReport,
         stdout: path.basename(stdoutPath),
         stderr: path.basename(stderrPath),
         tags: [],
-        duration: duration,
-        newmanStats: newmanStats // Newman 통계 저장
+        duration: duration
       };
       
       history.push(historyEntry);
@@ -655,7 +677,7 @@ async function runJob(jobName){
       histWrite(history);
       cleanupOldReports();
 
-      // 알람 데이터 준비 - Newman 통계 포함
+      // 알람 데이터 준비 (Newman 결과 포함)
       const alertData = {
         jobName,
         startTime,
@@ -664,19 +686,23 @@ async function runJob(jobName){
         exitCode: code,
         collection: path.basename(collection),
         environment: environment ? path.basename(environment) : null,
-        reportPath: fs.existsSync(htmlReport) ? htmlReport : null,
-        newmanStats: newmanStats
+        reportPath: htmlReport,
+        newmanResults // Newman 상세 결과 추가
       };
 
       // 성공/실패에 따른 알람 전송
       if (code === 0) {
+        // 성공 알람
         await sendAlert('success', alertData);
       } else {
+        // 실패 알람 - 에러 요약 추가
         alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n');
         await sendAlert('error', alertData);
       }
 
-      resolve({ started:true, code, newmanStats });
+      state.running = null;
+      broadcastState({ running: null });
+      resolve({ started:true, code });
     });
 
     proc.on('error', async (err) => {

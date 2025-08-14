@@ -84,140 +84,6 @@ export async function sendFlexMessage(flex) {
   }
 }
 
-/** 실행 상태 알림을 위한 Flex 메시지 생성 */
-export function buildRunStatusFlex(kind, data) {
-  const headerText = kind === 'start' ? '🚀 실행 시작'
-                    : kind === 'success' ? '✅ 실행 성공'
-                    : '❌ 실행 실패';
-
-  const headerColor = kind === 'error' ? '#C62828'
-                    : kind === 'success' ? '#2E7D32'
-                    : '#1976D2';
-
-  const timeText = kind === 'start' ? `시작: ${data.startTime}`
-                  : `종료: ${data.endTime}`;
-
-  const bodyContents = [
-    {
-      type: 'text',
-      text: `📝 잡명: ${data.jobName}`,
-      size: 'sm',
-      color: '#333333',
-      weight: 'bold'
-    },
-    {
-      type: 'text',
-      text: `📂 컬렉션: ${data.collection}`,
-      size: 'xs',
-      color: '#666666',
-      wrap: true
-    }
-  ];
-
-  if (data.environment) {
-    bodyContents.push({
-      type: 'text',
-      text: `🌍 환경: ${data.environment}`,
-      size: 'xs',
-      color: '#666666',
-      wrap: true
-    });
-  }
-
-  if (kind !== 'start') {
-    bodyContents.push({
-      type: 'text',
-      text: `⏱️ 실행시간: ${data.duration}초`,
-      size: 'xs',
-      color: '#666666'
-    });
-
-    if (kind === 'error') {
-      bodyContents.push({
-        type: 'text',
-        text: `❌ 종료코드: ${data.exitCode}`,
-        size: 'xs',
-        color: '#C62828',
-        weight: 'bold'
-      });
-
-      if (data.errorSummary) {
-        bodyContents.push({
-          type: 'text',
-          text: `🔍 오류: ${data.errorSummary}`,
-          size: 'xs',
-          color: '#C62828',
-          wrap: true
-        });
-      }
-    }
-
-    if (data.reportPath && kind === 'success') {
-      bodyContents.push({
-        type: 'text',
-        text: `📊 리포트 생성 완료`,
-        size: 'xs',
-        color: '#2E7D32',
-        wrap: true
-      });
-    }
-  }
-
-  // 시간 정보 추가
-  bodyContents.push({
-    type: 'separator',
-    margin: 'md'
-  });
-  
-  bodyContents.push({
-    type: 'text',
-    text: `⏰ ${timeText}`,
-    size: 'xs',
-    color: '#888888',
-    align: 'end'
-  });
-
-  const flexMessage = {
-    content: {
-      type: 'flex',
-      altText: `${headerText}: ${data.jobName}`,
-      contents: {
-        type: 'bubble',
-        size: 'mega',
-        header: {
-          type: 'box',
-          layout: 'vertical',
-          contents: [
-            {
-              type: 'text',
-              text: headerText,
-              weight: 'bold',
-              size: 'lg',
-              color: '#FFFFFF'
-            },
-            {
-              type: 'text',
-              text: 'API 자동화 모니터링',
-              size: 'sm',
-              color: '#E0E0E0'
-            }
-          ],
-          backgroundColor: headerColor,
-          paddingAll: '15px'
-        },
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          spacing: 'sm',
-          contents: bodyContents,
-          paddingAll: '15px'
-        }
-      }
-    }
-  };
-
-  return flexMessage;
-}
 
 /** 통계 정보를 포함한 실행 상태 알림을 위한 Flex 메시지 생성 */
 export function buildRunStatusFlexWithStats(kind, data) {
@@ -378,7 +244,7 @@ export function buildRunStatusFlexWithStats(kind, data) {
   return flexMessage;
 }
 
-/** 간단한 상태 알림을 위한 텍스트 생성 */
+// alert.js의 buildStatusText 함수 수정
 export function buildStatusText(kind, data) {
   let message = '';
   
@@ -394,19 +260,192 @@ export function buildStatusText(kind, data) {
     message = `✅ API 테스트 실행 성공\n`;
     message += `잡: ${data.jobName}\n`;
     message += `실행시간: ${data.duration}초\n`;
-    message += `종료시간: ${data.endTime}`;
+    
+    // Newman 결과 상세 정보 추가
+    if (data.newmanResults && data.newmanResults.summary) {
+      const { summary } = data.newmanResults;
+      message += `\n📊 테스트 결과:\n`;
+      message += `• 요청: ${summary.requests.executed}건 (실패: ${summary.requests.failed}건)\n`;
+      message += `• 테스트: ${summary.assertions.executed}건 (실패: ${summary.assertions.failed}건)\n`;
+      message += `• 반복: ${summary.iterations.executed}건 (실패: ${summary.iterations.failed}건)\n`;
+      
+      if (data.newmanResults.timings) {
+        const avg = Math.round(data.newmanResults.timings.responseAverage);
+        message += `• 평균 응답시간: ${avg}ms\n`;
+      }
+    }
+    
+    message += `\n종료시간: ${data.endTime}`;
   } else if (kind === 'error') {
     message = `❌ API 테스트 실행 실패\n`;
     message += `잡: ${data.jobName}\n`;
     message += `종료코드: ${data.exitCode}\n`;
     message += `실행시간: ${data.duration}초\n`;
-    message += `종료시간: ${data.endTime}`;
+    
+    // Newman 결과 상세 정보 추가
+    if (data.newmanResults && data.newmanResults.summary) {
+      const { summary } = data.newmanResults;
+      message += `\n📊 테스트 결과:\n`;
+      message += `• 요청: ${summary.requests.executed}건 (실패: ${summary.requests.failed}건)\n`;
+      message += `• 테스트: ${summary.assertions.executed}건 (실패: ${summary.assertions.failed}건)\n`;
+      
+      // 실패한 테스트 상세 정보
+      if (data.newmanResults.failures && data.newmanResults.failures.length > 0) {
+        message += `\n🔍 실패 상세:\n`;
+        data.newmanResults.failures.slice(0, 3).forEach((failure, index) => {
+          message += `${index + 1}. ${failure.source}: ${failure.error}\n`;
+        });
+        
+        if (data.newmanResults.failures.length > 3) {
+          message += `... 외 ${data.newmanResults.failures.length - 3}개 실패\n`;
+        }
+      }
+    }
+    
+    message += `\n종료시간: ${data.endTime}`;
+    
     if (data.errorSummary) {
-      message += `\n오류: ${data.errorSummary}`;
+      message += `\n\n오류: ${data.errorSummary}`;
     }
   }
   
   return message;
+}
+
+// alert.js의 buildRunStatusFlex 함수 수정
+export function buildRunStatusFlex(kind, data) {
+  const headerText = kind === 'start' ? '🚀 실행 시작'
+                    : kind === 'success' ? '✅ 실행 성공'
+                    : '❌ 실행 실패';
+
+  const headerColor = kind === 'error' ? '#C62828'
+                    : kind === 'success' ? '#2E7D32'
+                    : '#1976D2';
+
+  const bodyContents = [
+    {
+      type: 'text',
+      text: `잡: ${data.jobName}`,
+      weight: 'bold',
+      size: 'sm',
+      color: '#222222'
+    },
+    {
+      type: 'text',
+      text: `컬렉션: ${data.collection}`,
+      size: 'xs',
+      color: '#666666',
+      wrap: true
+    }
+  ];
+
+  if (data.environment) {
+    bodyContents.push({
+      type: 'text',
+      text: `환경: ${data.environment}`,
+      size: 'xs',
+      color: '#666666',
+      wrap: true
+    });
+  }
+
+  // Newman 결과 추가 (성공/실패 시)
+  if ((kind === 'success' || kind === 'error') && data.newmanResults && data.newmanResults.summary) {
+    const { summary } = data.newmanResults;
+    
+    bodyContents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+    
+    bodyContents.push({
+      type: 'text',
+      text: '📊 테스트 결과',
+      weight: 'bold',
+      size: 'sm',
+      color: '#222222'
+    });
+    
+    bodyContents.push({
+      type: 'text',
+      text: `요청: ${summary.requests.executed}건 (실패: ${summary.requests.failed}건)`,
+      size: 'xs',
+      color: summary.requests.failed > 0 ? '#C62828' : '#2E7D32'
+    });
+    
+    bodyContents.push({
+      type: 'text',
+      text: `테스트: ${summary.assertions.executed}건 (실패: ${summary.assertions.failed}건)`,
+      size: 'xs',
+      color: summary.assertions.failed > 0 ? '#C62828' : '#2E7D32'
+    });
+    
+    if (data.newmanResults.timings && kind === 'success') {
+      const avg = Math.round(data.newmanResults.timings.responseAverage);
+      bodyContents.push({
+        type: 'text',
+        text: `평균 응답시간: ${avg}ms`,
+        size: 'xs',
+        color: '#666666'
+      });
+    }
+  }
+
+  // 시간 정보
+  const timeText = kind === 'start' ? data.startTime
+                  : `${data.endTime} (${data.duration}초)`;
+
+  bodyContents.push({
+    type: 'separator',
+    margin: 'md'
+  });
+  
+  bodyContents.push({
+    type: 'text',
+    text: `⏰ ${timeText}`,
+    size: 'xs',
+    color: '#888888',
+    align: 'end'
+  });
+
+  return {
+    content: {
+      type: 'flex',
+      altText: `${headerText}: ${data.jobName}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: headerText,
+              weight: 'bold',
+              size: 'lg',
+              color: '#FFFFFF'
+            },
+            {
+              type: 'text',
+              text: 'API 자동화 모니터링',
+              size: 'sm',
+              color: '#E0E0E0'
+            }
+          ],
+          backgroundColor: headerColor,
+          paddingAll: '15px'
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: bodyContents,
+          paddingAll: '15px'
+        }
+      }
+    }
+  };
 }
 
 /** 웹훅 URL 유효성 검사 */
