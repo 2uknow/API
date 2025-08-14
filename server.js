@@ -100,68 +100,65 @@ function broadcastLog(line){
     broadcastTimeoutId = setTimeout(flushLogBuffer, BATCH_INTERVAL);
   }
 }
-function parseNewmanResults(jsonReportPath) {
+function parseNewmanResult(jsonReportPath) {
   try {
     if (!fs.existsSync(jsonReportPath)) {
-      return null;
+      return { summary: 'JSON 리포트 없음', stats: null };
     }
     
-    const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf-8'));
-    const run = reportData.run;
+    const jsonData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf-8'));
+    const run = jsonData.run;
     
     if (!run || !run.stats) {
-      return null;
+      return { summary: 'JSON 리포트 파싱 실패', stats: null };
     }
     
     const stats = run.stats;
-    const executions = run.executions || [];
+    const iterations = stats.iterations || {};
+    const requests = stats.requests || {};
+    const assertions = stats.assertions || {};
+    const testScripts = stats.testScripts || {};
     
-    // 테스트 통계 계산
-    let totalTests = 0;
-    let passedTests = 0;
-    let failedTests = 0;
-    let totalRequests = executions.length;
-    let failedRequests = 0;
+    // 상세 통계
+    const totalIterations = iterations.total || 0;
+    const totalRequests = requests.total || 0;
+    const failedRequests = requests.failed || 0;
+    const totalAssertions = assertions.total || 0;
+    const failedAssertions = assertions.failed || 0;
+    const totalTests = testScripts.total || 0;
+    const failedTests = testScripts.failed || 0;
     
-    executions.forEach(execution => {
-      if (execution.response && execution.response.code !== 200) {
-        failedRequests++;
-      }
+    // 개선된 요약 생성
+    const successRequests = totalRequests - failedRequests;
+    const successAssertions = totalAssertions - failedAssertions;
+    const successTests = totalTests - failedTests;
+    
+    let summary = '';
+    let isAllSuccess = failedRequests === 0 && failedAssertions === 0 && failedTests === 0;
+    
+    if (isAllSuccess) {
+      summary = `✅ 모든 테스트 통과 (요청 ${totalRequests}건, 검증 ${totalAssertions}건, 테스트 ${totalTests}건)`;
+    } else {
+      const failures = [];
+      if (failedRequests > 0) failures.push(`요청 ${failedRequests}건 실패`);
+      if (failedAssertions > 0) failures.push(`검증 ${failedAssertions}건 실패`);
+      if (failedTests > 0) failures.push(`테스트 ${failedTests}건 실패`);
       
-      if (execution.assertions) {
-        execution.assertions.forEach(assertion => {
-          totalTests++;
-          if (assertion.error) {
-            failedTests++;
-          } else {
-            passedTests++;
-          }
-        });
-      }
-    });
-    
-    // 실행 시간 계산
-    const timings = run.timings;
-    const totalTime = timings ? Math.round(timings.completed - timings.started) : 0;
+      summary = `❌ ${failures.join(', ')} (총 요청 ${totalRequests}건, 검증 ${totalAssertions}건, 테스트 ${totalTests}건)`;
+    }
     
     return {
-      requests: {
-        total: totalRequests,
-        failed: failedRequests,
-        passed: totalRequests - failedRequests
-      },
-      tests: {
-        total: totalTests,
-        passed: passedTests,
-        failed: failedTests
-      },
-      duration: totalTime,
-      iterations: stats.iterations?.total || 1,
-      items: stats.items?.total || totalRequests
+      summary,
+      stats: {
+        iterations: { total: totalIterations, failed: 0 },
+        requests: { total: totalRequests, failed: failedRequests },
+        assertions: { total: totalAssertions, failed: failedAssertions },
+        testScripts: { total: totalTests, failed: failedTests }
+      }
     };
   } catch (error) {
-    console.error('[NEWMAN PARSE ERROR]', error);
-    return null;
+    console.error('Newman 결과 파싱 오류:', error);
+    return { summary: 'JSON 리포트 파싱 오류', stats: null };
   }
 }
 
@@ -324,18 +321,64 @@ app.get('/api/jobs', (req,res)=>{
   }catch(e){ res.status(500).json({ error:e.message }); }
 });
 
-// API: history/SSE
-app.get('/api/history', (req,res)=>{
-  try{
-    const data=histRead();
-    const page=parseInt(req.query.page||'1',10);
-    const size=Math.min(parseInt(req.query.size||'50',10),500);
-    const start=Math.max(data.length-page*size,0);
-    const end=data.length-(page-1)*size;
-    res.json({ total:data.length, page, size, items:data.slice(start,end), running: state.running });
-  }catch(e){ res.status(500).json({ error:e.message }); }
+app.get('/api/history', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const size = parseInt(req.query.size) || 20;
+  const searchQuery = req.query.search || '';
+  const jobFilter = req.query.job || '';
+  const rangeFilter = req.query.range || '';
+  
+  let history = histRead();
+  
+  // 필터링 로직은 그대로...
+  if (searchQuery || jobFilter || rangeFilter) {
+    const now = Date.now();
+    
+    function inRange(ts) {
+      if (!rangeFilter) return true;
+      const t = Date.parse(ts.replace(' ', 'T') + '+09:00');
+      if (rangeFilter === '24h') return (now - t) <= (24 * 3600 * 1000);
+      if (rangeFilter === '7d') return (now - t) <= (7 * 24 * 3600 * 1000);
+      return true;
+    }
+    
+    history = history.filter(r => {
+      const jobMatch = !jobFilter || r.job === jobFilter;
+      const rangeMatch = inRange(r.timestamp);
+      const searchMatch = !searchQuery || 
+        ((r.job || '') + (r.summary || '')).toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return jobMatch && rangeMatch && searchMatch;
+    });
+  }
+  
+  // 페이징
+  const total = history.length;
+  const totalPages = Math.ceil(total / size);
+  const startIndex = (page - 1) * size;
+  const endIndex = startIndex + size;
+  const items = history.slice().reverse().slice(startIndex, endIndex);
+  
+  // 응답 구조 수정 - 클라이언트가 기대하는 형태로
+  res.json({
+    items,
+    total,           // ← 추가
+    page,            // ← 추가  
+    size,            // ← 추가
+    totalPages,      // ← 추가
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+    pagination: {    // ← 기존 구조도 유지 (하위호환)
+      page,
+      size,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    },
+    running: state.running
+  });
 });
-
 // SSE 엔드포인트들 (최적화된 버전)
 app.get('/api/stream/state', (req,res)=>{ 
   sseHeaders(res); 
@@ -520,13 +563,163 @@ function spawnNewmanCLI(args){
   console.log('[SPAWN]', cmd, argv);
   return spawn(cmd, argv, { cwd: root });
 }
-
-async function runJob(jobName){
-  // 동일한 잡이 이미 실행 중인지 확인
-  if (state.runningJobs.has(jobName)) {
-    console.log(`[JOB] ${jobName} is already running, skipping...`);
-    return { started:false, reason:'job_already_running' };
+// Newman CLI 출력에서 통계 추출
+function parseNewmanCliOutput(stdoutPath) {
+  try {
+    if (!fs.existsSync(stdoutPath)) {
+      return null;
+    }
+    
+    const output = fs.readFileSync(stdoutPath, 'utf-8');
+    const lines = output.split('\n');
+    
+    let stats = {
+      requests: { executed: 0, failed: 0 },
+      assertions: { executed: 0, failed: 0 },
+      iterations: { executed: 0, failed: 0 }
+    };
+    
+    // 테이블에서 통계 추출
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('│') && line.includes('executed') && line.includes('failed')) {
+        // 다음 줄부터 통계 데이터
+        for (let j = i + 2; j < lines.length; j++) {
+          const dataLine = lines[j].trim();
+          if (dataLine.includes('└')) break;
+          
+          if (dataLine.includes('│')) {
+            const parts = dataLine.split('│').map(p => p.trim()).filter(p => p);
+            if (parts.length >= 3) {
+              const [type, executed, failed] = parts;
+              const exec = parseInt(executed) || 0;
+              const fail = parseInt(failed) || 0;
+              
+              if (type.includes('requests')) {
+                stats.requests = { executed: exec, failed: fail };
+              } else if (type.includes('assertions')) {
+                stats.assertions = { executed: exec, failed: fail };
+              } else if (type.includes('iterations')) {
+                stats.iterations = { executed: exec, failed: fail };
+              }
+            }
+          }
+        }
+        break;
+      }
+    }
+    
+    return stats;
+  } catch (error) {
+    console.error('[NEWMAN CLI PARSE ERROR]', error);
+    return null;
   }
+}
+
+// Newman 결과 파싱 함수
+function parseNewmanOutput(output) {
+  const result = {
+    iterations: { executed: 0, failed: 0 },
+    requests: { executed: 0, failed: 0 },
+    assertions: { executed: 0, failed: 0 },
+    duration: 0,
+    failures: []
+  };
+
+  try {
+    // 테이블 파싱
+    const iterationsMatch = output.match(/│\s*iterations\s*│\s*(\d+)\s*│\s*(\d+)\s*│/);
+    if (iterationsMatch) {
+      result.iterations.executed = parseInt(iterationsMatch[1]);
+      result.iterations.failed = parseInt(iterationsMatch[2]);
+    }
+
+    const requestsMatch = output.match(/│\s*requests\s*│\s*(\d+)\s*│\s*(\d+)\s*│/);
+    if (requestsMatch) {
+      result.requests.executed = parseInt(requestsMatch[1]);
+      result.requests.failed = parseInt(requestsMatch[2]);
+    }
+
+    const assertionsMatch = output.match(/│\s*assertions\s*│\s*(\d+)\s*│\s*(\d+)\s*│/);
+    if (assertionsMatch) {
+      result.assertions.executed = parseInt(assertionsMatch[1]);
+      result.assertions.failed = parseInt(assertionsMatch[2]);
+    }
+
+    // 실행 시간 파싱
+    const durationMatch = output.match(/total run duration:\s*([\d.]+)s/);
+    if (durationMatch) {
+      result.duration = parseFloat(durationMatch[1]);
+    }
+
+    // 실패 상세 파싱
+    const failureSection = output.match(/# failure detail([\s\S]*?)(?=\n\n|$)/);
+    if (failureSection) {
+      const failures = failureSection[1].match(/\d+\.\s+.*?(?=\n\d+\.|\n\n|$)/gs);
+      if (failures) {
+        result.failures = failures.map(failure => {
+          const lines = failure.trim().split('\n');
+          const title = lines[0].replace(/^\d+\.\s*/, '');
+          const details = lines.slice(1).join(' ').trim();
+          return { title, details };
+        }).slice(0, 5); // 최대 5개까지만
+      }
+    }
+  } catch (error) {
+    console.error('[PARSE ERROR]', error);
+  }
+
+  return result;
+}
+// 요약 생성 함수
+function generateSummary(newmanResult, exitCode) {
+  if (exitCode === 0) {
+    // 성공한 경우
+    const { requests, assertions } = newmanResult;
+    if (requests.executed === 0) {
+      return '실행 성공 (요청 없음)';
+    }
+    
+    const requestSummary = requests.failed === 0 
+      ? `요청 ${requests.executed}건 모두 성공`
+      : `요청 ${requests.executed}건 중 ${requests.executed - requests.failed}건 성공`;
+    
+    const assertionSummary = assertions.executed > 0
+      ? assertions.failed === 0
+        ? `검증 ${assertions.executed}건 모두 성공`
+        : `검증 ${assertions.executed}건 중 ${assertions.executed - assertions.failed}건 성공`
+      : '';
+
+    return assertionSummary ? `${requestSummary}, ${assertionSummary}` : requestSummary;
+  } else {
+    // 실패한 경우
+    const { requests, assertions, failures } = newmanResult;
+    
+    if (failures.length > 0) {
+      const mainFailure = failures[0].title.includes('AssertionError') 
+        ? failures[0].title.replace('AssertionError ', '')
+        : failures[0].title;
+      
+      const failureCount = failures.length;
+      return failureCount > 1 
+        ? `${mainFailure} 외 ${failureCount - 1}건 실패`
+        : mainFailure;
+    }
+    
+    if (assertions.failed > 0) {
+      return `검증 ${assertions.executed}건 중 ${assertions.failed}건 실패`;
+    }
+    
+    if (requests.failed > 0) {
+      return `요청 ${requests.executed}건 중 ${requests.failed}건 실패`;
+    }
+    
+    return `실행 실패 (exit=${exitCode})`;
+  }
+}
+// 개선된 runJob 함수
+async function runJob(jobName){
+  if (state.running) return { started:false, reason:'already_running' };
 
   const jobPath = path.join(root, 'jobs', `${jobName}.json`);
   if (!fs.existsSync(jobPath)) return { started:false, reason:'job_not_found' };
@@ -536,7 +729,7 @@ async function runJob(jobName){
 
   const collection  = path.resolve(root, job.collection);
   const environment = job.environment ? path.resolve(root, job.environment) : undefined;
-  const reporters   = job.reporters?.length ? job.reporters : ['cli','json'];
+  const reporters   = job.reporters?.length ? job.reporters : ['cli','htmlextra','junit','json'];
   const stamp = new Date().toISOString().replace(/[:T]/g,'_').replace(/\..+/,'');
 
   const htmlReport = path.join(reportsDir, `${jobName}_${stamp}.html`);
@@ -555,25 +748,9 @@ async function runJob(jobName){
   const startTime = nowInTZString();
   const startTs = Date.now();
 
-  // 개별 잡 상태 관리
-  const jobState = { 
-    startTime, 
-    startTs,
-    process: null 
-  };
-  state.runningJobs.set(jobName, jobState);
-  
-  // 전체 상태도 설정 (기존 코드와 호환성 위해)
   state.running = { job: jobName, startAt: startTime };
-
-  // 전체 실행 상태 브로드캐스트
-  broadcastState({ 
-    running: state.running,
-    runningJobs: Array.from(state.runningJobs.keys()),
-    totalRunning: state.runningJobs.size 
-  });
-  
-  broadcastLog(`[START] ${jobName} (${state.runningJobs.size}개 잡 실행 중)`);
+  broadcastState({ running: state.running });
+  broadcastLog(`[START] ${jobName}`);
 
   // 시작 알람 전송
   await sendAlert('start', {
@@ -583,136 +760,111 @@ async function runJob(jobName){
     environment: environment ? path.basename(environment) : null
   });
 
-  // Newman 명령어 구성 - JSON reporter 강제 포함
   const args = [
-    'newman', 'run', collection,
-    '--verbose'
+    'newman','run', collection,
+    '--verbose',
+    '-r', reporters.join(','),
+    '--reporter-htmlextra-export', htmlReport,
+    '--reporter-junit-export',     junitReport,
+    '--reporter-json-export',      jsonReport,
+    '--reporter-cli-export',       cliExport
   ];
   
-  if (environment) {
-    args.push('-e', environment);
-  }
-  
-  // JSON reporter를 항상 포함하여 통계 파싱 가능하도록 함
-  const reportersWithJson = [...new Set([...reporters, 'json'])];
-  
-  if (reportersWithJson.length > 0) {
-    args.push('-r', reportersWithJson.join(','));
-    
-    if (reportersWithJson.includes('htmlextra')) {
-      args.push('--reporter-htmlextra-export', htmlReport);
-    }
-    args.push('--reporter-json-export', jsonReport);
-    if (reportersWithJson.includes('junit')) {
-      args.push('--reporter-junit-export', junitReport);
-    }
-    if (reportersWithJson.includes('cli')) {
-      args.push('--reporter-cli-export', cliExport);
-    }
-  }
-  
-  if (Array.isArray(job.extra)) {
-    args.push(...job.extra);
-  }
-
-  console.log(`[NEWMAN CMD] ${jobName}:`, args.join(' '));
+  if (environment) args.push('-e', environment);
+  if (Array.isArray(job.extra)) args.push(...job.extra);
 
   return new Promise((resolve)=>{
     const proc = spawnNewmanCLI(args);
-    jobState.process = proc;
     let errorOutput = '';
 
     proc.stdout.on('data', d => {
       const s = d.toString();
       outStream.write(s);
-      s.split(/\r?\n/).forEach(line => line && broadcastLog(`[${jobName}] ${line}`));
+      s.split(/\r?\n/).forEach(line => line && broadcastLog(line));
     });
     
     proc.stderr.on('data', d => {
       const s = d.toString();
       errStream.write(s);
-      errorOutput += s;
-      s.split(/\r?\n/).forEach(line => line && broadcastLog(`[${jobName}] ${line}`));
+      errorOutput += s; // 에러 내용 수집
+      s.split(/\r?\n/).forEach(line => line && broadcastLog(line));
     });
     
-    // runJob 함수의 proc.on('close') 부분에서
-proc.on('close', async (code)=>{
-  outStream.end(); 
-  errStream.end();
-  
-  const endTime = nowInTZString();
-  const duration = Math.round((Date.now() - startTs) / 1000);
-  
-  broadcastLog(`[DONE] ${jobName} exit=${code}`);
+    proc.on('close', async (code)=>{
+      outStream.end(); 
+      errStream.end();
+      
+      const endTime = nowInTZString();
+      const duration = Math.round((Date.now() - startTs) / 1000);
+      
+      broadcastLog(`[DONE] exit=${code}`);
 
-  // history 저장 (기존 코드 그대로)
-  const history = histRead();
-  const historyEntry = {
-    timestamp: endTime,
-    job: jobName,
-    type: job.type,
-    exitCode: code,
-    summary: `cli=${path.basename(cliExport)}`,
-    report: htmlReport,
-    stdout: path.basename(stdoutPath),
-    stderr: path.basename(stderrPath),
-    tags: [],
-    duration: duration
-  };
-  
-  history.push(historyEntry);
-  
-  const { history_keep = 500 } = readCfg();
-  if (history.length > history_keep) {
-    history.splice(0, history.length - history_keep);
-  }
-  
-  histWrite(history);
-  cleanupOldReports();
+      // Newman 결과 파싱
+      const { summary, stats } = parseNewmanResult(jsonReport);
 
-  // 간단한 알람 데이터 (Newman 결과 제외)
-  const alertData = {
-    jobName,
-    startTime,
-    endTime,
-    duration,
-    exitCode: code,
-    collection: path.basename(collection),
-    environment: environment ? path.basename(environment) : null,
-    reportPath: htmlReport
-  };
+      // history 저장
+      const history = histRead();
+      const historyEntry = {
+        timestamp: endTime,
+        job: jobName,
+        type: job.type,
+        exitCode: code,
+        summary: summary, // 개선된 요약
+        report: htmlReport,
+        stdout: path.basename(stdoutPath),
+        stderr: path.basename(stderrPath),
+        tags: [],
+        duration: duration,
+        stats: stats // Newman 통계 추가
+      };
+      
+      history.push(historyEntry);
+      
+      const { history_keep = 500 } = readCfg();
+      if (history.length > history_keep) {
+        history.splice(0, history.length - history_keep);
+      }
+      
+      histWrite(history);
+      cleanupOldReports();
 
-  // 성공/실패에 따른 알람 전송
-  if (code === 0) {
-    await sendAlert('success', alertData);
-  } else {
-    alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n');
-    await sendAlert('error', alertData);
-  }
+      // 알람 데이터 준비
+      const alertData = {
+        jobName,
+        startTime,
+        endTime,
+        duration,
+        exitCode: code,
+        collection: path.basename(collection),
+        environment: environment ? path.basename(environment) : null,
+        reportPath: htmlReport,
+        stats: stats, // Newman 통계 추가
+        summary: summary // 요약 추가
+      };
 
-  // 상태 정리
-  state.running = null;
-  state.runningJobs.delete(jobName);
-  
-  broadcastState({ 
-    running: null,
-    runningJobs: Array.from(state.runningJobs.keys()),
-    totalRunning: state.runningJobs.size 
-  });
-  
-  resolve({ started:true, code });
-});
+      // 성공/실패에 따른 알람 전송
+      if (code === 0) {
+        // 성공 알람
+        await sendAlert('success', alertData);
+      } else {
+        // 실패 알람
+        alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n'); // 마지막 3줄만
+        await sendAlert('error', alertData);
+      }
 
+      state.running = null;
+      broadcastState({ running: null });
+      resolve({ started:true, code });
+    });
+
+    // 프로세스 에러 처리
     proc.on('error', async (err) => {
       console.error(`[PROC ERROR] ${jobName}:`, err);
       
       const endTime = nowInTZString();
       const duration = Math.round((Date.now() - startTs) / 1000);
       
-      // 에러 발생 시에도 상태 정리
-      state.running = null;
-      state.runningJobs.delete(jobName);
-      
+      // 프로세스 시작 실패 알람
       await sendAlert('error', {
         jobName,
         startTime,
@@ -724,12 +876,8 @@ proc.on('close', async (code)=>{
         environment: environment ? path.basename(environment) : null
       });
 
-      broadcastState({ 
-        running: null,
-        runningJobs: Array.from(state.runningJobs.keys()),
-        totalRunning: state.runningJobs.size 
-      });
-
+      state.running = null;
+      broadcastState({ running: null });
       resolve({ started:false, reason:'process_error', error: err.message });
     });
   });
