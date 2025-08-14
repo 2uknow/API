@@ -9,8 +9,8 @@ import cron from 'node-cron';
 import { 
   sendTextMessage, 
   sendFlexMessage, 
-  buildRunStatusFlex,
-  buildRunStatusFlexWithStats 
+  buildBasicRunStatusFlex,
+  buildBasicStatusText
 } from './alert.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -221,7 +221,6 @@ function cleanupOldReports(){
   } 
 }
 
-// alert.js의 sendAlert 함수에서 올바른 메시지 생성 함수 호출
 async function sendAlert(type, data) {
   const config = readCfg();
   
@@ -240,12 +239,12 @@ async function sendAlert(type, data) {
     let result;
     
     if (config.alert_method === 'flex') {
-      // Flex 메시지 전송 (Newman 결과 포함)
-      const flexData = buildRunStatusFlex(type, data);
+      // 기존 Flex 메시지 (복잡한 Newman 결과 제외)
+      const flexData = buildBasicRunStatusFlex(type, data);
       result = await sendFlexMessage(flexData);
     } else {
-      // 텍스트 메시지 전송 (Newman 결과 포함)
-      const message = buildStatusText(type, data);  // ← 이 함수를 사용해야 함
+      // 기존 텍스트 메시지 (간단한 정보만)
+      const message = buildBasicStatusText(type, data);
       result = await sendTextMessage(message);
     }
 
@@ -545,6 +544,7 @@ async function runJob(jobName){
   const jsonReport = path.join(reportsDir, `${jobName}_${stamp}.json`);
   const stdoutPath = path.join(logsDir, `stdout_${jobName}_${stamp}.log`);
   const stderrPath = path.join(logsDir, `stderr_${jobName}_${stamp}.log`);
+  const cliExport  = path.join(logsDir, `cli_${jobName}_${stamp}.txt`);
   
   const outStream  = fs.createWriteStream(stdoutPath, { flags:'a' });
   const errStream  = fs.createWriteStream(stderrPath, { flags:'a' });
@@ -562,9 +562,13 @@ async function runJob(jobName){
     process: null 
   };
   state.runningJobs.set(jobName, jobState);
+  
+  // 전체 상태도 설정 (기존 코드와 호환성 위해)
+  state.running = { job: jobName, startAt: startTime };
 
   // 전체 실행 상태 브로드캐스트
   broadcastState({ 
+    running: state.running,
     runningJobs: Array.from(state.runningJobs.keys()),
     totalRunning: state.runningJobs.size 
   });
@@ -598,14 +602,12 @@ async function runJob(jobName){
     if (reportersWithJson.includes('htmlextra')) {
       args.push('--reporter-htmlextra-export', htmlReport);
     }
-    args.push('--reporter-json-export', jsonReport); // 항상 JSON 리포트 생성
+    args.push('--reporter-json-export', jsonReport);
     if (reportersWithJson.includes('junit')) {
       args.push('--reporter-junit-export', junitReport);
     }
     if (reportersWithJson.includes('cli')) {
-      args.push('--reporter-cli-no-summary');
-      args.push('--reporter-cli-no-failures');
-      args.push('--reporter-cli-no-assertions');
+      args.push('--reporter-cli-export', cliExport);
     }
   }
   
@@ -633,77 +635,73 @@ async function runJob(jobName){
       s.split(/\r?\n/).forEach(line => line && broadcastLog(`[${jobName}] ${line}`));
     });
     
-   proc.on('close', async (code)=>{
-      outStream.end(); 
-      errStream.end();
-      
-      const endTime = nowInTZString();
-      const duration = Math.round((Date.now() - startTs) / 1000);
-      
-      broadcastLog(`[DONE] exit=${code}`);
+    // runJob 함수의 proc.on('close') 부분에서
+proc.on('close', async (code)=>{
+  outStream.end(); 
+  errStream.end();
+  
+  const endTime = nowInTZString();
+  const duration = Math.round((Date.now() - startTs) / 1000);
+  
+  broadcastLog(`[DONE] ${jobName} exit=${code}`);
 
-      // Newman JSON 리포트에서 상세 결과 파싱
-      let newmanResults = null;
-      try {
-        // JSON 리포트 파일이 생성될 때까지 잠시 대기
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        newmanResults = parseNewmanJsonReport(jsonReport);
-      } catch (error) {
-        console.error('Newman 결과 파싱 실패:', error);
-      }
+  // history 저장 (기존 코드 그대로)
+  const history = histRead();
+  const historyEntry = {
+    timestamp: endTime,
+    job: jobName,
+    type: job.type,
+    exitCode: code,
+    summary: `cli=${path.basename(cliExport)}`,
+    report: htmlReport,
+    stdout: path.basename(stdoutPath),
+    stderr: path.basename(stderrPath),
+    tags: [],
+    duration: duration
+  };
+  
+  history.push(historyEntry);
+  
+  const { history_keep = 500 } = readCfg();
+  if (history.length > history_keep) {
+    history.splice(0, history.length - history_keep);
+  }
+  
+  histWrite(history);
+  cleanupOldReports();
 
-      // history 저장
-      const history = histRead();
-      const historyEntry = {
-        timestamp: endTime,
-        job: jobName,
-        type: job.type,
-        exitCode: code,
-        summary: `cli=${path.basename(cliExport)}`,
-        report: htmlReport,
-        stdout: path.basename(stdoutPath),
-        stderr: path.basename(stderrPath),
-        tags: [],
-        duration: duration
-      };
-      
-      history.push(historyEntry);
-      
-      const { history_keep = 500 } = readCfg();
-      if (history.length > history_keep) {
-        history.splice(0, history.length - history_keep);
-      }
-      
-      histWrite(history);
-      cleanupOldReports();
+  // 간단한 알람 데이터 (Newman 결과 제외)
+  const alertData = {
+    jobName,
+    startTime,
+    endTime,
+    duration,
+    exitCode: code,
+    collection: path.basename(collection),
+    environment: environment ? path.basename(environment) : null,
+    reportPath: htmlReport
+  };
 
-      // 알람 데이터 준비 (Newman 결과 포함)
-      const alertData = {
-        jobName,
-        startTime,
-        endTime,
-        duration,
-        exitCode: code,
-        collection: path.basename(collection),
-        environment: environment ? path.basename(environment) : null,
-        reportPath: htmlReport,
-        newmanResults // Newman 상세 결과 추가
-      };
+  // 성공/실패에 따른 알람 전송
+  if (code === 0) {
+    await sendAlert('success', alertData);
+  } else {
+    alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n');
+    await sendAlert('error', alertData);
+  }
 
-      // 성공/실패에 따른 알람 전송
-      if (code === 0) {
-        // 성공 알람
-        await sendAlert('success', alertData);
-      } else {
-        // 실패 알람 - 에러 요약 추가
-        alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n');
-        await sendAlert('error', alertData);
-      }
-
-      state.running = null;
-      broadcastState({ running: null });
-      resolve({ started:true, code });
-    });
+  // 상태 정리
+  state.running = null;
+  state.runningJobs.delete(jobName);
+  
+  broadcastState({ 
+    running: null,
+    runningJobs: Array.from(state.runningJobs.keys()),
+    totalRunning: state.runningJobs.size 
+  });
+  
+  resolve({ started:true, code });
+});
 
     proc.on('error', async (err) => {
       console.error(`[PROC ERROR] ${jobName}:`, err);
@@ -711,7 +709,8 @@ async function runJob(jobName){
       const endTime = nowInTZString();
       const duration = Math.round((Date.now() - startTs) / 1000);
       
-      // 에러 발생 시에도 목록에서 제거
+      // 에러 발생 시에도 상태 정리
+      state.running = null;
       state.runningJobs.delete(jobName);
       
       await sendAlert('error', {
@@ -726,6 +725,7 @@ async function runJob(jobName){
       });
 
       broadcastState({ 
+        running: null,
         runningJobs: Array.from(state.runningJobs.keys()),
         totalRunning: state.runningJobs.size 
       });

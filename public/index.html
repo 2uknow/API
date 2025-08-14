@@ -258,7 +258,7 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <button id="clearModalConsole" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+<div id="modalConsole" class="bg-black text-green-400 text-sm p-4 rounded h-full overflow-y-auto font-mono leading-relaxed border border-slate-700" style="scroll-behavior: smooth;"></div>
             🗑️ 지우기
           </button>
           <button id="closeLogModal" class="text-slate-400 hover:text-white transition-colors">
@@ -681,7 +681,52 @@ function renderHistory(){
       </tr>`);
   });
 }
+// 새 함수 추가
+// 로그 추가 함수 개선
+function addLogToConsoles(line) {
+  const htmlLine = ansiUp.ansi_to_html(line);
+  
+  // 메인 콘솔에 추가
+  const mainConsole = document.getElementById('console');
+  if (mainConsole) {
+    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+    mainConsole.scrollTop = mainConsole.scrollHeight;
+  }
+  
+  // 전체화면 모달 콘솔에도 추가 (모달이 열려있는지 확인)
+  const modal = document.getElementById('logModal');
+  const modalConsole = document.getElementById('modalConsole');
+  
+  if (modal && modalConsole && !modal.classList.contains('hidden')) {
+    modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+    modalConsole.scrollTop = modalConsole.scrollHeight;
+  }
+}
 
+// 전체화면 모달 열기 함수 개선
+document.getElementById('expandLogModal').onclick = () => {
+  const modal = document.getElementById('logModal');
+  const modalConsole = document.getElementById('modalConsole');
+  const mainConsole = document.getElementById('console');
+  
+  // 기존 로그 내용을 모달로 복사
+  if (modalConsole && mainConsole) {
+    modalConsole.innerHTML = mainConsole.innerHTML;
+  }
+  
+  // 모달 표시
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // 맨 아래로 스크롤
+    setTimeout(() => {
+      if (modalConsole) {
+        modalConsole.scrollTop = modalConsole.scrollHeight;
+      }
+    }, 100);
+  }
+};
 function startSSE(){
   const esState=new EventSource('/api/stream/state');
   esState.addEventListener('state', e=>{
@@ -694,23 +739,23 @@ function startSSE(){
     document.getElementById('runBtn').disabled=!!running;
   });
   
-  const esLog=new EventSource('/api/stream/logs');
-  esLog.addEventListener('log', e=>{
-    const {line}=JSON.parse(e.data);
-    const con=document.getElementById('console');
-    con.insertAdjacentHTML('beforeend', ansiUp.ansi_to_html(line) + '<br/>');
-    con.scrollTop=con.scrollHeight;
-  });
+const esLog=new EventSource('/api/stream/logs');
+esLog.addEventListener('log', e=>{
+  const {line}=JSON.parse(e.data);
+  addLogToConsoles(line);
+});
 
-  esState.addEventListener('open', () => {
-    document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
-  });
+  // 연결 상태 표시도 모달에 동기화
+esState.addEventListener('open', () => {
+  document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+  document.getElementById('modalLogIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+});
   
   esState.addEventListener('error', () => {
-    document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
-  });
+  document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+  document.getElementById('modalLogIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+});
 }
-
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
@@ -732,6 +777,7 @@ document.getElementById('jobSelect').onchange = updateJobSummary;
 document.getElementById('runBtn').onclick = async ()=>{
   const name=document.getElementById('jobSelect').value;
   document.getElementById('console').innerHTML='';
+  document.getElementById('modalConsole').innerHTML='';
   if(!name){ 
     alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
     return; 
@@ -843,6 +889,242 @@ document.getElementById('scheduleModal').addEventListener('click', (e) => {
     document.getElementById('scheduleModal').classList.remove('flex');
   }
 });
+
+// 전역 변수에 모달 상태 추가
+let isModalOpen = false;
+
+// 개선된 addLogToConsoles 함수
+function addLogToConsoles(line) {
+  const htmlLine = ansiUp.ansi_to_html(line);
+  
+  // 메인 콘솔에 항상 추가
+  const mainConsole = document.getElementById('console');
+  if (mainConsole) {
+    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+    mainConsole.scrollTop = mainConsole.scrollHeight;
+  }
+  
+  // 모달이 열려있을 때만 모달 콘솔에도 추가
+  if (isModalOpen) {
+    const modalConsole = document.getElementById('modalConsole');
+    if (modalConsole) {
+      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+      // 강제로 스크롤을 맨 아래로
+      setTimeout(() => {
+        modalConsole.scrollTop = modalConsole.scrollHeight;
+      }, 10);
+    }
+  }
+}
+
+// 전체화면 모달 열기
+document.getElementById('expandLogModal').onclick = () => {
+  console.log('[MODAL] 전체화면 모달 열기 시도');
+  
+  const modal = document.getElementById('logModal');
+  const modalConsole = document.getElementById('modalConsole');
+  const mainConsole = document.getElementById('console');
+  
+  console.log('[MODAL] 요소 확인:', {
+    modal: !!modal,
+    modalConsole: !!modalConsole,
+    mainConsole: !!mainConsole
+  });
+  
+  if (!modal || !modalConsole || !mainConsole) {
+    console.error('[MODAL] 필요한 요소를 찾을 수 없습니다');
+    return;
+  }
+  
+  // 기존 로그 내용을 모달로 복사
+  modalConsole.innerHTML = mainConsole.innerHTML;
+  console.log('[MODAL] 로그 복사 완료, 라인 수:', modalConsole.innerHTML.split('<br>').length);
+  
+  // 모달 표시
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  isModalOpen = true;
+  
+  console.log('[MODAL] 모달 표시 완료');
+  
+  // 스크롤을 맨 아래로
+  setTimeout(() => {
+    modalConsole.scrollTop = modalConsole.scrollHeight;
+    console.log('[MODAL] 스크롤 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
+  }, 200);
+};
+
+// 전체화면 모달 닫기
+document.getElementById('closeLogModal').onclick = () => {
+  console.log('[MODAL] 전체화면 모달 닫기');
+  
+  const modal = document.getElementById('logModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    isModalOpen = false;
+    console.log('[MODAL] 모달 닫기 완료');
+  }
+};
+
+// 전체화면 콘솔 지우기
+document.getElementById('clearModalConsole').onclick = () => {
+  console.log('[MODAL] 콘솔 지우기');
+  
+  const mainConsole = document.getElementById('console');
+  const modalConsole = document.getElementById('modalConsole');
+  
+  if (mainConsole) {
+    mainConsole.innerHTML = '';
+    console.log('[MODAL] 메인 콘솔 지움');
+  }
+  
+  if (modalConsole) {
+    modalConsole.innerHTML = '';
+    console.log('[MODAL] 모달 콘솔 지움');
+  }
+};
+
+// ESC 키로 모달 닫기 (기존 코드 개선)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (isModalOpen) {
+      document.getElementById('closeLogModal').click();
+    } else {
+      const scheduleModal = document.getElementById('scheduleModal');
+      if (scheduleModal && !scheduleModal.classList.contains('hidden')) {
+        document.getElementById('closeScheduleModal').click();
+      }
+    }
+  }
+});
+
+// runBtn에서도 모달 콘솔 지우기 (기존 코드 수정)
+document.getElementById('runBtn').onclick = async ()=>{
+  const name=document.getElementById('jobSelect').value;
+  
+  // 콘솔 지우기
+  document.getElementById('console').innerHTML='';
+  if (isModalOpen) {
+    const modalConsole = document.getElementById('modalConsole');
+    if (modalConsole) {
+      modalConsole.innerHTML='';
+    }
+  }
+  
+  if(!name){ 
+    alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
+    return; 
+  }
+  
+  // 버튼 비활성화
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  
+  try {
+    const response = await fetch('/api/run/'+name, { 
+      method:'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
+    } else {
+      const result = await response.json();
+      console.log('실행 시작:', result);
+    }
+  } catch (error) {
+    console.error('요청 오류:', error);
+    alert(`요청 실패: ${error.message}`);
+  } finally {
+    setTimeout(() => {
+      runBtn.disabled = false;
+    }, 3000);
+  }
+};
+
+document.getElementById('expandLogModal').onclick = () => {
+  console.log('[MODAL] 전체화면 모달 열기 시도');
+  
+  const modal = document.getElementById('logModal');
+  const modalConsole = document.getElementById('modalConsole');
+  const mainConsole = document.getElementById('console');
+  
+  if (!modal || !modalConsole || !mainConsole) {
+    console.error('[MODAL] 필요한 요소를 찾을 수 없습니다');
+    return;
+  }
+  
+  // 기존 로그 내용을 모달로 복사
+  modalConsole.innerHTML = mainConsole.innerHTML;
+  console.log('[MODAL] 로그 복사 완료, 라인 수:', modalConsole.innerHTML.split('<br>').length);
+  
+  // 모달 표시
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  isModalOpen = true;
+  
+  console.log('[MODAL] 모달 표시 완료');
+  
+  // 스크롤을 맨 아래로 (더 강력하게)
+  setTimeout(() => {
+    // 여러 방법으로 스크롤 시도
+    modalConsole.scrollTop = modalConsole.scrollHeight;
+    modalConsole.scrollIntoView(false); // 요소를 뷰의 맨 아래로
+    
+    console.log('[MODAL] 1차 스크롤 시도 - 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
+    
+    // 한 번 더 시도
+    setTimeout(() => {
+      modalConsole.scrollTop = modalConsole.scrollHeight;
+      console.log('[MODAL] 2차 스크롤 시도 - 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
+      
+      // 마지막으로 강제 스크롤
+      if (modalConsole.scrollTop < modalConsole.scrollHeight - modalConsole.clientHeight) {
+        modalConsole.scrollTo({
+          top: modalConsole.scrollHeight,
+          behavior: 'smooth'
+        });
+        console.log('[MODAL] 강제 스크롤 실행');
+      }
+    }, 100);
+  }, 300);
+};
+
+// 개선된 addLogToConsoles 함수 (스크롤 보장)
+function addLogToConsoles(line) {
+  const htmlLine = ansiUp.ansi_to_html(line);
+  
+  // 메인 콘솔에 항상 추가
+  const mainConsole = document.getElementById('console');
+  if (mainConsole) {
+    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+    mainConsole.scrollTop = mainConsole.scrollHeight;
+  }
+  
+  // 모달이 열려있을 때만 모달 콘솔에도 추가
+  if (isModalOpen) {
+    const modalConsole = document.getElementById('modalConsole');
+    if (modalConsole) {
+      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+      
+      // 강력한 스크롤 보장
+      requestAnimationFrame(() => {
+        modalConsole.scrollTop = modalConsole.scrollHeight;
+        
+        // 한번 더 확인
+        setTimeout(() => {
+          if (modalConsole.scrollTop < modalConsole.scrollHeight - modalConsole.clientHeight) {
+            modalConsole.scrollTop = modalConsole.scrollHeight;
+          }
+        }, 10);
+      });
+    }
+  }
+}
 
 // 초기화 실행
 init();
