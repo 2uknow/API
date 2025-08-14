@@ -7,6 +7,33 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' stroke='%23fff' stroke-width='3'/><path d='M35 35 L50 20 L65 35 L50 50 Z' fill='%23fff'/><path d='M35 65 L50 50 L65 65 L50 80 Z' fill='%23fff' opacity='0.8'/></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/ansi_up@5.2.1/ansi_up.js"></script>
+  <style>
+    #modalConsole {
+      height: 100% !important;
+      max-height: 100% !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+    }
+    #modalConsole::-webkit-scrollbar {
+      width: 8px;
+    }
+    #modalConsole::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    #modalConsole::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    #modalConsole::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    #logModal .flex-1 {
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div class="max-w-7xl mx-auto p-6 space-y-6">
@@ -18,17 +45,13 @@
           </svg>
         </div>
         <div>
-          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Danal API Monitor
-          </h1>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Danal API Monitor</h1>
           <p class="text-sm text-slate-500">실시간 API 상태 모니터링</p>
         </div>
       </div>
       <div class="flex items-center space-x-3">
         <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">대기</span>
-        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          ⚙️ 알람 설정
-        </a>
+        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">⚙️ 알람 설정</a>
       </div>
     </header>
 
@@ -47,12 +70,8 @@
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-500">실시간 로그</span>
             <div class="flex items-center space-x-2">
-              <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
-                📺 전체화면
-              </button>
-              <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100 transition-colors">
-                🗑️ 지우기
-              </button>
+              <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors">📺 전체화면</button>
+              <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100 transition-colors">🗑️ 지우기</button>
               <div id="logIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
               <span class="text-xs text-slate-500">연결</span>
             </div>
@@ -60,8 +79,8 @@
           <div id="console" class="bg-slate-900 text-green-400 text-xs p-3 rounded h-48 overflow-y-auto font-mono leading-relaxed"></div>
         </div>
 
-        <!-- 알람 상태 표시 -->
-        <div id="alertStatus" class="text-xs bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-3">
+        <!-- 알람 상태 -->
+        <div class="text-xs bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +92,7 @@
           </div>
         </div>
 
-        <!-- 스케줄 관리 섹션 -->
+        <!-- 스케줄 관리 -->
         <div class="text-xs bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center space-x-2">
@@ -82,16 +101,10 @@
               </svg>
               <span class="font-medium text-purple-700">자동 스케줄</span>
             </div>
-            <button id="scheduleToggle" class="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors">
-              관리
-            </button>
+            <button id="scheduleToggle" class="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors">관리</button>
           </div>
-          <div id="scheduleStatus">
-            <span id="scheduleIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
-          </div>
-          <div id="scheduleList" class="mt-2 space-y-1 max-h-24 overflow-y-auto">
-            <!-- 활성 스케줄 목록이 여기에 표시됩니다 -->
-          </div>
+          <span id="scheduleIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
+          <div id="scheduleList" class="mt-2 space-y-1 max-h-24 overflow-y-auto"></div>
         </div>
       </div>
 
@@ -140,9 +153,7 @@
                 <th class="py-2 font-medium">로그</th>
               </tr>
             </thead>
-            <tbody id="histTbody" class="text-xs">
-              <!-- 히스토리 데이터가 여기에 삽입됩니다 -->
-            </tbody>
+            <tbody id="histTbody" class="text-xs"></tbody>
           </table>
         </div>
       </div>
@@ -161,7 +172,6 @@
         </button>
       </div>
       
-      <!-- 스케줄 추가 폼 -->
       <div class="mb-6 p-4 bg-gray-50 rounded-lg">
         <h4 class="font-medium mb-3">새 스케줄 추가</h4>
         <form id="scheduleForm" class="space-y-4">
@@ -174,67 +184,24 @@
             </div>
             <div>
               <label class="block text-sm font-medium mb-1">Cron 표현식</label>
-              <input type="text" id="cronExpr" class="w-full border rounded px-3 py-2" 
-                     placeholder="매분: * * * * *" 
-                     required>
-              <p class="text-xs text-gray-500 mt-1">5개 필드: 분 시 일 월 요일</p>
+              <input type="text" id="cronExpr" class="w-full border rounded px-3 py-2" placeholder="매분: * * * * *" required>
             </div>
           </div>
           
-          <!-- Quick Select 버튼들 -->
           <div class="flex flex-wrap gap-2">
             <span class="text-sm text-gray-600">빠른 선택:</span>
-            <button type="button" onclick="setCronExpression('* * * * *')" 
-                    class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">매분</button>
-            <button type="button" onclick="setCronExpression('*/5 * * * *')" 
-                    class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">5분마다</button>
-            <button type="button" onclick="setCronExpression('*/15 * * * *')" 
-                    class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">15분마다</button>
-            <button type="button" onclick="setCronExpression('0 * * * *')" 
-                    class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">매시간</button>
-            <button type="button" onclick="setCronExpression('0 9 * * *')" 
-                    class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">오전9시</button>
+            <button type="button" onclick="setCronExpression('* * * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">매분</button>
+            <button type="button" onclick="setCronExpression('*/5 * * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">5분마다</button>
+            <button type="button" onclick="setCronExpression('0 9 * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">오전9시</button>
           </div>
           
-          <div class="flex justify-end">
-            <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-              추가
-            </button>
-          </div>
+          <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">추가</button>
         </form>
       </div>
 
-      <!-- 현재 스케줄 목록 -->
       <div>
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-medium">현재 등록된 스케줄</h4>
-          <button id="refreshSchedules" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-            🔄 새로고침
-          </button>
-        </div>
-        <div id="modalScheduleList" class="space-y-2">
-          <!-- 스케줄 목록이 여기에 표시됩니다 -->
-        </div>
-      </div>
-
-      <!-- Cron 도움말 -->
-      <div class="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 class="font-medium mb-2">Cron 표현식 도움말</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <div><strong>형식:</strong> 분 시 일 월 요일</div>
-            <div class="text-xs text-gray-600 mt-1">각 필드는 공백으로 구분</div>
-          </div>
-          <div>
-            <div><strong>자주 사용하는 패턴:</strong></div>
-            <div class="text-xs space-y-1 mt-1">
-              <div>• <code>* * * * *</code> - 매분마다</div>
-              <div>• <code>*/5 * * * *</code> - 5분마다</div>
-              <div>• <code>0 9 * * *</code> - 매일 오전 9시</div>
-              <div>• <code>0 9 * * 1-5</code> - 평일 오전 9시</div>
-            </div>
-          </div>
-        </div>
+        <h4 class="font-medium mb-3">현재 등록된 스케줄</h4>
+        <div id="modalScheduleList" class="space-y-2"></div>
       </div>
     </div>
   </div>
@@ -242,7 +209,7 @@
   <!-- 로그 전체화면 모달 -->
   <div id="logModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50">
     <div class="bg-slate-900 rounded-xl w-[95%] h-[90%] flex flex-col shadow-2xl border border-slate-700">
-      <div class="flex items-center justify-between p-4 border-b border-slate-700">
+      <div class="flex items-center justify-between p-4 border-b border-slate-700 flex-shrink-0">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,9 +225,7 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-<div id="modalConsole" class="bg-black text-green-400 text-sm p-4 rounded h-full overflow-y-auto font-mono leading-relaxed border border-slate-700" style="scroll-behavior: smooth;"></div>
-            🗑️ 지우기
-          </button>
+          <button id="clearModalConsole" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">🗑️ 지우기</button>
           <button id="closeLogModal" class="text-slate-400 hover:text-white transition-colors">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -268,346 +233,135 @@
           </button>
         </div>
       </div>
-      <div class="flex-1 p-4">
-        <div id="modalConsole" class="bg-black text-green-400 text-sm p-4 rounded h-full overflow-y-auto font-mono leading-relaxed border border-slate-700"></div>
+      <div class="flex-1 p-4 overflow-hidden">
+        <div id="modalConsole" class="w-full h-full bg-black text-green-400 text-sm p-4 rounded overflow-y-auto font-mono leading-relaxed border border-slate-700"></div>
       </div>
     </div>
   </div>
 
 <script>
 const ansiUp = new AnsiUp();
-let jobs = [];
-let schedules = [];
-let running = null;
-let pageSize = 50;
-let historyRaw = [];
-let historyView = [];
+let jobs = [], schedules = [], running = null, pageSize = 50, historyRaw = [], historyView = [];
+let isModalOpen = false;
 
-// 초기화 함수
-async function init(){
-  await loadJobs();
-  await fetchHistory();
-  await checkAlertStatus();
-  await loadSchedules();
+// 초기화
+async function init() {
+  await Promise.all([loadJobs(), fetchHistory(), checkAlertStatus(), loadSchedules()]);
   startSSE();
-  
-  // 주기적으로 상태 확인 (5분마다)
   setInterval(async () => {
     await checkAlertStatus();
     await loadSchedules();
   }, 5 * 60 * 1000);
 }
 
-// 스케줄 관련 함수들
-// Cron 표현식 설정 함수 - 완전히 새로 작성
-function setCronExpression(expression) {
-  console.log('setCronExpression called with:', expression);
-  
-  const input = document.getElementById('cronExpr');
-  console.log('Input element found:', !!input);
-  
-  // 직접 DOM 조작
-  input.setAttribute('value', expression);
-  input.value = expression;
-  
-  // 강제 새로고침
-  setTimeout(() => {
-    input.value = expression;
-    console.log('After timeout, input value:', input.value);
-  }, 10);
-  
-  console.log('Immediate input value:', input.value);
-}
-
-// 긴급 테스트 함수 - 문자열 우회
-async function emergencyTest() {
-  console.log('=== Emergency Test ===');
-  
-  // 다른 방식으로 문자열 생성
-  const star = String.fromCharCode(42); // *
-  const space = String.fromCharCode(32); // 공백
-  const cronExpr = [star, star, star, star, star].join(space);
-  
-  console.log('Generated cron:', cronExpr);
-  console.log('Length:', cronExpr.length);
-  console.log('Char codes:', Array.from(cronExpr).map(c => c.charCodeAt(0)));
-  
-  const requestData = {
-    name: 'uas_newman',
-    cronExpr: cronExpr
-  };
-  
-  console.log('Final request data:', requestData);
-  
-  // fetch 대신 XMLHttpRequest 사용
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/schedule', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4) {
-        console.log('XHR Status:', xhr.status);
-        console.log('XHR Response:', xhr.responseText);
-        
-        if (xhr.status === 200) {
-          showNotification('XHR 방식 성공!', 'success');
-          loadSchedules();
-          resolve(xhr.responseText);
-        } else {
-          reject(new Error(`XHR 실패: ${xhr.status}`));
-        }
-      }
-    };
-    
-    const jsonData = JSON.stringify(requestData);
-    console.log('Sending XHR data:', jsonData);
-    xhr.send(jsonData);
-  });
-}
-
-// 직접 API 테스트 함수 - 개선
-async function testScheduleAPI() {
-  console.log('=== Direct API Test ===');
-  
-  const jobName = 'uas_newman';
-  const cronExpr = '* * * * *'; // 하드코딩된 값
-  
-  console.log('Hardcoded values:');
-  console.log('Job Name:', jobName);
-  console.log('Cron Expression:', cronExpr);
-  console.log('Cron Expression Length:', cronExpr.length);
-  console.log('Cron Expression Char Codes:', Array.from(cronExpr).map(c => c.charCodeAt(0)));
-  
-  const requestData = { 
-    name: jobName, 
-    cronExpr: cronExpr 
-  };
-  
-  console.log('Request Data:', requestData);
-  console.log('Request JSON:', JSON.stringify(requestData));
-  
-  try {
-    const response = await fetch('/api/schedule', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json' 
-      },
-      body: JSON.stringify(requestData)
-    });
-    
-    console.log('Response Status:', response.status);
-    console.log('Response OK:', response.ok);
-    
-    const result = await response.json();
-    console.log('Response Data:', result);
-    
-    if (response.ok) {
-      showNotification('직접 API 호출 성공! 매분마다 실행됩니다.', 'success');
-      await loadSchedules();
-    } else {
-      throw new Error(result.message || '호출 실패');
-    }
-  } catch (error) {
-    console.error('Direct API Error:', error);
-    showNotification(`API 호출 실패: ${error.message}`, 'error');
-  }
-}
-
-async function loadSchedules() {
-  try {
-    const response = await fetch('/api/schedule');
-    schedules = await response.json();
-    updateScheduleStatus();
-    renderModalScheduleList();
-  } catch (error) {
-    console.error('스케줄 로드 실패:', error);
-    document.getElementById('scheduleIndicator').textContent = '오류';
-    document.getElementById('scheduleIndicator').className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
-  }
-}
-
-function updateScheduleStatus() {
-  const indicator = document.getElementById('scheduleIndicator');
-  const list = document.getElementById('scheduleList');
-  
-  if (schedules.length === 0) {
-    indicator.textContent = '스케줄 없음';
-    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
-    list.innerHTML = '<div class="text-xs text-gray-500">등록된 스케줄이 없습니다</div>';
-  } else {
-    indicator.textContent = `${schedules.length}개 활성`;
-    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
-    
-    list.innerHTML = schedules.map(schedule => `
-      <div class="flex items-center justify-between py-1 px-2 bg-white rounded border">
-        <div>
-          <div class="font-medium text-xs">${schedule.name}</div>
-          <div class="text-xs text-gray-500">${schedule.cronExpr}</div>
-        </div>
-        <button onclick="deleteSchedule('${schedule.name}')" 
-                class="text-red-600 hover:text-red-800 text-xs">
-          🗑️
-        </button>
-      </div>
-    `).join('');
-  }
-}
-
-function renderModalScheduleList() {
-  const container = document.getElementById('modalScheduleList');
-  
-  if (schedules.length === 0) {
-    container.innerHTML = '<div class="text-center text-gray-500 py-4">등록된 스케줄이 없습니다</div>';
-    return;
-  }
-
-  container.innerHTML = schedules.map(schedule => `
-    <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
-      <div class="flex-1">
-        <div class="font-medium">${schedule.name}</div>
-        <div class="text-sm text-gray-600 font-mono">${schedule.cronExpr}</div>
-        <div class="text-xs text-gray-500">${getCronDescription(schedule.cronExpr)}</div>
-      </div>
-      <button onclick="deleteSchedule('${schedule.name}')" 
-              class="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
-        삭제
-      </button>
-    </div>
-  `).join('');
-}
-
-function getCronDescription(cronExpr) {
-  const patterns = {
-    '* * * * *': '매분마다',
-    '*/5 * * * *': '5분마다',
-    '*/15 * * * *': '15분마다',
-    '*/30 * * * *': '30분마다',
-    '0 * * * *': '매시간',
-    '0 9 * * *': '매일 오전 9시',
-    '0 9 * * 1-5': '평일 오전 9시',
-    '0 0 * * *': '매일 자정',
-    '0 12 * * *': '매일 정오'
-  };
-  return patterns[cronExpr] || '사용자 정의';
-}
-
-async function addSchedule(jobName, cronExpr) {
-  try {
-    // 강제로 올바른 cron 표현식 사용
-    let fixedCronExpr = cronExpr;
-    
-    // 값이 이상하게 변조된 경우 강제 수정
-    if (cronExpr.includes('*') && cronExpr.length < 9) {
-      fixedCronExpr = '* * * * *'; // 강제로 매분 실행으로 설정
-      console.log('Fixed corrupted cron expression to:', fixedCronExpr);
-    }
-    
-    console.log('=== Schedule Request ===');
-    console.log('Original Cron:', cronExpr);
-    console.log('Fixed Cron:', fixedCronExpr);
-    console.log('Job Name:', jobName);
-    
-    const requestBody = { 
-      name: jobName, 
-      cronExpr: fixedCronExpr 
-    };
-    
-    console.log('Final Request Body:', JSON.stringify(requestBody));
-    
-    const response = await fetch('/api/schedule', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    console.log('Response Status:', response.status);
-    console.log('Response OK:', response.ok);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error Response:', errorText);
-      throw new Error(`서버 오류 (${response.status}): ${errorText}`);
-    }
-    
-    const result = await response.json();
-    console.log('Success Response:', result);
-
-    showNotification('스케줄이 추가되었습니다', 'success');
-    await loadSchedules();
-    document.getElementById('scheduleForm').reset();
-    
-  } catch (error) {
-    console.error('=== Schedule Error ===');
-    console.error('Error:', error);
-    showNotification(`스케줄 추가 실패: ${error.message}`, 'error');
-  }
-}
-
-async function deleteSchedule(name) {
-  if (!confirm(`"${name}" 스케줄을 삭제하시겠습니까?`)) return;
-  
-  try {
-    const response = await fetch(`/api/schedule/${name}`, { method: 'DELETE' });
-    
-    if (response.ok) {
-      showNotification('스케줄이 삭제되었습니다', 'success');
-      await loadSchedules();
-    } else {
-      throw new Error('삭제 실패');
-    }
-  } catch (error) {
-    console.error('스케줄 삭제 실패:', error);
-    showNotification('스케줄 삭제에 실패했습니다', 'error');
-  }
-}
-
-// 기존 함수들
-function updateJobSummary(){
-  const name=document.getElementById('jobSelect').value;
-  const j=jobs.find(x=>x.name===name);
-  const chips=[`컬렉션: ${j?.collection?.split('/').pop()||'-'}`,`환경: ${j?.environment?.split('/').pop()||'-'}`];
-  document.getElementById('jobSummary').innerHTML = chips.map(c=>`<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`).join('');
-}
-
-async function loadJobs(){
-  const res = await fetch('/api/jobs', { cache:'no-store' });
+// 잡 관리
+async function loadJobs() {
+  const res = await fetch('/api/jobs', { cache: 'no-store' });
   jobs = await res.json();
-  const sel=document.getElementById('jobSelect'); 
-  const fsel=document.getElementById('filterJob');
-  const msel=document.getElementById('modalJobSelect');
-  
-  sel.innerHTML=''; fsel.innerHTML='<option value="">전체</option>'; msel.innerHTML='<option value="">선택하세요</option>';
-  
-  jobs.forEach(j=>{
-    sel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`);
-    fsel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
-    msel.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name}</option>`);
+  const elements = ['jobSelect', 'filterJob', 'modalJobSelect'];
+  elements.forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = id === 'filterJob' ? '<option value="">전체</option>' : '<option value="">선택하세요</option>';
+    jobs.forEach(j => el.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`));
   });
   
-  if (jobs.length===0) {
-    document.getElementById('jobSummary').textContent='jobs 폴더가 비어 있습니다. jobs/*.json을 확인하세요.';
+  if (jobs.length === 0) {
+    document.getElementById('jobSummary').textContent = 'jobs 폴더가 비어 있습니다.';
   } else {
     updateJobSummary();
   }
 }
 
-async function fetchHistory(){
-  const r=await fetch(`/api/history?page=1&size=${pageSize}`); 
-  const {items, running:run}=await r.json();
-  running=run||null; setStatusChip();
-  historyRaw=items||[]; historyView=historyRaw.slice(); renderHistory();
+function updateJobSummary() {
+  const name = document.getElementById('jobSelect').value;
+  const j = jobs.find(x => x.name === name);
+  const chips = [`컬렉션: ${j?.collection?.split('/').pop() || '-'}`, `환경: ${j?.environment?.split('/').pop() || '-'}`];
+  document.getElementById('jobSummary').innerHTML = chips.map(c => 
+    `<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`
+  ).join('');
 }
 
-function setStatusChip(){
-  const chip=document.getElementById('statusChip');
-  chip.textContent = running ? ('실행 중: '+running.job) : '대기';
+// 히스토리 관리
+async function fetchHistory() {
+  const r = await fetch(`/api/history?page=1&size=${pageSize}`);
+  const { items, running: run } = await r.json();
+  running = run || null;
+  setStatusChip();
+  historyRaw = items || [];
+  historyView = historyRaw.slice();
+  renderHistory();
+}
+
+function setStatusChip() {
+  const chip = document.getElementById('statusChip');
+  chip.textContent = running ? ('실행 중: ' + running.job) : '대기';
   chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
 }
 
+function renderHistory() {
+  const tb = document.getElementById('histTbody');
+  tb.innerHTML = '';
+  historyView.slice().reverse().forEach(row => {
+    const ok = row.exitCode === 0;
+    const duration = !row.duration && row.duration !== 0 ? '-' : 
+      row.duration < 60 ? `${row.duration}초` : `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
+    
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="${ok ? '' : 'bg-rose-50/40'}">
+        <td class="py-1 pr-4 text-xs">${row.timestamp || ''}</td>
+        <td class="py-1 pr-4 font-medium">${row.job || ''}</td>
+        <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">✅ 성공</span>' : '<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
+        <td class="py-1 pr-4 text-xs">${(row.summary || '').replace(/</g, '&lt;')}</td>
+        <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
+        <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
+        <td class="py-1">
+          <a class="text-slate-700 underline text-xs log-link" href="#" data-log-url="/logs/${row.stdout}">📄 stdout</a>
+        </td>
+      </tr>`
+    );
+  });
+}
+
+// 로그 자동 스크롤
+function openLogWithAutoScroll(logUrl) {
+  const logWindow = window.open(logUrl, '_blank');
+  if (logWindow) {
+    logWindow.addEventListener('load', () => {
+      setTimeout(() => logWindow.scrollTo(0, logWindow.document.body.scrollHeight), 100);
+    });
+  }
+}
+
+// 필터링
+function applyFilters() {
+  const job = document.getElementById('filterJob').value;
+  const range = document.getElementById('range').value;
+  const q = document.getElementById('searchText').value.trim().toLowerCase();
+  const now = Date.now();
+  
+  function inRange(ts) {
+    if (!range) return true;
+    const t = Date.parse(ts.replace(' ', 'T') + '+09:00');
+    if (range === '24h') return (now - t) <= (24 * 3600 * 1000);
+    if (range === '7d') return (now - t) <= (7 * 24 * 3600 * 1000);
+    return true;
+  }
+  
+  historyView = historyRaw.filter(r => 
+    (!job || r.job === job) && 
+    inRange(r.timestamp) && 
+    (!q || ((r.job || '') + (r.summary || '')).toLowerCase().includes(q))
+  );
+  renderHistory();
+}
+
+function resetFilters() {
+  ['filterJob', 'range', 'searchText'].forEach(id => document.getElementById(id).value = '');
+  historyView = historyRaw.slice();
+  renderHistory();
+}
+
+// 알람 상태
 async function checkAlertStatus() {
   try {
     const response = await fetch('/api/alert/config');
@@ -625,166 +379,211 @@ async function checkAlertStatus() {
       indicator.textContent = '비활성화';
     }
   } catch (error) {
-    console.warn('알람 상태 확인 실패:', error);
     const indicator = document.getElementById('alertIndicator');
     indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
     indicator.textContent = '오류';
   }
 }
 
-function applyFilters(){
-  const job=document.getElementById('filterJob').value;
-  const range=document.getElementById('range').value;
-  const q=document.getElementById('searchText').value.trim().toLowerCase();
-  const now=Date.now();
-  function inRange(ts){
-    if(!range) return true;
-    const t = Date.parse(ts.replace(' ','T')+'+09:00');
-    if(range==='24h') return (now - t) <= (24*3600*1000);
-    if(range==='7d')  return (now - t) <= (7*24*3600*1000);
-    return true;
+// 스케줄 관리
+async function loadSchedules() {
+  try {
+    const response = await fetch('/api/schedule');
+    schedules = await response.json();
+    updateScheduleStatus();
+    renderModalScheduleList();
+  } catch (error) {
+    document.getElementById('scheduleIndicator').textContent = '오류';
+    document.getElementById('scheduleIndicator').className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
   }
-  historyView = historyRaw.filter(r => (!job || r.job===job) && inRange(r.timestamp) && (!q || ((r.job||'')+(r.summary||'')).toLowerCase().includes(q)));
-  renderHistory();
 }
 
-function resetFilters(){ 
-  document.getElementById('filterJob').value=''; 
-  document.getElementById('range').value=''; 
-  document.getElementById('searchText').value=''; 
-  historyView=historyRaw.slice(); 
-  renderHistory(); 
+function updateScheduleStatus() {
+  const indicator = document.getElementById('scheduleIndicator');
+  const list = document.getElementById('scheduleList');
+  
+  if (schedules.length === 0) {
+    indicator.textContent = '스케줄 없음';
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
+    list.innerHTML = '<div class="text-xs text-gray-500">등록된 스케줄이 없습니다</div>';
+  } else {
+    indicator.textContent = `${schedules.length}개 활성`;
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
+    list.innerHTML = schedules.map(s => `
+      <div class="flex items-center justify-between py-1 px-2 bg-white rounded border">
+        <div>
+          <div class="font-medium text-xs">${s.name}</div>
+          <div class="text-xs text-gray-500">${s.cronExpr}</div>
+        </div>
+        <button onclick="deleteSchedule('${s.name}')" class="text-red-600 hover:text-red-800 text-xs">🗑️</button>
+      </div>
+    `).join('');
+  }
 }
 
-function formatDuration(seconds) {
-  if (!seconds && seconds !== 0) return '-';
-  if (seconds < 60) return `${seconds}초`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}분 ${remainingSeconds}초`;
+function renderModalScheduleList() {
+  const container = document.getElementById('modalScheduleList');
+  if (schedules.length === 0) {
+    container.innerHTML = '<div class="text-center text-gray-500 py-4">등록된 스케줄이 없습니다</div>';
+    return;
+  }
+  container.innerHTML = schedules.map(s => `
+    <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+      <div class="flex-1">
+        <div class="font-medium">${s.name}</div>
+        <div class="text-sm text-gray-600 font-mono">${s.cronExpr}</div>
+      </div>
+      <button onclick="deleteSchedule('${s.name}')" class="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">삭제</button>
+    </div>
+  `).join('');
 }
 
-function renderHistory(){
-  const tb=document.getElementById('histTbody'); tb.innerHTML='';
-  historyView.slice().reverse().forEach(row=>{
-    const ok=row.exitCode===0;
-    const duration = formatDuration(row.duration);
-    tb.insertAdjacentHTML('beforeend', `
-      <tr class="${ok?'':'bg-rose-50/40'}">
-        <td class="py-1 pr-4 text-xs">${row.timestamp||''}</td>
-        <td class="py-1 pr-4 font-medium">${row.job||''}</td>
-        <td class="py-1 pr-4">${ok?'<span class="text-emerald-700 text-sm">✅ 성공</span>':'<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
-        <td class="py-1 pr-4 text-xs">${(row.summary||'').replace(/</g,'&lt;')}</td>
-        <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
-        <td class="py-1 pr-4">${row.report?('<a class="text-indigo-600 underline text-xs" href="'+row.report.replace(/^.*[\\/]reports[\\/]/,'/reports/')+'" target="_blank">📊 HTML</a>'):''}</td>
-        <td class="py-1"><a class="text-slate-700 underline text-xs" href="/logs/${row.stdout}" target="_blank">📄 stdout</a></td>
-      </tr>`);
-  });
+function setCronExpression(expression) {
+  document.getElementById('cronExpr').value = expression;
 }
-// 새 함수 추가
-// 로그 추가 함수 개선
+
+async function addSchedule(jobName, cronExpr) {
+  try {
+    const response = await fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: jobName, cronExpr })
+    });
+    
+    if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
+    
+    showNotification('스케줄이 추가되었습니다', 'success');
+    await loadSchedules();
+    document.getElementById('scheduleForm').reset();
+  } catch (error) {
+    showNotification(`스케줄 추가 실패: ${error.message}`, 'error');
+  }
+}
+
+async function deleteSchedule(name) {
+  if (!confirm(`"${name}" 스케줄을 삭제하시겠습니까?`)) return;
+  
+  try {
+    const response = await fetch(`/api/schedule/${name}`, { method: 'DELETE' });
+    if (response.ok) {
+      showNotification('스케줄이 삭제되었습니다', 'success');
+      await loadSchedules();
+    } else {
+      throw new Error('삭제 실패');
+    }
+  } catch (error) {
+    showNotification('스케줄 삭제에 실패했습니다', 'error');
+  }
+}
+
+// 로그 관리
 function addLogToConsoles(line) {
   const htmlLine = ansiUp.ansi_to_html(line);
-  
-  // 메인 콘솔에 추가
   const mainConsole = document.getElementById('console');
   if (mainConsole) {
     mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
     mainConsole.scrollTop = mainConsole.scrollHeight;
   }
   
-  // 전체화면 모달 콘솔에도 추가 (모달이 열려있는지 확인)
-  const modal = document.getElementById('logModal');
-  const modalConsole = document.getElementById('modalConsole');
-  
-  if (modal && modalConsole && !modal.classList.contains('hidden')) {
-    modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
-    modalConsole.scrollTop = modalConsole.scrollHeight;
+  if (isModalOpen) {
+    const modalConsole = document.getElementById('modalConsole');
+    if (modalConsole) {
+      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+      requestAnimationFrame(() => modalConsole.scrollTop = modalConsole.scrollHeight);
+    }
   }
 }
 
-// 전체화면 모달 열기 함수 개선
-document.getElementById('expandLogModal').onclick = () => {
+function openLogModal() {
   const modal = document.getElementById('logModal');
   const modalConsole = document.getElementById('modalConsole');
   const mainConsole = document.getElementById('console');
   
-  // 기존 로그 내용을 모달로 복사
-  if (modalConsole && mainConsole) {
-    modalConsole.innerHTML = mainConsole.innerHTML;
-  }
+  if (!modal || !modalConsole || !mainConsole) return;
   
-  // 모달 표시
+  modalConsole.innerHTML = mainConsole.innerHTML;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  isModalOpen = true;
+  document.body.style.overflow = 'hidden';
+  
+  setTimeout(() => modalConsole.scrollTop = modalConsole.scrollHeight, 100);
+}
+
+function closeLogModal() {
+  const modal = document.getElementById('logModal');
   if (modal) {
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
-    // 맨 아래로 스크롤
-    setTimeout(() => {
-      if (modalConsole) {
-        modalConsole.scrollTop = modalConsole.scrollHeight;
-      }
-    }, 100);
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    isModalOpen = false;
+    document.body.style.overflow = '';
   }
-};
-function startSSE(){
-  const esState=new EventSource('/api/stream/state');
-  esState.addEventListener('state', e=>{
-    const payload=JSON.parse(e.data); const was=!!running;
-    running=payload.running||null; setStatusChip();
-    if(was && !running) {
+}
+
+function clearAllConsoles() {
+  const mainConsole = document.getElementById('console');
+  const modalConsole = document.getElementById('modalConsole');
+  if (mainConsole) mainConsole.innerHTML = '';
+  if (modalConsole) modalConsole.innerHTML = '';
+}
+
+// SSE
+function startSSE() {
+  const esState = new EventSource('/api/stream/state');
+  esState.addEventListener('state', e => {
+    const payload = JSON.parse(e.data);
+    const was = !!running;
+    running = payload.running || null;
+    setStatusChip();
+    if (was && !running) {
       fetchHistory();
       setTimeout(checkAlertStatus, 1000);
     }
-    document.getElementById('runBtn').disabled=!!running;
+    document.getElementById('runBtn').disabled = !!running;
   });
   
-const esLog=new EventSource('/api/stream/logs');
-esLog.addEventListener('log', e=>{
-  const {line}=JSON.parse(e.data);
-  addLogToConsoles(line);
-});
+  const esLog = new EventSource('/api/stream/logs');
+  esLog.addEventListener('log', e => {
+    const { line } = JSON.parse(e.data);
+    addLogToConsoles(line);
+  });
 
-  // 연결 상태 표시도 모달에 동기화
-esState.addEventListener('open', () => {
-  document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
-  document.getElementById('modalLogIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
-});
+  esState.addEventListener('open', () => {
+    document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+    const modalIndicator = document.getElementById('modalLogIndicator');
+    if (modalIndicator) modalIndicator.className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+  });
   
   esState.addEventListener('error', () => {
-  document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
-  document.getElementById('modalLogIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
-});
+    document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+    const modalIndicator = document.getElementById('modalLogIndicator');
+    if (modalIndicator) modalIndicator.className = 'w-2 h-2 bg-red-400 rounded-full';
+  });
 }
+
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
-    type === 'success' ? 'bg-green-500' : 
-    type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
   }`;
   notification.textContent = message;
-  
   document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.remove();
-  }, 3000);
+  setTimeout(() => notification.remove(), 3000);
 }
 
 // 이벤트 리스너 설정
 document.getElementById('jobSelect').onchange = updateJobSummary;
 
-document.getElementById('runBtn').onclick = async ()=>{
-  const name=document.getElementById('jobSelect').value;
-  document.getElementById('console').innerHTML='';
-  document.getElementById('modalConsole').innerHTML='';
-  if(!name){ 
+document.getElementById('runBtn').onclick = async () => {
+  const name = document.getElementById('jobSelect').value;
+  clearAllConsoles();
+  if (!name) { 
     alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
     return; 
   }
   
   try {
-    const response = await fetch('/api/run/'+name, { method:'POST' });
+    const response = await fetch('/api/run/' + name, { method: 'POST' });
     if (!response.ok) {
       const error = await response.json();
       alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
@@ -794,68 +593,10 @@ document.getElementById('runBtn').onclick = async ()=>{
   }
 };
 
-document.getElementById('clearConsole').onclick = ()=> {
-  document.getElementById('console').innerHTML='';
-  document.getElementById('modalConsole').innerHTML='';
-};
+document.getElementById('clearConsole').onclick = clearAllConsoles;
+document.getElementById('expandLogModal').onclick = openLogModal;
+document.getElementById('closeLogModal').onclick = closeLogModal;
 
-// 로그 모달 관련 기능
-document.getElementById('expandLogModal').onclick = () => {
-  const modal = document.getElementById('logModal');
-  const modalConsole = document.getElementById('modalConsole');
-  const mainConsole = document.getElementById('console');
-  
-  // 메인 콘솔 내용을 모달로 복사
-  modalConsole.innerHTML = mainConsole.innerHTML;
-  
-  // 모달 표시
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-  
-  // 맨 아래로 스크롤
-  modalConsole.scrollTop = modalConsole.scrollHeight;
-};
-
-document.getElementById('closeLogModal').onclick = () => {
-  const modal = document.getElementById('logModal');
-  modal.classList.add('hidden');
-  modal.classList.remove('flex');
-};
-
-document.getElementById('clearModalConsole').onclick = () => {
-  document.getElementById('console').innerHTML='';
-  document.getElementById('modalConsole').innerHTML='';
-};
-
-// ESC 키로 모달 닫기
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const logModal = document.getElementById('logModal');
-    const scheduleModal = document.getElementById('scheduleModal');
-    
-    if (!logModal.classList.contains('hidden')) {
-      document.getElementById('closeLogModal').click();
-    } else if (!scheduleModal.classList.contains('hidden')) {
-      document.getElementById('closeScheduleModal').click();
-    }
-  }
-});
-
-document.getElementById('applyFilter').onclick = applyFilters;
-document.getElementById('resetFilter').onclick = resetFilters;
-
-document.getElementById('pageSize').onchange = ()=>{
-  pageSize = parseInt(document.getElementById('pageSize').value);
-  fetchHistory();
-};
-
-document.getElementById('searchText').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    applyFilters();
-  }
-});
-
-// 스케줄 관련 이벤트 리스너
 document.getElementById('scheduleToggle').onclick = () => {
   document.getElementById('scheduleModal').classList.remove('hidden');
   document.getElementById('scheduleModal').classList.add('flex');
@@ -866,265 +607,50 @@ document.getElementById('closeScheduleModal').onclick = () => {
   document.getElementById('scheduleModal').classList.remove('flex');
 };
 
-document.getElementById('refreshSchedules').onclick = loadSchedules;
-
 document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  
   const jobName = document.getElementById('modalJobSelect').value;
   const cronExpr = document.getElementById('cronExpr').value.trim();
-  
   if (!jobName || !cronExpr) {
     showNotification('모든 필드를 입력해주세요', 'error');
     return;
   }
-
   await addSchedule(jobName, cronExpr);
 });
 
-// 모달 외부 클릭 시 닫기
-document.getElementById('scheduleModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) {
-    document.getElementById('scheduleModal').classList.add('hidden');
-    document.getElementById('scheduleModal').classList.remove('flex');
+document.getElementById('applyFilter').onclick = applyFilters;
+document.getElementById('resetFilter').onclick = resetFilters;
+document.getElementById('pageSize').onchange = () => {
+  pageSize = parseInt(document.getElementById('pageSize').value);
+  fetchHistory();
+};
+document.getElementById('searchText').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') applyFilters();
+});
+
+// 이벤트 위임 - 로그 링크와 모달 지우기 버튼
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('log-link')) {
+    e.preventDefault();
+    const logUrl = e.target.getAttribute('data-log-url');
+    if (logUrl) openLogWithAutoScroll(logUrl);
+  }
+  
+  if (e.target.id === 'clearModalConsole') {
+    clearAllConsoles();
   }
 });
 
-// 전역 변수에 모달 상태 추가
-let isModalOpen = false;
-
-// 개선된 addLogToConsoles 함수
-function addLogToConsoles(line) {
-  const htmlLine = ansiUp.ansi_to_html(line);
-  
-  // 메인 콘솔에 항상 추가
-  const mainConsole = document.getElementById('console');
-  if (mainConsole) {
-    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
-    mainConsole.scrollTop = mainConsole.scrollHeight;
-  }
-  
-  // 모달이 열려있을 때만 모달 콘솔에도 추가
-  if (isModalOpen) {
-    const modalConsole = document.getElementById('modalConsole');
-    if (modalConsole) {
-      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
-      // 강제로 스크롤을 맨 아래로
-      setTimeout(() => {
-        modalConsole.scrollTop = modalConsole.scrollHeight;
-      }, 10);
-    }
-  }
-}
-
-// 전체화면 모달 열기
-document.getElementById('expandLogModal').onclick = () => {
-  console.log('[MODAL] 전체화면 모달 열기 시도');
-  
-  const modal = document.getElementById('logModal');
-  const modalConsole = document.getElementById('modalConsole');
-  const mainConsole = document.getElementById('console');
-  
-  console.log('[MODAL] 요소 확인:', {
-    modal: !!modal,
-    modalConsole: !!modalConsole,
-    mainConsole: !!mainConsole
-  });
-  
-  if (!modal || !modalConsole || !mainConsole) {
-    console.error('[MODAL] 필요한 요소를 찾을 수 없습니다');
-    return;
-  }
-  
-  // 기존 로그 내용을 모달로 복사
-  modalConsole.innerHTML = mainConsole.innerHTML;
-  console.log('[MODAL] 로그 복사 완료, 라인 수:', modalConsole.innerHTML.split('<br>').length);
-  
-  // 모달 표시
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-  isModalOpen = true;
-  
-  console.log('[MODAL] 모달 표시 완료');
-  
-  // 스크롤을 맨 아래로
-  setTimeout(() => {
-    modalConsole.scrollTop = modalConsole.scrollHeight;
-    console.log('[MODAL] 스크롤 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
-  }, 200);
-};
-
-// 전체화면 모달 닫기
-document.getElementById('closeLogModal').onclick = () => {
-  console.log('[MODAL] 전체화면 모달 닫기');
-  
-  const modal = document.getElementById('logModal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    isModalOpen = false;
-    console.log('[MODAL] 모달 닫기 완료');
-  }
-};
-
-// 전체화면 콘솔 지우기
-document.getElementById('clearModalConsole').onclick = () => {
-  console.log('[MODAL] 콘솔 지우기');
-  
-  const mainConsole = document.getElementById('console');
-  const modalConsole = document.getElementById('modalConsole');
-  
-  if (mainConsole) {
-    mainConsole.innerHTML = '';
-    console.log('[MODAL] 메인 콘솔 지움');
-  }
-  
-  if (modalConsole) {
-    modalConsole.innerHTML = '';
-    console.log('[MODAL] 모달 콘솔 지움');
-  }
-};
-
-// ESC 키로 모달 닫기 (기존 코드 개선)
+// ESC 키로 모달 닫기
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (isModalOpen) {
-      document.getElementById('closeLogModal').click();
-    } else {
-      const scheduleModal = document.getElementById('scheduleModal');
-      if (scheduleModal && !scheduleModal.classList.contains('hidden')) {
-        document.getElementById('closeScheduleModal').click();
-      }
+      closeLogModal();
+    } else if (!document.getElementById('scheduleModal').classList.contains('hidden')) {
+      document.getElementById('closeScheduleModal').click();
     }
   }
 });
-
-// runBtn에서도 모달 콘솔 지우기 (기존 코드 수정)
-document.getElementById('runBtn').onclick = async ()=>{
-  const name=document.getElementById('jobSelect').value;
-  
-  // 콘솔 지우기
-  document.getElementById('console').innerHTML='';
-  if (isModalOpen) {
-    const modalConsole = document.getElementById('modalConsole');
-    if (modalConsole) {
-      modalConsole.innerHTML='';
-    }
-  }
-  
-  if(!name){ 
-    alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
-    return; 
-  }
-  
-  // 버튼 비활성화
-  const runBtn = document.getElementById('runBtn');
-  runBtn.disabled = true;
-  
-  try {
-    const response = await fetch('/api/run/'+name, { 
-      method:'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
-    } else {
-      const result = await response.json();
-      console.log('실행 시작:', result);
-    }
-  } catch (error) {
-    console.error('요청 오류:', error);
-    alert(`요청 실패: ${error.message}`);
-  } finally {
-    setTimeout(() => {
-      runBtn.disabled = false;
-    }, 3000);
-  }
-};
-
-document.getElementById('expandLogModal').onclick = () => {
-  console.log('[MODAL] 전체화면 모달 열기 시도');
-  
-  const modal = document.getElementById('logModal');
-  const modalConsole = document.getElementById('modalConsole');
-  const mainConsole = document.getElementById('console');
-  
-  if (!modal || !modalConsole || !mainConsole) {
-    console.error('[MODAL] 필요한 요소를 찾을 수 없습니다');
-    return;
-  }
-  
-  // 기존 로그 내용을 모달로 복사
-  modalConsole.innerHTML = mainConsole.innerHTML;
-  console.log('[MODAL] 로그 복사 완료, 라인 수:', modalConsole.innerHTML.split('<br>').length);
-  
-  // 모달 표시
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-  isModalOpen = true;
-  
-  console.log('[MODAL] 모달 표시 완료');
-  
-  // 스크롤을 맨 아래로 (더 강력하게)
-  setTimeout(() => {
-    // 여러 방법으로 스크롤 시도
-    modalConsole.scrollTop = modalConsole.scrollHeight;
-    modalConsole.scrollIntoView(false); // 요소를 뷰의 맨 아래로
-    
-    console.log('[MODAL] 1차 스크롤 시도 - 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
-    
-    // 한 번 더 시도
-    setTimeout(() => {
-      modalConsole.scrollTop = modalConsole.scrollHeight;
-      console.log('[MODAL] 2차 스크롤 시도 - 위치:', modalConsole.scrollTop, '/ 전체 높이:', modalConsole.scrollHeight);
-      
-      // 마지막으로 강제 스크롤
-      if (modalConsole.scrollTop < modalConsole.scrollHeight - modalConsole.clientHeight) {
-        modalConsole.scrollTo({
-          top: modalConsole.scrollHeight,
-          behavior: 'smooth'
-        });
-        console.log('[MODAL] 강제 스크롤 실행');
-      }
-    }, 100);
-  }, 300);
-};
-
-// 개선된 addLogToConsoles 함수 (스크롤 보장)
-function addLogToConsoles(line) {
-  const htmlLine = ansiUp.ansi_to_html(line);
-  
-  // 메인 콘솔에 항상 추가
-  const mainConsole = document.getElementById('console');
-  if (mainConsole) {
-    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
-    mainConsole.scrollTop = mainConsole.scrollHeight;
-  }
-  
-  // 모달이 열려있을 때만 모달 콘솔에도 추가
-  if (isModalOpen) {
-    const modalConsole = document.getElementById('modalConsole');
-    if (modalConsole) {
-      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
-      
-      // 강력한 스크롤 보장
-      requestAnimationFrame(() => {
-        modalConsole.scrollTop = modalConsole.scrollHeight;
-        
-        // 한번 더 확인
-        setTimeout(() => {
-          if (modalConsole.scrollTop < modalConsole.scrollHeight - modalConsole.clientHeight) {
-            modalConsole.scrollTop = modalConsole.scrollHeight;
-          }
-        }, 10);
-      });
-    }
-  }
-}
 
 // 초기화 실행
 init();
