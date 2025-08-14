@@ -3,19 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>알람 설정 - API 자동화 모니터링</title>
+    <title>알람 설정 - Danal API Monitor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' stroke='%23fff' stroke-width='3'/><path d='M35 35 L50 20 L65 35 L50 50 Z' fill='%23fff'/><path d='M35 65 L50 50 L65 65 L50 80 Z' fill='%23fff' opacity='0.8'/></svg>" />
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 text-slate-800">
     <div class="max-w-4xl mx-auto p-6 space-y-6">
         <!-- 헤더 -->
         <header class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold">알람 설정</h1>
-                <p class="text-sm text-slate-500">API 테스트 실행 결과 알람을 설정합니다</p>
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">알람 설정</h1>
+                    <p class="text-sm text-slate-500">API 모니터링 알람을 설정합니다</p>
+                </div>
             </div>
-            <a href="/" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700">
-                대시보드로 돌아가기
+            <a href="/" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors">
+                ← 대시보드
             </a>
         </header>
 
@@ -74,93 +82,29 @@
                     </div>
 
                     <!-- 알람 방식 선택 -->
-                    <div class="pt-4">
-                        <h4 class="font-medium mb-3">알람 방식</h4>
+                    <div class="pt-4 border-t">
+                        <h4 class="font-medium text-slate-700 mb-3">알람 방식</h4>
                         <div class="space-y-2">
                             <label class="flex items-center space-x-3">
-                                <input type="radio" name="alert_method" value="text" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <div>
-                                    <span class="font-medium">텍스트 메시지</span>
-                                    <p class="text-sm text-slate-600">간단한 텍스트 형태로 알람을 보냅니다</p>
-                                </div>
+                                <input type="radio" name="alert_method" value="text" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm">텍스트 메시지</span>
                             </label>
-
                             <label class="flex items-center space-x-3">
-                                <input type="radio" name="alert_method" value="flex" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
-                                <div>
-                                    <span class="font-medium">Flex 메시지</span>
-                                    <p class="text-sm text-slate-600">구조화된 카드 형태로 알람을 보냅니다 (LINE 등)</p>
-                                </div>
+                                <input type="radio" name="alert_method" value="flex" class="w-4 h-4 text-blue-600">
+                                <span class="text-sm">Flex 메시지 (카드 형태)</span>
                             </label>
                         </div>
                     </div>
                 </div>
 
                 <!-- 저장 버튼 -->
-                <div class="flex justify-end space-x-3 pt-4 border-t">
-                    <button type="button" id="testConnection" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                        연결 테스트
-                    </button>
+                <div class="flex justify-end pt-6">
                     <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                         설정 저장
                     </button>
                 </div>
             </form>
         </section>
-
-        <!-- 테스트 알람 -->
-        <section class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">테스트 알람</h2>
-            <p class="text-sm text-slate-600 mb-4">설정된 알람이 제대로 작동하는지 테스트해보세요</p>
-            
-            <div class="flex flex-wrap gap-3">
-                <button type="button" class="test-alert-btn px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" data-type="start">
-                    🚀 시작 알람 테스트
-                </button>
-                <button type="button" class="test-alert-btn px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600" data-type="success">
-                    ✅ 성공 알람 테스트
-                </button>
-                <button type="button" class="test-alert-btn px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600" data-type="error">
-                    ❌ 실패 알람 테스트
-                </button>
-            </div>
-        </section>
-
-        <!-- 웹훅 URL 설정 안내 -->
-        <section class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
-            <h2 class="text-lg font-semibold mb-4 text-yellow-800">웹훅 URL 설정</h2>
-            <div class="text-sm text-yellow-700 space-y-2">
-                <p>알람을 받으려면 <code class="bg-yellow-100 px-2 py-1 rounded">config/settings.json</code> 파일에 웹훅 URL을 설정해야 합니다:</p>
-                <pre class="bg-yellow-100 p-3 rounded mt-3 overflow-x-auto"><code>{
-  "webhook_url": "https://your-webhook-url.com/webhook",
-  "run_event_alert": true,
-  "alert_on_start": true,
-  "alert_on_success": true,
-  "alert_on_error": true,
-  "alert_method": "flex"
-}</code></pre>
-                <p class="pt-2">또는 환경변수 <code class="bg-yellow-100 px-2 py-1 rounded">NW_HOOK</code>을 설정할 수도 있습니다.</p>
-            </div>
-        </section>
-    </div>
-
-    <!-- 알림 토스트 -->
-    <div id="toast" class="fixed top-4 right-4 z-50 hidden">
-        <div class="bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[300px]">
-            <div class="flex items-start">
-                <div id="toast-icon" class="flex-shrink-0 w-5 h-5 mt-0.5"></div>
-                <div class="ml-3 flex-1">
-                    <p id="toast-message" class="text-sm font-medium text-gray-900"></p>
-                    <p id="toast-detail" class="text-sm text-gray-500 mt-1"></p>
-                </div>
-                <button type="button" onclick="hideToast()" class="ml-4 text-gray-400 hover:text-gray-600">
-                    <span class="sr-only">닫기</span>
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                    </svg>
-                </button>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -186,7 +130,7 @@
                 toggleDetailSettings(config.run_event_alert);
                 
             } catch (error) {
-                showToast('오류', '설정을 불러오는 중 오류가 발생했습니다.', 'error');
+                showNotification('설정을 불러오는 중 오류가 발생했습니다.', 'error');
             }
         }
 
@@ -235,35 +179,20 @@
             }
         }
 
-        // 토스트 메시지 표시
-        function showToast(title, message, type = 'info') {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const titleEl = document.getElementById('toast-message');
-            const messageEl = document.getElementById('toast-detail');
+        // 알림 표시
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`;
+            notification.textContent = message;
             
-            titleEl.textContent = title;
-            messageEl.textContent = message;
+            document.body.appendChild(notification);
             
-            // 아이콘 설정
-            const iconColors = {
-                success: 'text-green-500',
-                error: 'text-red-500',
-                warning: 'text-yellow-500',
-                info: 'text-blue-500'
-            };
-            
-            icon.className = `flex-shrink-0 w-5 h-5 mt-0.5 ${iconColors[type] || iconColors.info}`;
-            icon.innerHTML = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
-            
-            toast.classList.remove('hidden');
-            
-            // 3초 후 자동 숨김
-            setTimeout(hideToast, 3000);
-        }
-
-        function hideToast() {
-            document.getElementById('toast').classList.add('hidden');
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
 
         // 이벤트 리스너 설정
@@ -296,80 +225,18 @@
                         body: JSON.stringify(formData)
                     });
                     
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showToast('성공', '설정이 저장되었습니다.', 'success');
+                    if (response.ok) {
+                        const result = await response.json();
+                        showNotification('설정이 저장되었습니다.', 'success');
                         loadCurrentConfig(); // 설정 다시 로드
                     } else {
-                        showToast('오류', result.message, 'error');
+                        const errorText = await response.text();
+                        throw new Error(errorText);
                     }
                 } catch (error) {
-                    showToast('오류', '설정 저장 중 오류가 발생했습니다.', 'error');
+                    console.error('설정 저장 오류:', error);
+                    showNotification('설정 저장 중 오류가 발생했습니다.', 'error');
                 }
-            });
-            
-            // 연결 테스트
-            document.getElementById('testConnection').addEventListener('click', async function() {
-                this.disabled = true;
-                this.textContent = '테스트 중...';
-                
-                try {
-                    const response = await fetch('/api/alert/test', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ type: 'success' })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showToast('연결 성공', '웹훅 연결이 정상적으로 작동합니다.', 'success');
-                    } else {
-                        showToast('연결 실패', result.message, 'error');
-                    }
-                } catch (error) {
-                    showToast('연결 오류', '연결 테스트 중 오류가 발생했습니다.', 'error');
-                } finally {
-                    this.disabled = false;
-                    this.textContent = '연결 테스트';
-                }
-            });
-            
-            // 테스트 알람 버튼들
-            document.querySelectorAll('.test-alert-btn').forEach(button => {
-                button.addEventListener('click', async function() {
-                    const type = this.dataset.type;
-                    const originalText = this.textContent;
-                    
-                    this.disabled = true;
-                    this.textContent = '전송 중...';
-                    
-                    try {
-                        const response = await fetch('/api/alert/test', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ type })
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                            showToast('테스트 성공', `${type} 알람이 전송되었습니다.`, 'success');
-                        } else {
-                            showToast('테스트 실패', result.message, 'error');
-                        }
-                    } catch (error) {
-                        showToast('테스트 오류', '테스트 알람 전송 중 오류가 발생했습니다.', 'error');
-                    } finally {
-                        this.disabled = false;
-                        this.textContent = originalText;
-                    }
-                });
             });
         });
     </script>
