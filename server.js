@@ -6,8 +6,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import cron from 'node-cron';
-import { sendTextMessage, sendFlexMessage, buildRunStatusFlex } from './alert.js';
-
+import { 
+  sendTextMessage, 
+  sendFlexMessage, 
+  buildRunStatusFlex,
+  buildRunStatusFlexWithStats 
+} from './alert.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const root       = __dirname;
@@ -217,17 +221,16 @@ function cleanupOldReports(){
   } 
 }
 
-// 개선된 알람 전송 함수
-// 개선된 알람 전송 함수 - Newman 통계 포함
-// 개선된 알람 전송 함수 - 안전한 텍스트 기본, Flex 옵션
 async function sendAlert(type, data) {
   const config = readCfg();
   
+  // 알람이 비활성화되어 있으면 리턴
   if (!config.run_event_alert) {
     console.log(`[ALERT] 알람이 비활성화되어 있습니다: ${type}`);
     return;
   }
 
+  // 각 타입별 알람 설정 확인
   if (type === 'start' && !config.alert_on_start) return;
   if (type === 'success' && !config.alert_on_success) return;
   if (type === 'error' && !config.alert_on_error) return;
@@ -235,60 +238,25 @@ async function sendAlert(type, data) {
   try {
     let result;
     
-    // 항상 텍스트 메시지를 먼저 시도 (안정성)
-    let message;
-    if (type === 'start') {
-      message = `🚀 API 테스트 실행 시작\n` +
-               `• 잡: ${data.jobName}\n` +
-               `• 시간: ${data.startTime}`;
-    } else if (type === 'success') {
-      message = `✅ API 테스트 실행 성공\n` +
-               `• 잡: ${data.jobName}\n` +
-               `• 실행시간: ${data.duration}초`;
-               
-      if (data.newmanStats) {
-        const stats = data.newmanStats;
-        const successRate = stats.tests.total > 0 ? Math.round((stats.tests.passed / stats.tests.total) * 100) : 0;
-        message += `\n\n📊 실행 결과\n` +
-                  `• 요청: ${stats.requests.passed}/${stats.requests.total}개 성공\n` +
-                  `• 테스트: ${stats.tests.passed}/${stats.tests.total}개 통과 (${successRate}%)\n` +
-                  `• 소요시간: ${Math.round(stats.duration/1000)}초`;
-      }
-    } else if (type === 'error') {
-      message = `❌ API 테스트 실행 실패\n` +
-               `• 잡: ${data.jobName}\n` +
-               `• 종료코드: ${data.exitCode}\n` +
-               `• 실행시간: ${data.duration}초`;
-               
-      if (data.newmanStats) {
-        const stats = data.newmanStats;
-        message += `\n\n📊 실행 결과\n` +
-                  `• 요청: ${stats.requests.passed}/${stats.requests.total}개 성공\n` +
-                  `• 테스트: ${stats.tests.passed}/${stats.tests.total}개 통과\n` +
-                  `• 실패: ${stats.tests.failed}개`;
-      }
-      
-      if (data.errorSummary) {
-        message += `\n\n⚠️ 오류 요약\n${data.errorSummary.substring(0, 200)}`;
-      }
-    }
-    
-    // Flex 메시지 시도 (설정된 경우)
     if (config.alert_method === 'flex') {
-      try {
-        const flexData = buildRunStatusFlexWithStats(type, data);
-        result = await sendFlexMessage(flexData);
-        
-        // Flex 실패 시 텍스트로 폴백
-        if (!result.ok) {
-          console.warn('[ALERT] Flex 메시지 실패, 텍스트로 재시도');
-          result = await sendTextMessage(message);
-        }
-      } catch (flexError) {
-        console.warn('[ALERT] Flex 메시지 오류, 텍스트로 재시도:', flexError.message);
-        result = await sendTextMessage(message);
-      }
+      // 통계 정보가 있으면 buildRunStatusFlexWithStats 사용, 없으면 기본 함수 사용
+      const flexData = data.stats 
+        ? buildRunStatusFlexWithStats(type, data)
+        : buildRunStatusFlex(type, data);
+      result = await sendFlexMessage(flexData);
     } else {
+      // 텍스트 메시지 전송
+      let message;
+      if (type === 'start') {
+        message = `🚀 API 테스트 실행 시작\n잡: ${data.jobName}\n시간: ${data.startTime}`;
+      } else if (type === 'success') {
+        message = `✅ API 테스트 실행 성공\n잡: ${data.jobName}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
+      } else if (type === 'error') {
+        message = `❌ API 테스트 실행 실패\n잡: ${data.jobName}\n종료코드: ${data.exitCode}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
+        if (data.errorSummary) {
+          message += `\n오류: ${data.errorSummary}`;
+        }
+      }
       result = await sendTextMessage(message);
     }
 
@@ -303,451 +271,6 @@ async function sendAlert(type, data) {
   }
 }
 
-// Newman 통계를 포함한 Flex 메시지 빌더 (LINE 규격 준수)
-function buildRunStatusFlexWithStats(type, data) {
-  const colors = {
-    start: '#3B82F6',
-    success: '#10B981', 
-    error: '#EF4444'
-  };
-  
-  const icons = {
-    start: '🚀',
-    success: '✅',
-    error: '❌'
-  };
-  
-  const titles = {
-    start: 'API 테스트 시작',
-    success: 'API 테스트 성공',
-    error: 'API 테스트 실패'
-  };
-
-  // 기본 콘텐츠
-  let contents = [
-    {
-      type: "text",
-      text: `${icons[type]} ${titles[type]}`,
-      weight: "bold",
-      size: "lg",
-      color: colors[type]
-    },
-    {
-      type: "separator",
-      margin: "md"
-    },
-    {
-      type: "box",
-      layout: "vertical",
-      margin: "md",
-      spacing: "sm",
-      contents: [
-        {
-          type: "box",
-          layout: "baseline",
-          contents: [
-            {
-              type: "text",
-              text: "잡",
-              size: "sm",
-              color: "#aaaaaa",
-              flex: 1
-            },
-            {
-              type: "text",
-              text: data.jobName,
-              size: "sm",
-              weight: "bold",
-              flex: 3,
-              wrap: true
-            }
-          ]
-        },
-        {
-          type: "box",
-          layout: "baseline",
-          contents: [
-            {
-              type: "text",
-              text: "시간",
-              size: "sm",
-              color: "#aaaaaa",
-              flex: 1
-            },
-            {
-              type: "text",
-              text: type === 'start' ? data.startTime : data.endTime,
-              size: "sm",
-              flex: 3,
-              wrap: true
-            }
-          ]
-        }
-      ]
-    }
-  ];
-
-  // Newman 통계 추가 (성공/실패 시만)
-  if ((type === 'success' || type === 'error') && data.newmanStats) {
-    const stats = data.newmanStats;
-    const successRate = stats.tests.total > 0 ? Math.round((stats.tests.passed / stats.tests.total) * 100) : 0;
-    
-    contents.push({
-      type: "separator",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "text",
-      text: "📊 실행 결과",
-      weight: "bold",
-      size: "md",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "box",
-      layout: "vertical",
-      margin: "md",
-      spacing: "sm",
-      contents: [
-        {
-          type: "box",
-          layout: "baseline",
-          contents: [
-            {
-              type: "text",
-              text: "요청",
-              size: "sm",
-              color: "#aaaaaa",
-              flex: 2
-            },
-            {
-              type: "text",
-              text: `${stats.requests.passed}/${stats.requests.total}개`,
-              size: "sm",
-              weight: "bold",
-              color: stats.requests.failed > 0 ? "#EF4444" : "#10B981",
-              flex: 3
-            }
-          ]
-        },
-        {
-          type: "box",
-          layout: "baseline",
-          contents: [
-            {
-              type: "text",
-              text: "테스트",
-              size: "sm",
-              color: "#aaaaaa",
-              flex: 2
-            },
-            {
-              type: "text",
-              text: `${stats.tests.passed}/${stats.tests.total} (${successRate}%)`,
-              size: "sm",
-              weight: "bold",
-              color: stats.tests.failed > 0 ? "#EF4444" : "#10B981",
-              flex: 3
-            }
-          ]
-        },
-        {
-          type: "box",
-          layout: "baseline",
-          contents: [
-            {
-              type: "text",
-              text: "시간",
-              size: "sm",
-              color: "#aaaaaa",
-              flex: 2
-            },
-            {
-              type: "text",
-              text: `${data.duration}초`,
-              size: "sm",
-              flex: 3
-            }
-          ]
-        }
-      ]
-    });
-  }
-
-  // 에러 요약 추가 (실패 시만, 간단하게)
-  if (type === 'error' && data.errorSummary) {
-    contents.push({
-      type: "separator",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "text",
-      text: "⚠️ 오류",
-      weight: "bold",
-      size: "sm",
-      color: "#EF4444",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "text",
-      text: data.errorSummary.substring(0, 100) + (data.errorSummary.length > 100 ? '...' : ''),
-      size: "xs",
-      color: "#666666",
-      wrap: true,
-      maxLines: 3
-    });
-  }
-
-  return {
-    type: "flex",
-    altText: `${titles[type]}: ${data.jobName}`,
-    contents: {
-      type: "bubble",
-      body: {
-        type: "box",
-        layout: "vertical",
-        contents: contents
-      }
-    }
-  };
-}
-
-// Newman 통계를 포함한 Flex 메시지 빌더 (alert.js에 추가해야 함)
-function buildRunStatusFlexWithStats(type, data) {
-  // 기본 색상 및 아이콘
-  const colors = {
-    start: '#3B82F6',
-    success: '#10B981', 
-    error: '#EF4444'
-  };
-  
-  const icons = {
-    start: '🚀',
-    success: '✅',
-    error: '❌'
-  };
-  
-  const titles = {
-    start: 'API 테스트 시작',
-    success: 'API 테스트 성공',
-    error: 'API 테스트 실패'
-  };
-
-  let contents = [
-    {
-      type: "box",
-      layout: "vertical",
-      contents: [
-        {
-          type: "text",
-          text: `${icons[type]} ${titles[type]}`,
-          weight: "bold",
-          size: "lg",
-          color: colors[type]
-        },
-        {
-          type: "separator",
-          margin: "md"
-        },
-        {
-          type: "box",
-          layout: "vertical",
-          margin: "md",
-          contents: [
-            {
-              type: "box",
-              layout: "baseline",
-              contents: [
-                {
-                  type: "text",
-                  text: "잡:",
-                  size: "sm",
-                  color: "#666666",
-                  flex: 1
-                },
-                {
-                  type: "text",
-                  text: data.jobName,
-                  size: "sm",
-                  weight: "bold",
-                  flex: 3
-                }
-              ]
-            },
-            {
-              type: "box",
-              layout: "baseline",
-              margin: "sm",
-              contents: [
-                {
-                  type: "text",
-                  text: "시간:",
-                  size: "sm",
-                  color: "#666666",
-                  flex: 1
-                },
-                {
-                  type: "text",
-                  text: type === 'start' ? data.startTime : data.endTime,
-                  size: "sm",
-                  flex: 3
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ];
-
-  // Newman 통계 추가 (성공/실패 시)
-  if ((type === 'success' || type === 'error') && data.newmanStats) {
-    const stats = data.newmanStats;
-    const successRate = stats.tests.total > 0 ? Math.round((stats.tests.passed / stats.tests.total) * 100) : 0;
-    
-    contents.push({
-      type: "separator",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "box",
-      layout: "vertical",
-      margin: "lg",
-      contents: [
-        {
-          type: "text",
-          text: "📊 실행 결과",
-          weight: "bold",
-          size: "md",
-          color: "#333333"
-        },
-        {
-          type: "box",
-          layout: "vertical",
-          margin: "md",
-          spacing: "sm",
-          contents: [
-            {
-              type: "box",
-              layout: "baseline",
-              contents: [
-                {
-                  type: "text",
-                  text: "요청:",
-                  size: "sm",
-                  color: "#666666",
-                  flex: 2
-                },
-                {
-                  type: "text",
-                  text: `${stats.requests.passed}/${stats.requests.total}개`,
-                  size: "sm",
-                  weight: "bold",
-                  color: stats.requests.failed > 0 ? "#EF4444" : "#10B981",
-                  flex: 3
-                }
-              ]
-            },
-            {
-              type: "box",
-              layout: "baseline",
-              contents: [
-                {
-                  type: "text",
-                  text: "테스트:",
-                  size: "sm",
-                  color: "#666666",
-                  flex: 2
-                },
-                {
-                  type: "text",
-                  text: `${stats.tests.passed}/${stats.tests.total}개 (${successRate}%)`,
-                  size: "sm",
-                  weight: "bold",
-                  color: stats.tests.failed > 0 ? "#EF4444" : "#10B981",
-                  flex: 3
-                }
-              ]
-            },
-            {
-              type: "box",
-              layout: "baseline",
-              contents: [
-                {
-                  type: "text",
-                  text: "소요시간:",
-                  size: "sm",
-                  color: "#666666",
-                  flex: 2
-                },
-                {
-                  type: "text",
-                  text: `${data.duration}초`,
-                  size: "sm",
-                  flex: 3
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    });
-  }
-
-  // 에러 요약 추가 (실패 시)
-  if (type === 'error' && data.errorSummary) {
-    contents.push({
-      type: "separator",
-      margin: "lg"
-    });
-    
-    contents.push({
-      type: "box",
-      layout: "vertical",
-      margin: "lg",
-      contents: [
-        {
-          type: "text",
-          text: "⚠️ 오류 요약",
-          weight: "bold",
-          size: "sm",
-          color: "#EF4444"
-        },
-        {
-          type: "text",
-          text: data.errorSummary.substring(0, 200) + (data.errorSummary.length > 200 ? '...' : ''),
-          size: "xs",
-          color: "#666666",
-          margin: "sm",
-          wrap: true
-        }
-      ]
-    });
-  }
-
-  return {
-    type: "flex",
-    altText: `${titles[type]}: ${data.jobName}`,
-    contents: {
-      type: "bubble",
-      body: {
-        type: "box",
-        layout: "vertical",
-        contents: contents
-      },
-      styles: {
-        body: {
-          backgroundColor: "#FFFFFF"
-        }
-      }
-    }
-  };
-}
 
 // API: jobs
 app.get('/api/jobs', (req,res)=>{

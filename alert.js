@@ -1,9 +1,8 @@
-// alert.js (확장성 있는 URL 관리 버전)
+// alert.js (개선된 알람 시스템)
 import https from 'https';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 
 const cfgPath = path.join(process.cwd(), 'config', 'settings.json');
 
@@ -22,81 +21,6 @@ function getHookUrl() {
   return process.env.NW_HOOK || webhook_url || '';
 }
 
-// IP 주소 자동 감지 함수
-function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      // IPv4이고 내부 주소가 아닌 것 찾기
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost'; // 기본값
-}
-
-// 확장성 있는 베이스 URL 관리
-function getBaseUrl() {
-  const config = readCfg();
-  
-  // 1순위: 환경변수 BASE_URL (배포 시 유용)
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL.replace(/\/$/, ''); // 끝의 / 제거
-  }
-  
-  // 2순위: 설정 파일의 base_url (수동 설정)
-  if (config.base_url) {
-    return config.base_url.replace(/\/$/, '');
-  }
-  
-  // 3순위: 도메인 설정이 있는 경우
-  if (config.domain) {
-    const protocol = config.use_https ? 'https' : 'http';
-    const port = config.use_https && config.site_port === 443 ? '' 
-               : !config.use_https && config.site_port === 80 ? ''
-               : `:${config.site_port || 3001}`;  // 동적으로 포트 읽기
-    return `${protocol}://${config.domain}${port}`;
-  }
-  
-  // 4순위: IP 자동 감지 (개발 환경)
-  const ip = getLocalIP();
-  const port = config.site_port || 3001;  // 동적으로 포트 읽기
-  return `http://${ip}:${port}`;
-}
-
-// URL 빌더 헬퍼 함수들
-export function buildDashboardUrl() {
-  return getBaseUrl();
-}
-
-export function buildReportUrl(reportPath) {
-  if (!reportPath) return null;
-  const baseUrl = getBaseUrl();
-  const fileName = path.basename(reportPath);
-  return `${baseUrl}/reports/${fileName}`;
-}
-
-export function buildLogsUrl() {
-  const baseUrl = getBaseUrl();
-  return `${baseUrl}/logs`;
-}
-
-export function buildHistoryUrl() {
-  const baseUrl = getBaseUrl();
-  return `${baseUrl}/#history`;
-}
-
-// URL 검증 함수
-function validateUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol);
-  } catch {
-    return false;
-  }
-}
-
 export async function sendTextMessage(text) {
   const url = getHookUrl();
   if (!url) {
@@ -104,7 +28,9 @@ export async function sendTextMessage(text) {
     return { ok:false, status:0, body:'No webhook_url configured' };
   }
 
+  // 일부 환경에서 text/plain을 요구하면 아래 주석 해제
   const asText = !!process.env.TEXT_ONLY;
+
   const body = asText ? text : JSON.stringify({ content: { type:'text', text } });
   const headers = asText
     ? { 'Content-Type': 'text/plain;charset=UTF-8' }
@@ -158,7 +84,7 @@ export async function sendFlexMessage(flex) {
   }
 }
 
-/** 실행 상태 알림을 위한 Flex 메시지 생성 (확장성 있는 Footer 링크 포함) */
+/** 실행 상태 알림을 위한 Flex 메시지 생성 */
 export function buildRunStatusFlex(kind, data) {
   const headerText = kind === 'start' ? '🚀 실행 시작'
                     : kind === 'success' ? '✅ 실행 성공'
@@ -169,90 +95,72 @@ export function buildRunStatusFlex(kind, data) {
                     : '#1976D2';
 
   const timeText = kind === 'start' ? `시작: ${data.startTime}`
-                  : `종료: ${data.endTime} (${data.duration}초)`;
+                  : `종료: ${data.endTime}`;
 
-  // 기본 컨텐츠 구성
   const bodyContents = [
     {
       type: 'text',
-      text: `📋 잡: ${data.jobName}`,
-      wrap: true,
+      text: `📝 잡명: ${data.jobName}`,
       size: 'sm',
       color: '#333333',
       weight: 'bold'
     },
     {
       type: 'text',
-      text: `📁 컬렉션: ${data.collection}`,
-      wrap: true,
+      text: `📂 컬렉션: ${data.collection}`,
       size: 'xs',
-      color: '#666666'
+      color: '#666666',
+      wrap: true
     }
   ];
 
-  // 환경 정보 추가 (있는 경우)
   if (data.environment) {
     bodyContents.push({
       type: 'text',
       text: `🌍 환경: ${data.environment}`,
-      wrap: true,
+      size: 'xs',
+      color: '#666666',
+      wrap: true
+    });
+  }
+
+  if (kind !== 'start') {
+    bodyContents.push({
+      type: 'text',
+      text: `⏱️ 실행시간: ${data.duration}초`,
       size: 'xs',
       color: '#666666'
     });
-  }
 
-  // 실패한 경우 종료 코드와 에러 정보 추가
-  if (kind === 'error') {
-    bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    bodyContents.push({
-      type: 'text',
-      text: `💥 종료 코드: ${data.exitCode}`,
-      wrap: true,
-      size: 'sm',
-      color: '#C62828',
-      weight: 'bold'
-    });
-
-    if (data.errorSummary) {
+    if (kind === 'error') {
       bodyContents.push({
         type: 'text',
-        text: `📝 오류 내용:\n${data.errorSummary}`,
-        wrap: true,
+        text: `❌ 종료코드: ${data.exitCode}`,
         size: 'xs',
-        color: '#666666'
+        color: '#C62828',
+        weight: 'bold'
       });
+
+      if (data.errorSummary) {
+        bodyContents.push({
+          type: 'text',
+          text: `🔍 오류: ${data.errorSummary}`,
+          size: 'xs',
+          color: '#C62828',
+          wrap: true
+        });
+      }
     }
 
-    // 실패 시에도 리포트 생성됨을 알림
-    if (data.reportPath) {
+    if (data.reportPath && kind === 'success') {
       bodyContents.push({
         type: 'text',
-        text: '📊 실패 상세 리포트가 생성되었습니다.',
-        wrap: true,
+        text: `📊 리포트 생성 완료`,
         size: 'xs',
-        color: '#C62828'
+        color: '#2E7D32',
+        wrap: true
       });
     }
-  }
-
-  // 성공한 경우 리포트 링크 추가
-  if (kind === 'success' && data.reportPath) {
-    bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    bodyContents.push({
-      type: 'text',
-      text: '📊 상세 리포트가 생성되었습니다.',
-      wrap: true,
-      size: 'xs',
-      color: '#2E7D32'
-    });
   }
 
   // 시간 정보 추가
@@ -269,7 +177,6 @@ export function buildRunStatusFlex(kind, data) {
     align: 'end'
   });
 
-  // Flex 메시지 기본 구조
   const flexMessage = {
     content: {
       type: 'flex',
@@ -309,69 +216,169 @@ export function buildRunStatusFlex(kind, data) {
     }
   };
 
-  // Footer 추가 (리포트가 있는 경우 성공/실패 구분없이)
-  if (data.reportPath) {
-    const reportUrl = buildReportUrl(data.reportPath);
-    const dashboardUrl = buildDashboardUrl();
+  return flexMessage;
+}
 
-    if (reportUrl && validateUrl(reportUrl) && validateUrl(dashboardUrl)) {
-      let footerContents = [];
+/** 통계 정보를 포함한 실행 상태 알림을 위한 Flex 메시지 생성 */
+export function buildRunStatusFlexWithStats(kind, data) {
+  // 기본 Flex 메시지 생성
+  const flexMessage = buildRunStatusFlex(kind, data);
+  
+  // 통계 정보가 있는 경우에만 추가
+  if (data.stats) {
+    const statsContents = [];
+    
+    // 통계 섹션 구분선
+    statsContents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+    
+    // 통계 헤더
+    statsContents.push({
+      type: 'text',
+      text: '📊 실행 통계',
+      weight: 'bold',
+      size: 'sm',
+      color: '#333333',
+      margin: 'md'
+    });
 
-      if (kind === 'error') {
-        // 실패 시: 실패 리포트 링크
-        footerContents.push({
-          "type": "button",
-          "style": "primary",
-          "color": "#C62828",
-          "height": "sm",
-          "action": {
-            "type": "uri",
-            "label": "🔍 실패보고서 보기",
-            "uri": reportUrl
+    // 통계 데이터 추가
+    if (data.stats.iterations) {
+      statsContents.push({
+        type: 'box',
+        layout: 'baseline',
+        contents: [
+          {
+            type: 'text',
+            text: '반복횟수:',
+            size: 'xs',
+            color: '#666666',
+            flex: 2
+          },
+          {
+            type: 'text',
+            text: `${data.stats.iterations.total}회`,
+            size: 'xs',
+            color: '#333333',
+            flex: 3,
+            align: 'end'
           }
-        });
-      } else if (kind === 'success') {
-        // 성공 시: 성공 리포트 링크
-        footerContents.push({
-          "type": "button",
-          "style": "primary",
-          "color": "#2E7D32",
-          "height": "sm",
-          "action": {
-            "type": "uri",
-            "label": "📊 상세보고서 보기",
-            "uri": reportUrl
-          }
-        });
-      }
+        ]
+      });
+    }
 
-      // 대시보드 링크 추가 (두 번째 버튼)
-      footerContents.push({
-        "type": "button",
-        "style": "secondary",
-        "color": "#0E71EB",
-        "height": "sm",
-        "action": {
-          "type": "uri",
-          "label": "🖥️ 대시보드",
-          "uri": dashboardUrl
-        }
+    if (data.stats.requests) {
+      statsContents.push({
+        type: 'box',
+        layout: 'baseline',
+        contents: [
+          {
+            type: 'text',
+            text: '요청수:',
+            size: 'xs',
+            color: '#666666',
+            flex: 2
+          },
+          {
+            type: 'text',
+            text: `${data.stats.requests.total}개`,
+            size: 'xs',
+            color: '#333333',
+            flex: 3,
+            align: 'end'
+          }
+        ]
+      });
+    }
+
+    if (data.stats.assertions) {
+      const failedCount = data.stats.assertions.failed || 0;
+      const totalCount = data.stats.assertions.total || 0;
+      const successRate = totalCount > 0 ? Math.round(((totalCount - failedCount) / totalCount) * 100) : 0;
+      
+      statsContents.push({
+        type: 'box',
+        layout: 'baseline',
+        contents: [
+          {
+            type: 'text',
+            text: '성공률:',
+            size: 'xs',
+            color: '#666666',
+            flex: 2
+          },
+          {
+            type: 'text',
+            text: `${successRate}%`,
+            size: 'xs',
+            color: successRate >= 95 ? '#2E7D32' : successRate >= 80 ? '#F57C00' : '#C62828',
+            flex: 3,
+            align: 'end',
+            weight: 'bold'
+          }
+        ]
       });
 
-      // Footer 추가
-      flexMessage.content.contents.footer = {
-        "type": "box",
-        "layout": "vertical",
-        "spacing": "sm",
-        "contents": footerContents
-      };
+      if (failedCount > 0) {
+        statsContents.push({
+          type: 'box',
+          layout: 'baseline',
+          contents: [
+            {
+              type: 'text',
+              text: '실패:',
+              size: 'xs',
+              color: '#666666',
+              flex: 2
+            },
+            {
+              type: 'text',
+              text: `${failedCount}개`,
+              size: 'xs',
+              color: '#C62828',
+              flex: 3,
+              align: 'end',
+              weight: 'bold'
+            }
+          ]
+        });
+      }
     }
+
+    if (data.stats.avgResponseTime) {
+      statsContents.push({
+        type: 'box',
+        layout: 'baseline',
+        contents: [
+          {
+            type: 'text',
+            text: '평균응답:',
+            size: 'xs',
+            color: '#666666',
+            flex: 2
+          },
+          {
+            type: 'text',
+            text: `${data.stats.avgResponseTime}ms`,
+            size: 'xs',
+            color: '#333333',
+            flex: 3,
+            align: 'end'
+          }
+        ]
+      });
+    }
+
+    // 통계 정보를 body에 추가
+    flexMessage.content.contents.body.contents.splice(-2, 0, ...statsContents);
   }
 
   return flexMessage;
 }
 
-/** 간단한 상태 알림을 위한 텍스트 생성 (확장성 있는 링크 포함) */
+/** 간단한 상태 알림을 위한 텍스트 생성 */
 export function buildStatusText(kind, data) {
   let message = '';
   
@@ -388,19 +395,6 @@ export function buildStatusText(kind, data) {
     message += `잡: ${data.jobName}\n`;
     message += `실행시간: ${data.duration}초\n`;
     message += `종료시간: ${data.endTime}`;
-    
-    // 성공 시에도 링크 추가
-    if (data.reportPath) {
-      const reportUrl = buildReportUrl(data.reportPath);
-      if (reportUrl && validateUrl(reportUrl)) {
-        message += `\n\n📊 상세보고서: ${reportUrl}`;
-      }
-    }
-    
-    const dashboardUrl = buildDashboardUrl();
-    if (validateUrl(dashboardUrl)) {
-      message += `\n🖥️ 대시보드: ${dashboardUrl}`;
-    }
   } else if (kind === 'error') {
     message = `❌ API 테스트 실행 실패\n`;
     message += `잡: ${data.jobName}\n`;
@@ -410,50 +404,45 @@ export function buildStatusText(kind, data) {
     if (data.errorSummary) {
       message += `\n오류: ${data.errorSummary}`;
     }
-    
-    // 실패 시에도 리포트 링크 추가 (있는 경우)
-    if (data.reportPath) {
-      const reportUrl = buildReportUrl(data.reportPath);
-      if (reportUrl && validateUrl(reportUrl)) {
-        message += `\n\n📊 실패보고서: ${reportUrl}`;
-      }
-    }
-    
-    // 대시보드 링크 추가
-    const dashboardUrl = buildDashboardUrl();
-    if (validateUrl(dashboardUrl)) {
-      message += `\n🖥️ 대시보드: ${dashboardUrl}`;
-    }
   }
   
   return message;
 }
 
-// 디버깅 및 설정 확인을 위한 함수들
-export function getUrlInfo() {
-  const config = readCfg();
-  const baseUrl = getBaseUrl();
+/** 웹훅 URL 유효성 검사 */
+export function validateWebhookUrl(url) {
+  if (!url) return { valid: false, message: 'URL이 비어있습니다.' };
+  
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, message: 'HTTP 또는 HTTPS URL이어야 합니다.' };
+    }
+    return { valid: true, message: 'URL이 유효합니다.' };
+  } catch (e) {
+    return { valid: false, message: '유효하지 않은 URL 형식입니다.' };
+  }
+}
+
+/** 알람 설정 검증 */
+export function validateAlertConfig(config) {
+  const errors = [];
+  
+  if (config.run_event_alert && !getHookUrl()) {
+    errors.push('알람이 활성화되어 있지만 webhook_url이 설정되지 않았습니다.');
+  }
+  
+  if (config.alert_method && !['text', 'flex'].includes(config.alert_method)) {
+    errors.push('alert_method는 "text" 또는 "flex"여야 합니다.');
+  }
   
   return {
-    baseUrl,
-    source: process.env.BASE_URL ? 'environment' 
-          : config.base_url ? 'config_base_url'
-          : config.domain ? 'config_domain'
-          : 'auto_detected',
-    config: {
-      domain: config.domain || null,
-      use_https: config.use_https || false,
-      site_port: config.site_port || 3001,  // 동적으로 읽기
-      base_url: config.base_url || null
-    },
-    environment: {
-      BASE_URL: process.env.BASE_URL || null
-    },
-    auto_detected_ip: getLocalIP()
+    valid: errors.length === 0,
+    errors: errors
   };
 }
 
-// 연결 테스트 함수
+/** 연결 테스트 */
 export async function testWebhookConnection() {
   const url = getHookUrl();
   if (!url) {
@@ -467,7 +456,7 @@ export async function testWebhookConnection() {
     const testMessage = {
       content: {
         type: 'text',
-        text: '🔧 Danal External API 모니터링 시스템 연결 테스트\n테스트 시간: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+        text: '🔧 API 자동화 모니터링 시스템 연결 테스트\n테스트 시간: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       }
     };
 
@@ -507,52 +496,4 @@ export async function testWebhookConnection() {
       error: error.message
     };
   }
-}
-
-// 설정 예시를 위한 함수
-export function getConfigExamples() {
-  return {
-    development: {
-      description: "개발 환경 (IP 자동 감지)",
-      config: {
-        site_port: 3000
-      }
-    },
-    production_ip: {
-      description: "운영 환경 (IP 기반)",
-      config: {
-        base_url: "http://192.168.1.100:3000"
-      }
-    },
-    production_domain_http: {
-      description: "운영 환경 (도메인, HTTP)",
-      config: {
-        domain: "danal-api-monitor.company.com",
-        site_port: 80,
-        use_https: false
-      }
-    },
-    production_domain_https: {
-      description: "운영 환경 (도메인, HTTPS)",
-      config: {
-        domain: "danal-api-monitor.company.com", 
-        site_port: 443,
-        use_https: true
-      }
-    },
-    production_domain_custom_port: {
-      description: "운영 환경 (도메인, 커스텀 포트)",
-      config: {
-        domain: "danal-api-monitor.company.com",
-        site_port: 8080,
-        use_https: true
-      }
-    },
-    docker_compose: {
-      description: "Docker Compose 환경",
-      environment: {
-        BASE_URL: "https://danal-api-monitor.company.com"
-      }
-    }
-  };
 }
