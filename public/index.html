@@ -1,4 +1,137 @@
-<!doctype html>
+// 전역 변수에 페이징 정보 추가
+let currentPage = 1, totalPages = 1, totalItems = 0;
+
+// 히스토리 관리
+async function fetchHistory() {
+  const r = await fetch(`/api/history?page=${currentPage}&size=${pageSize}`);
+  const { items, running: run, total, totalPages: pages } = await r.json();
+  running = run || null;
+  totalItems = total;
+  totalPages = pages;
+  setStatusChip();
+  historyRaw = items || [];
+  historyView = historyRaw.slice();
+  renderHistory();
+  updatePagination();
+}
+
+function renderHistory() {
+  const tb = document.getElementById('histTbody');
+  tb.innerHTML = '';
+  historyView.forEach(row => {
+    const ok = row.exitCode === 0;
+    const duration = !row.duration && row.duration !== 0 ? '-' : 
+      row.duration < 60 ? `${row.duration}초` : `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
+    
+    // 개선된 요약 표시
+    const summary = row.summary || (ok ? '성공' : '실패');
+    const summaryClass = ok ? 'text-green-700' : 'text-red-700';
+    
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="${ok ? '' : 'bg-rose-50/40'}">
+        <td class="py-1 pr-4 text-xs">${row.timestamp || ''}</td>
+        <td class="py-1 pr-4 font-medium">${row.job || ''}</td>
+        <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">✅ 성공</span>' : '<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
+        <td class="py-1 pr-4 text-xs"><span class="${summaryClass}">${summary}</span></td>
+        <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
+        <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
+        <td class="py-1">
+          <a class="text-slate-700 underline text-xs log-link" href="#" data-log-url="/logs/${row.stdout}">📄 stdout</a>
+        </td>
+      </tr>`
+    );
+  });
+}
+
+// 페이징 업데이트 함수
+function updatePagination() {
+  const pageInfo = document.getElementById('pageInfo');
+  const pageNumbers = document.getElementById('pageNumbers');
+  const prevBtn = document.getElementById('prevPage');
+  const nextBtn = document.getElementById('nextPage');
+  
+  // 페이지 정보 표시
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, totalItems);
+  pageInfo.textContent = `${start}-${end} / 총 ${totalItems}개`;
+  
+  // 이전/다음 버튼
+  prevBtn.disabled = currentPage <= 1;
+  nextBtn.disabled = currentPage >= totalPages;
+  
+  // 페이지 번호 버튼
+  pageNumbers.innerHTML = '';
+  const maxVisible = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  
+  if (endPage - startPage < maxVisible - 1) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = `px-2 py-1 text-xs border rounded ${
+      i === currentPage ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'
+    }`;
+    btn.onclick = () => goToPage(i);
+    pageNumbers.appendChild(btn);
+  }
+}
+
+function goToPage(page) {
+  if (page >= 1 && page <= totalPages && page !== currentPage) {
+    currentPage = page;
+    fetchHistory();
+  }
+}
+
+// 필터링 개선
+function applyFilters() {
+  const job = document.getElementById('filterJob').value;
+  const status = document.getElementById('filterStatus').value;
+  const range = document.getElementById('range').value;
+  const q = document.getElementById('searchText').value.trim().toLowerCase();
+  const now = Date.now();
+  
+  function inRange(ts) {
+    if (!range) return true;
+    const t = Date.parse(ts.replace(' ', 'T') + '+09:00');
+    if (range === '1h') return (now - t) <= (1 * 3600 * 1000);
+    if (range === '24h') return (now - t) <= (24 * 3600 * 1000);
+    if (range === '7d') return (now - t) <= (7 * 24 * 3600 * 1000);
+    return true;
+  }
+  
+  historyView = historyRaw.filter(r => {
+    // 잡 필터
+    if (job && r.job !== job) return false;
+    
+    // 상태 필터
+    if (status) {
+      const isSuccess = r.exitCode === 0;
+      if (status === 'success' && !isSuccess) return false;
+      if (status === 'failed' && isSuccess) return false;
+    }
+    
+    // 기간 필터
+    if (!inRange(r.timestamp)) return false;
+    
+    // 키워드 필터 (요약 내용 검색)
+    if (q && !((r.job || '') + (r.summary || '')).toLowerCase().includes(q)) return false;
+    
+    return true;
+  });
+  
+  renderHistory();
+}
+
+function resetFilters() {
+  ['filterJob', 'filterStatus', 'range', 'searchText'].forEach(id => document.getElementById(id).value = '');
+  historyView = historyRaw.slice();
+  renderHistory();
+}<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
@@ -112,27 +245,40 @@
         <div class="flex items-center justify-between mb-3">
           <div class="text-sm font-semibold">실행 이력</div>
           <div class="flex items-center gap-2 text-xs">
-            <label>페이지</label>
-            <select id="pageSize" class="border rounded px-2 py-1"><option>20</option><option selected>50</option><option>100</option></select>
+            <label>페이지당</label>
+            <select id="pageSize" class="border rounded px-2 py-1">
+              <option value="10">10개</option>
+              <option value="20" selected>20개</option>
+              <option value="50">50개</option>
+            </select>
           </div>
         </div>
 
         <div class="flex items-end gap-3 mb-3">
           <div>
             <label class="block text-xs mb-1">잡</label>
-            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">전체</option></select>
+            <select id="filterJob" class="border rounded px-2 py-1 min-w-[120px]"><option value="">전체</option></select>
+          </div>
+          <div>
+            <label class="block text-xs mb-1">상태</label>
+            <select id="filterStatus" class="border rounded px-2 py-1">
+              <option value="">전체</option>
+              <option value="success">성공</option>
+              <option value="failed">실패</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs mb-1">기간</label>
             <select id="range" class="border rounded px-2 py-1">
               <option value="">전체</option>
+              <option value="1h">최근 1시간</option>
               <option value="24h">최근 24시간</option>
               <option value="7d">최근 7일</option>
             </select>
           </div>
           <div class="flex-1">
             <label class="block text-xs mb-1">키워드</label>
-            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="성공 / 실패">
+            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="요약 내용 검색">
           </div>
           <div class="flex gap-2">
             <button id="applyFilter" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded">적용</button>
@@ -155,6 +301,16 @@
             </thead>
             <tbody id="histTbody" class="text-xs"></tbody>
           </table>
+        </div>
+        
+        <!-- 페이징 -->
+        <div id="pagination" class="flex items-center justify-between mt-4 text-xs">
+          <div id="pageInfo" class="text-slate-600"></div>
+          <div class="flex items-center space-x-2">
+            <button id="prevPage" class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50" disabled>이전</button>
+            <span id="pageNumbers" class="flex space-x-1"></span>
+            <button id="nextPage" class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50" disabled>다음</button>
+          </div>
         </div>
       </div>
     </section>
@@ -622,8 +778,13 @@ document.getElementById('applyFilter').onclick = applyFilters;
 document.getElementById('resetFilter').onclick = resetFilters;
 document.getElementById('pageSize').onchange = () => {
   pageSize = parseInt(document.getElementById('pageSize').value);
+  currentPage = 1; // 페이지 크기 변경 시 첫 페이지로
   fetchHistory();
 };
+
+// 페이징 버튼 이벤트
+document.getElementById('prevPage').onclick = () => goToPage(currentPage - 1);
+document.getElementById('nextPage').onclick = () => goToPage(currentPage + 1);
 document.getElementById('searchText').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') applyFilters();
 });
