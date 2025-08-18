@@ -73,12 +73,8 @@ export async function sendFlexMessage(flex) {
 
   try {
     console.log(`[ALERT] Flex 메시지 전송 중... URL: ${url.substring(0, 50)}...`);
-
-    // 실제 전송할 Flex 메시지 로그 출력
-    console.log('[ALERT] 전송할 Flex 메시지:', JSON.stringify(flex, null, 2));
-
     const r = await fetch(url, {
-      method: 'POST',
+      method:'POST',
       body: JSON.stringify(flex),
       headers: { 'Content-Type': 'application/json' },
       agent: insecureAgent
@@ -97,7 +93,6 @@ export async function sendFlexMessage(flex) {
     return { ok:false, status:0, body: e.message };
   }
 }
-
 
 
 /** 통계 정보를 포함한 실행 상태 알림을 위한 Flex 메시지 생성 */
@@ -260,131 +255,84 @@ export function buildRunStatusFlexWithStats(kind, data) {
 }
 
 // alert.js의 buildStatusText 함수 수정
+/** 간단한 상태 알림을 위한 텍스트 생성 */
 export function buildStatusText(kind, data) {
   let message = '';
   
   if (kind === 'start') {
-    message = `🚀 API 테스트 실행 시작\n`;
-    message += `잡: ${data.jobName}\n`;
-    message += `컬렉션: ${data.collection}\n`;
+    message = `API Test Execution Started\n`;
+    message += `Job: ${data.jobName}\n`;
+    message += `Collection: ${data.collection}\n`;
     if (data.environment) {
-      message += `환경: ${data.environment}\n`;
+      message += `Environment: ${data.environment}\n`;
     }
-    message += `시간: ${data.startTime}`;
+    message += `Time: ${data.startTime}`;
   } else if (kind === 'success') {
-    message = `✅ API 테스트 실행 성공\n`;
-    message += `잡: ${data.jobName}\n`;
-    message += `실행시간: ${data.duration}초\n`;
-    
-    // Newman 통계 추가
-    if (data.stats) {
-      const stats = data.stats;
-      if (stats.requests) {
-        const successReq = stats.requests.total - stats.requests.failed;
-        message += `요청: ${successReq}/${stats.requests.total} 성공\n`;
-      }
-      if (stats.assertions) {
-        const successAssert = stats.assertions.total - stats.assertions.failed;
-        message += `검증: ${successAssert}/${stats.assertions.total} 성공\n`;
-      }
-      if (stats.testScripts) {
-        const successTest = stats.testScripts.total - stats.testScripts.failed;
-        message += `테스트: ${successTest}/${stats.testScripts.total} 성공\n`;
-      }
-    }
-    
-    message += `종료시간: ${data.endTime}`;
+    message = `API Test Execution Success\n`;
+    message += `Job: ${data.jobName}\n`;
+    message += `Duration: ${data.duration}s\n`;
+    message += `End Time: ${data.endTime}`;
   } else if (kind === 'error') {
-    message = `❌ API 테스트 실행 실패\n`;
-    message += `잡: ${data.jobName}\n`;
-    message += `종료코드: ${data.exitCode}\n`;
-    message += `실행시간: ${data.duration}초\n`;
-    
-    // Newman 통계 추가 (부분 실패)
-    if (data.stats) {
-      const stats = data.stats;
-      if (stats.requests && stats.requests.failed > 0) {
-        message += `요청 실패: ${stats.requests.failed}/${stats.requests.total}\n`;
-      }
-      if (stats.assertions && stats.assertions.failed > 0) {
-        message += `검증 실패: ${stats.assertions.failed}/${stats.assertions.total}\n`;
-      }
-      if (stats.testScripts && stats.testScripts.failed > 0) {
-        message += `테스트 실패: ${stats.testScripts.failed}/${stats.testScripts.total}\n`;
-      }
-    }
-    
-    message += `종료시간: ${data.endTime}`;
+    message = `API Test Execution Failed\n`;
+    message += `Job: ${data.jobName}\n`;
+    message += `Exit Code: ${data.exitCode}\n`;
+    message += `Duration: ${data.duration}s\n`;
+    message += `End Time: ${data.endTime}`;
     if (data.errorSummary) {
-      message += `\n오류: ${data.errorSummary}`;
+      message += `\nError: ${data.errorSummary}`;
+    }
+    // 실패 요약 리포트 추가
+    if (data.failureReport) {
+      message += `\n\nFailure Summary Report:\n${data.failureReport}`;
     }
   }
   
   return message;
 }
 export function buildRunStatusFlex(kind, data) {
-  const headerText = kind === 'start' ? '🚀 실행 시작'
-                    : kind === 'success' ? '✅ 실행 성공'
-                    : '❌ 실행 실패';
+  const headerText = kind === 'start' ? 'Execution Started'
+                    : kind === 'success' ? 'Execution Success'
+                    : 'Execution Failed';
 
   const headerColor = kind === 'error' ? '#C62828'
                     : kind === 'success' ? '#2E7D32'
                     : '#1976D2';
 
-  const timeText = kind === 'start' 
-    ? `시작: ${data.startTime}`
-    : `완료: ${data.endTime} (소요: ${data.duration}초)`;
+  const timeText = kind === 'start' ? `Started: ${data.startTime}`
+                  : `Ended: ${data.endTime} (${data.duration}s)`;
 
-  const bodyContents = [];
+  // 기본 컨텐츠 구성
+  const bodyContents = [
+    {
+      type: 'text',
+      text: `Job: ${data.jobName}`,
+      wrap: true,
+      size: 'sm',
+      color: '#333333',
+      weight: 'bold'
+    },
+    {
+      type: 'text',
+      text: `Collection: ${data.collection}`,
+      wrap: true,
+      size: 'xs',
+      color: '#666666'
+    }
+  ];
 
-  // 기본 정보
-  bodyContents.push({
-    type: 'text',
-    text: `📋 잡: ${data.jobName}`,
-    weight: 'bold',
-    size: 'md',
-    color: '#333333'
-  });
-
-  bodyContents.push({
-    type: 'text',
-    text: `📁 ${data.collection}`,
-    size: 'sm',
-    color: '#666666',
-    wrap: true
-  });
-
+  // 환경 정보 추가 (있는 경우)
   if (data.environment) {
     bodyContents.push({
       type: 'text',
-      text: `🌐 ${data.environment}`,
-      size: 'sm',
+      text: `Environment: ${data.environment}`,
+      wrap: true,
+      size: 'xs',
       color: '#666666'
     });
   }
 
-  // 성공/실패별 상세 정보
-  if (kind === 'success' && data.stats) {
-    const stats = data.stats;
-    
-    bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    // 전체 결과 요약
-    if (data.summary) {
-      bodyContents.push({
-        type: 'text',
-        text: data.summary,
-        size: 'sm',
-        color: '#2E7D32',
-        weight: 'bold',
-        wrap: true
-      });
-    }
-    
-  } else if (kind === 'error') {
+  // 실패한 경우 종료 코드와 에러 정보 추가 + 상세 요약 리포트
+  if (kind === 'error') {
     bodyContents.push({
       type: 'separator',
       margin: 'md'
@@ -392,63 +340,70 @@ export function buildRunStatusFlex(kind, data) {
     
     bodyContents.push({
       type: 'text',
-      text: `💥 종료코드: ${data.exitCode}`,
-      weight: 'bold',
+      text: `Exit Code: ${data.exitCode}`,
+      wrap: true,
       size: 'sm',
-      color: '#C62828'
+      color: '#C62828',
+      weight: 'bold'
     });
 
-    // Newman 통계가 있는 경우 (부분 실패)
-    if (data.stats) {
-      const stats = data.stats;
-      
-      if (stats.requests && stats.requests.failed > 0) {
-        bodyContents.push({
-          type: 'text',
-          text: `🌐 요청: ${stats.requests.total - stats.requests.failed}/${stats.requests.total} 성공 (${stats.requests.failed}건 실패)`,
-          size: 'xs',
-          color: '#C62828'
-        });
-      }
-
-      if (stats.assertions && stats.assertions.failed > 0) {
-        bodyContents.push({
-          type: 'text',
-          text: `✔️ 검증: ${stats.assertions.total - stats.assertions.failed}/${stats.assertions.total} 성공 (${stats.assertions.failed}건 실패)`,
-          size: 'xs',
-          color: '#C62828'
-        });
-      }
-
-      if (stats.testScripts && stats.testScripts.failed > 0) {
-        bodyContents.push({
-          type: 'text',
-          text: `🧪 테스트: ${stats.testScripts.total - stats.testScripts.failed}/${stats.testScripts.total} 성공 (${stats.testScripts.failed}건 실패)`,
-          size: 'xs',
-          color: '#C62828'
-        });
-      }
-    }
-
-    // 전체 요약 추가
-    if (data.summary) {
-      bodyContents.push({
-        type: 'text',
-        text: data.summary,
-        size: 'xs',
-        color: '#C62828',
-        wrap: true
-      });
-    }
-
-    // 에러 메시지 (있으면)
     if (data.errorSummary) {
       bodyContents.push({
         type: 'text',
-        text: `🔍 상세 오류:\n${data.errorSummary}`,
+        text: `Error: ${data.errorSummary}`,
+        wrap: true,
         size: 'xs',
-        color: '#666666',
-        wrap: true
+        color: '#666666'
+      });
+    }
+
+    // 상세 실패 리포트 추가 (포맷팅 개선)
+    if (data.failureReport) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'sm'
+      });
+      
+      bodyContents.push({
+        type: 'text',
+        text: 'Failure Analysis Report',
+        wrap: true,
+        size: 'sm',
+        color: '#C62828',
+        weight: 'bold'
+      });
+
+      // 실패 리포트를 섹션별로 나누어 표시
+      const reportSections = data.failureReport.split('\n\n');
+      reportSections.forEach(section => {
+        if (section.trim()) {
+          bodyContents.push({
+            type: 'text',
+            text: section.trim(),
+            wrap: true,
+            size: 'xs',
+            color: '#555555',
+            margin: 'xs'
+          });
+        }
+      });
+    }
+  }
+
+  // 성공한 경우 추가 정보
+  if (kind === 'success') {
+    if (data.reportPath) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md'
+      });
+      
+      bodyContents.push({
+        type: 'text',
+        text: 'Detailed HTML report has been generated.',
+        wrap: true,
+        size: 'xs',
+        color: '#2E7D32'
       });
     }
   }
@@ -461,15 +416,89 @@ export function buildRunStatusFlex(kind, data) {
   
   bodyContents.push({
     type: 'text',
-    text: `⏰ ${timeText}`,
+    text: timeText,
     size: 'xs',
     color: '#888888',
     align: 'end'
   });
 
-  // 나머지 Flex 구조는 동일...
-}
+  // buildRunStatusFlex 함수의 끝 부분에서 flexMessage 객체를 이렇게 수정:
 
+const flexMessage = {
+  content: {
+    type: 'flex',
+    altText: `${headerText}: ${data.jobName}`,
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: headerText,
+            weight: 'bold',
+            size: 'lg',
+            color: '#FFFFFF'
+          },
+          {
+            type: 'text',
+            text: 'API Test Automation Monitoring',
+            size: 'sm',
+            color: '#E0E0E0'
+          }
+        ],
+        backgroundColor: headerColor,
+        paddingAll: '15px'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: bodyContents,
+        paddingAll: '15px'
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'button',
+                action: {
+                  type: 'uri',
+                  label: 'Dashboard',
+                  uri: process.env.DASHBOARD_URL || 'http://localhost:3000'
+                },
+                style: 'primary',
+                color: '#1976D2'
+              },
+              {
+                type: 'button',
+                action: {
+                  type: 'uri',
+                  label: 'Reports',
+                  uri: (process.env.DASHBOARD_URL || 'http://localhost:3000') + '/reports'
+                },
+                style: 'secondary'
+              }
+            ]
+          }
+        ],
+        paddingAll: '12px'
+      }
+    }
+  }
+};
+
+return flexMessage;
+}
 /** 웹훅 URL 유효성 검사 */
 export function validateWebhookUrl(url) {
   if (!url) return { valid: false, message: 'URL이 비어있습니다.' };
@@ -560,9 +589,9 @@ export async function testWebhookConnection() {
 }export function buildBasicRunStatusFlex(kind, data) {
   const baseUrl = getBaseUrl();
   
-  const headerText = kind === 'start' ? '🚀 실행 시작'
-                    : kind === 'success' ? '✅ 실행 성공'
-                    : '❌ 실행 실패';
+  const headerText = kind === 'start' ? '실행 시작'
+                    : kind === 'success' ? '실행 성공'
+                    : '실행 실패';
 
   const headerColor = kind === 'error' ? '#C62828'
                     : kind === 'success' ? '#2E7D32'
@@ -571,14 +600,14 @@ export async function testWebhookConnection() {
   const bodyContents = [
     {
       type: 'text',
-      text: `📋 잡: ${data.jobName}`,
+      text: `Job: ${data.jobName}`,
       weight: 'bold',
       size: 'sm',
       color: '#222222'
     },
     {
       type: 'text',
-      text: `📁 컬렉션: ${data.collection}`,
+      text: `Colletion: ${data.collection}`,
       size: 'xs',
       color: '#666666',
       wrap: true
@@ -588,7 +617,7 @@ export async function testWebhookConnection() {
   if (data.environment) {
     bodyContents.push({
       type: 'text',
-      text: `🌍 환경: ${data.environment}`,
+      text: `env: ${data.environment}`,
       size: 'xs',
       color: '#666666',
       wrap: true
@@ -604,7 +633,7 @@ export async function testWebhookConnection() {
     
     bodyContents.push({
       type: 'text',
-      text: `⏱️ 실행시간: ${data.duration}초`,
+      text: `Duration: ${data.duration}초`,
       size: 'xs',
       color: '#666666'
     });
@@ -620,7 +649,7 @@ export async function testWebhookConnection() {
       
       bodyContents.push({
         type: 'text',
-        text: '📊 실행 결과',
+        text: '실행 결과',
         weight: 'bold',
         size: 'xs',
         color: '#333333'
@@ -650,7 +679,7 @@ export async function testWebhookConnection() {
         
         bodyContents.push({
           type: 'text',
-          text: `💥 오류: ${data.errorSummary}`,
+          text: `오류: ${data.errorSummary}`,
           size: 'xs',
           color: '#C62828',
           wrap: true
@@ -670,7 +699,7 @@ export async function testWebhookConnection() {
   
   bodyContents.push({
     type: 'text',
-    text: `⏰ ${timeText}`,
+    text: ` ${timeText}`,
     size: 'xs',
     color: '#888888',
     align: 'end'
@@ -707,7 +736,7 @@ export async function testWebhookConnection() {
             flex: 1,
             action: {
               type: 'uri',
-              label: '📊 대시보드',
+              label: ' 대시보드',
               uri: baseUrl
             },
             color: '#1976D2'
@@ -719,7 +748,7 @@ export async function testWebhookConnection() {
             flex: 1,
             action: {
               type: 'uri',
-              label: '📄 상세 리포트',
+              label: '상세 리포트',
               uri: data.reportPath ? `${baseUrl}/reports/${path.basename(data.reportPath)}` : baseUrl
             },
             color: '#FF5722'
@@ -750,7 +779,7 @@ export async function testWebhookConnection() {
             },
             {
               type: 'text',
-              text: '🔧 API 자동화 모니터링',
+              text: 'API 자동화 모니터링',
               size: 'sm',
               color: '#E0E0E0'
             }
@@ -786,15 +815,15 @@ export async function testWebhookConnection() {
 // 개선된 텍스트 메시지 생성
 export function buildTextMessage(kind, data) {
   if (kind === 'start') {
-    return `🚀 API 테스트 실행 시작\n잡: ${data.jobName}\n시간: ${data.startTime}`;
+    return ` API 테스트 실행 시작\n잡: ${data.jobName}\n시간: ${data.startTime}`;
   } 
   
   if (kind === 'success') {
-    let message = `✅ API 테스트 실행 성공\n잡: ${data.jobName}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
+    let message = ` API 테스트 실행 성공\n잡: ${data.jobName}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
     
     if (data.newmanResult) {
       const { requests, assertions } = data.newmanResult;
-      message += `\n\n📊 실행 결과:`;
+      message += `\n\n 실행 결과:`;
       
       if (requests.executed > 0) {
         message += `\n• 요청: ${requests.executed}건 실행, ${requests.executed - requests.failed}건 성공`;
@@ -809,7 +838,7 @@ export function buildTextMessage(kind, data) {
   }
   
   if (kind === 'error') {
-    let message = `❌ API 테스트 실행 실패\n잡: ${data.jobName}\n종료코드: ${data.exitCode}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
+    let message = ` API 테스트 실행 실패\n잡: ${data.jobName}\n종료코드: ${data.exitCode}\n실행시간: ${data.duration}초\n종료시간: ${data.endTime}`;
     
     if (data.summary) {
       message += `\n오류 요약: ${data.summary}`;
@@ -819,7 +848,7 @@ export function buildTextMessage(kind, data) {
       const { requests, assertions, failures } = data.newmanResult;
       
       if (requests.executed > 0 || assertions.executed > 0) {
-        message += `\n\n📊 실행 결과:`;
+        message += `\n\n 실행 결과:`;
         
         if (requests.executed > 0) {
           message += `\n• 요청: ${requests.executed}건 중 ${requests.failed}건 실패`;
@@ -831,7 +860,7 @@ export function buildTextMessage(kind, data) {
       }
       
       if (failures && failures.length > 0) {
-        message += `\n\n🔍 주요 실패 원인:`;
+        message += `\n\n 주요 실패 원인:`;
         failures.slice(0, 2).forEach((failure, index) => {
           message += `\n${index + 1}. ${failure.title}`;
         });
@@ -852,50 +881,50 @@ export function buildBasicStatusText(kind, data) {
   let message = '';
   
   if (kind === 'start') {
-    message = `🚀 API 테스트 실행 시작\n`;
-    message += `📋 잡: ${data.jobName}\n`;
-    message += `📁 컬렉션: ${data.collection}\n`;
+    message = `API 테스트 실행 시작\n`;
+    message += `Job: ${data.jobName}\n`;
+    message += `Collection: ${data.collection}\n`;
     if (data.environment) {
-      message += `🌍 환경: ${data.environment}\n`;
+      message += `env: ${data.environment}\n`;
     }
-    message += `⏰ 시간: ${data.startTime}`;
+    message += `Time: ${data.startTime}`;
   } else if (kind === 'success') {
-    message = `✅ API 테스트 실행 성공\n`;
-    message += `📋 잡: ${data.jobName}\n`;
-    message += `⏱️ 실행시간: ${data.duration}초\n`;
+    message = `API 테스트 실행 성공\n`;
+    message += `Job: ${data.jobName}\n`;
+    message += `Duration: ${data.duration}초\n`;
     
     // Newman 통계 추가
     if (data.newmanStats) {
       const stats = data.newmanStats;
-      message += `\n📊 실행 결과:\n`;
+      message += `\n실행 결과:\n`;
       message += `• 요청: ${stats.requests.executed}건 (실패: ${stats.requests.failed}건)\n`;
       message += `• 테스트: ${stats.assertions.executed}건 (실패: ${stats.assertions.failed}건)\n`;
     }
     
-    message += `\n⏰ 종료시간: ${data.endTime}\n`;
-    message += `📊 대시보드: ${baseUrl}`;
+    message += `\n종료시간: ${data.endTime}\n`;
+    message += `대시보드: ${baseUrl}`;
   } else if (kind === 'error') {
-    message = `❌ API 테스트 실행 실패\n`;
-    message += `📋 잡: ${data.jobName}\n`;
-    message += `⏱️ 실행시간: ${data.duration}초\n`;
+    message = `API 테스트 실행 실패\n`;
+    message += `잡: ${data.jobName}\n`;
+    message += `실행시간: ${data.duration}초\n`;
     
     // Newman 통계 추가 (실패 케이스)
     if (data.newmanStats) {
       const stats = data.newmanStats;
-      message += `\n📊 실행 결과:\n`;
+      message += `\n 실행 결과:\n`;
       message += `• 요청: ${stats.requests.executed}건 (실패: ${stats.requests.failed}건)\n`;
       message += `• 테스트: ${stats.assertions.executed}건 (실패: ${stats.assertions.failed}건)\n`;
     }
     
-    message += `\n⏰ 종료시간: ${data.endTime}\n`;
-    message += `📊 대시보드: ${baseUrl}\n`;
+    message += `\n종료시간: ${data.endTime}\n`;
+    message += `대시보드: ${baseUrl}\n`;
     
     if (data.reportPath) {
-      message += `📄 상세 리포트: ${baseUrl}/reports/${path.basename(data.reportPath)}\n`;
+      message += `상세 리포트: ${baseUrl}/reports/${path.basename(data.reportPath)}\n`;
     }
     
     if (data.errorSummary) {
-      message += `\n💥 오류내용:\n${data.errorSummary}`;
+      message += `\n 오류내용:\n${data.errorSummary}`;
     }
   }
   

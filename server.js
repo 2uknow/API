@@ -10,7 +10,8 @@ import {
   sendTextMessage, 
   sendFlexMessage, 
   buildBasicRunStatusFlex,
-  buildBasicStatusText
+  buildBasicStatusText,
+  buildRunStatusFlex
 } from './alert.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -223,7 +224,7 @@ async function sendAlert(type, data) {
   
   // 알람이 비활성화되어 있으면 리턴
   if (!config.run_event_alert) {
-    console.log(`[ALERT] 알람이 비활성화되어 있습니다: ${type}`);
+    console.log(`[ALERT] Alert disabled: ${type}`);
     return;
   }
 
@@ -236,23 +237,51 @@ async function sendAlert(type, data) {
     let result;
     
     if (config.alert_method === 'flex') {
-      // 기존 Flex 메시지 (복잡한 Newman 결과 제외)
-      const flexData = buildBasicRunStatusFlex(type, data);
+      // Flex 메시지 전송
+      const flexData = buildRunStatusFlex(type, data);
       result = await sendFlexMessage(flexData);
     } else {
-      // 기존 텍스트 메시지 (간단한 정보만)
-      const message = buildBasicStatusText(type, data);
+      // 텍스트 메시지 전송 - 이모티콘 완전 제거
+      let message;
+      if (type === 'start') {
+        message = `API Test Execution Started\nJob: ${data.jobName}\nCollection: ${data.collection}`;
+        if (data.environment) {
+          message += `\nEnvironment: ${data.environment}`;
+        }
+        message += `\nTime: ${data.startTime}`;
+      } else if (type === 'success') {
+        message = `API Test Execution Success\nJob: ${data.jobName}\nCollection: ${data.collection}`;
+        if (data.environment) {
+          message += `\nEnvironment: ${data.environment}`;
+        }
+        message += `\nDuration: ${data.duration}s\nEnd Time: ${data.endTime}`;
+      } else if (type === 'error') {
+        message = `API Test Execution Failed\nJob: ${data.jobName}\nCollection: ${data.collection}`;
+        if (data.environment) {
+          message += `\nEnvironment: ${data.environment}`;
+        }
+        message += `\nExit Code: ${data.exitCode}\nDuration: ${data.duration}s\nEnd Time: ${data.endTime}`;
+        
+        if (data.errorSummary) {
+          message += `\nError: ${data.errorSummary}`;
+        }
+        
+        // 상세 실패 리포트 추가
+        if (data.failureReport) {
+          message += `\n\n=== Failure Summary Report ===\n${data.failureReport}`;
+        }
+      }
       result = await sendTextMessage(message);
     }
 
-    console.log(`[ALERT] ${type} 알람 전송 결과:`, result);
+    console.log(`[ALERT] ${type} alert result:`, result);
     
     if (!result.ok) {
-      console.error(`[ALERT ERROR] ${type} 알람 전송 실패:`, result);
+      console.error(`[ALERT ERROR] ${type} alert failed:`, result);
     }
 
   } catch (error) {
-    console.error(`[ALERT ERROR] ${type} 알람 전송 중 오류:`, error);
+    console.error(`[ALERT ERROR] ${type} alert error:`, error);
   }
 }
 
@@ -790,6 +819,7 @@ async function runJob(jobName){
       s.split(/\r?\n/).forEach(line => line && broadcastLog(line));
     });
     
+
     proc.on('close', async (code)=>{
       outStream.end(); 
       errStream.end();
@@ -799,8 +829,64 @@ async function runJob(jobName){
       
       broadcastLog(`[DONE] exit=${code}`);
 
-      // Newman 결과 파싱
-      const { summary, stats } = parseNewmanResult(jsonReport);
+      // 실패 시 상세 요약 리포트 생성
+      let errorSummary = null;
+      let failureReport = null;
+      
+      if (code !== 0) {
+        // 기본 에러 요약
+        errorSummary = `Process exited with code ${code}`;
+        
+        // 상세 실패 리포트 생성
+        const failureLines = [];
+        
+        // stderr에서 주요 에러 추출
+        if (errorOutput) {
+          const errorLines = errorOutput.split('\n')
+            .filter(line => line.trim() && 
+              (line.includes('error') || line.includes('failed') || line.includes('Error')))
+            .slice(0, 5); // 최대 5개 라인
+          
+          if (errorLines.length > 0) {
+            failureLines.push('Error Output:');
+            errorLines.forEach(line => failureLines.push(`- ${line.trim()}`));
+          }
+        }
+        
+        // JSON 리포트에서 실패 정보 추출 시도
+        try {
+          if (fs.existsSync(jsonReport)) {
+            const jsonData = JSON.parse(fs.readFileSync(jsonReport, 'utf-8'));
+            if (jsonData.run && jsonData.run.failures && jsonData.run.failures.length > 0) {
+              failureLines.push('\nTest Failures:');
+              jsonData.run.failures.slice(0, 3).forEach(failure => {
+                const testName = failure.source?.name || 'Unknown Test';
+                const errorMsg = failure.error?.message || 'Unknown Error';
+                failureLines.push(`- ${testName}: ${errorMsg}`);
+              });
+            }
+            
+            // 통계 정보 추가
+            if (jsonData.run && jsonData.run.stats) {
+              const stats = jsonData.run.stats;
+              failureLines.push(`\nTest Statistics:`);
+              failureLines.push(`- Total Tests: ${stats.tests?.total || 0}`);
+              failureLines.push(`- Failed Tests: ${stats.tests?.failed || 0}`);
+              failureLines.push(`- Total Assertions: ${stats.assertions?.total || 0}`);
+              failureLines.push(`- Failed Assertions: ${stats.assertions?.failed || 0}`);
+            }
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 stderr 내용 사용
+          if (errorOutput) {
+            failureLines.push('\nError Details:');
+            const lastLines = errorOutput.trim().split('\n').slice(-5);
+            lastLines.forEach(line => failureLines.push(`- ${line.trim()}`));
+          }
+        }
+        
+        failureReport = failureLines.length > 1 ? failureLines.join('\n') : errorSummary;
+      }
 
       // history 저장
       const history = histRead();
@@ -809,13 +895,12 @@ async function runJob(jobName){
         job: jobName,
         type: job.type,
         exitCode: code,
-        summary: summary, // 개선된 요약
+        summary: `cli=${path.basename(cliExport)}`,
         report: htmlReport,
         stdout: path.basename(stdoutPath),
         stderr: path.basename(stderrPath),
         tags: [],
-        duration: duration,
-        stats: stats // Newman 통계 추가
+        duration: duration
       };
       
       history.push(historyEntry);
@@ -837,25 +922,23 @@ async function runJob(jobName){
         exitCode: code,
         collection: path.basename(collection),
         environment: environment ? path.basename(environment) : null,
-        reportPath: htmlReport,
-        stats: stats, // Newman 통계 추가
-        summary: summary // 요약 추가
+        errorSummary,
+        failureReport,  // 상세 실패 리포트 추가
+        reportPath: code === 0 ? htmlReport : null
       };
 
-      // 성공/실패에 따른 알람 전송
+      // 결과에 따른 알람 전송
       if (code === 0) {
-        // 성공 알람
         await sendAlert('success', alertData);
       } else {
-        // 실패 알람
-        alertData.errorSummary = errorOutput.trim().split('\n').slice(-3).join('\n'); // 마지막 3줄만
         await sendAlert('error', alertData);
       }
 
       state.running = null;
       broadcastState({ running: null });
-      resolve({ started:true, code });
-    });
+      
+      resolve({ started:true, exitCode:code });
+});
 
     // 프로세스 에러 처리
     proc.on('error', async (err) => {

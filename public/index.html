@@ -36,8 +36,8 @@
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
-  <div class="max-w-7xl mx-auto p-6 space-y-6">
-    <header class="flex items-center justify-between">
+  <div class="max-w-full mx-auto p-6 space-y-6">
+      <header class="flex items-center justify-between">
       <div class="flex items-center space-x-4">
         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,28 +50,28 @@
         </div>
       </div>
       <div class="flex items-center space-x-3">
-        <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">대기</span>
-        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">⚙️ 알람 설정</a>
+        <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">Standby</span>
+        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Alert Settings</a>
       </div>
     </header>
 
-    <section class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+    <section class="grid grid-cols-1 xl:grid-cols-4 gap-5">
       <div class="bg-white rounded-2xl shadow p-4 space-y-3">
-        <div class="text-sm font-semibold">잡 선택 및 실행</div>
+        <div class="text-sm font-semibold">Job Selection & Execution</div>
         <select id="jobSelect" class="w-full border rounded px-3 py-2"></select>
         <div class="flex gap-2">
-          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50 flex-1">실행</button>
+          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50 flex-1">Run</button>
         </div>
-        <div class="text-xs text-slate-500">현재 잡 설정</div>
+        <div class="text-xs text-slate-500">Current Job Configuration</div>
         <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[40px]"></div>
         
         <!-- 실시간 로그 -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-slate-500">실시간 로그</span>
+            <span class="text-xs text-slate-500">Real-time Log</span>
             <div class="flex items-center space-x-2">
-              <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors">📺 전체화면</button>
-              <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100 transition-colors">🗑️ 지우기</button>
+              <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors">전체화면</button>
+              <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100 transition-colors">Clear</button>
               <div id="logIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
               <span class="text-xs text-slate-500">연결</span>
             </div>
@@ -108,35 +108,35 @@
         </div>
       </div>
 
-      <div class="xl:col-span-2 bg-white rounded-2xl shadow p-4">
+      <div class="xl:col-span-3 bg-white rounded-2xl shadow p-4">
         <div class="flex items-center justify-between mb-3">
-          <div class="text-sm font-semibold">실행 이력</div>
+          <div class="text-sm font-semibold">Execution History</div>
           <div class="flex items-center gap-2 text-xs">
-            <label>페이지</label>
+            <label>Page</label>
             <select id="pageSize" class="border rounded px-2 py-1"><option>10</option><option selected>20</option><option>50</option><option>100</option></select>
           </div>
         </div>
 
         <div class="flex items-end gap-3 mb-3">
           <div>
-            <label class="block text-xs mb-1">잡</label>
-            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">전체</option></select>
+            <label class="block text-xs mb-1">Job</label>
+            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">All</option></select>
           </div>
           <div>
-            <label class="block text-xs mb-1">기간</label>
+            <label class="block text-xs mb-1">Period</label>
             <select id="range" class="border rounded px-2 py-1">
-              <option value="">전체</option>
+              <option value="">All</option>
               <option value="24h">최근 24시간</option>
               <option value="7d">최근 7일</option>
             </select>
           </div>
           <div class="flex-1">
-            <label class="block text-xs mb-1">키워드</label>
-            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="성공 / 실패">
+            <label class="block text-xs mb-1">Keyword</label>
+            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="Success / Failed">
           </div>
           <div class="flex gap-2">
-            <button id="applyFilter" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded">적용</button>
-            <button id="resetFilter" class="px-3 py-1.5 text-xs border rounded">초기화</button>
+            <button id="applyFilter" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded">Apply</button>
+            <button id="resetFilter" class="px-3 py-1.5 text-xs border rounded">Reset</button>
           </div>
         </div>
 
@@ -144,13 +144,13 @@
           <table class="w-full text-left">
             <thead class="text-xs bg-slate-50">
               <tr>
-                <th class="py-2 pr-4 font-medium">시작</th>
-                <th class="py-2 pr-4 font-medium">잡</th>
-                <th class="py-2 pr-4 font-medium">상태</th>
-                <th class="py-2 pr-4 font-medium">요약</th>
-                <th class="py-2 pr-4 font-medium">소요시간</th>
-                <th class="py-2 pr-4 font-medium">리포트</th>
-                <th class="py-2 font-medium">로그</th>
+                <th class="py-2 pr-4 font-medium">Time</th>
+                <th class="py-2 pr-4 font-medium">Job</th>
+                <th class="py-2 pr-4 font-medium">Status</th>
+                <th class="py-2 pr-4 font-medium">Summary</th>
+                <th class="py-2 pr-4 font-medium">Duration</th>
+                <th class="py-2 pr-4 font-medium">Report</th>
+                <th class="py-2 font-medium">Log</th>
               </tr>
             </thead>
             <tbody id="histTbody" class="text-xs"></tbody>
@@ -181,9 +181,9 @@
         <form id="scheduleForm" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium mb-1">잡</label>
+              <label class="block text-sm font-medium mb-1">Job</label>
               <select id="modalJobSelect" class="w-full border rounded px-3 py-2" required>
-                <option value="">선택하세요</option>
+                <option value="">Select</option>
               </select>
             </div>
             <div>
@@ -221,7 +221,7 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-lg font-semibold text-white">실시간 로그</h3>
+            <h3 class="text-lg font-semibold text-white">Real-time Log</h3>
             <div class="flex items-center space-x-2 text-sm text-slate-300">
               <div id="modalLogIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
               <span>연결 상태</span>
@@ -266,7 +266,7 @@ async function loadJobs() {
   const elements = ['jobSelect', 'filterJob', 'modalJobSelect'];
   elements.forEach(id => {
     const el = document.getElementById(id);
-    el.innerHTML = id === 'filterJob' ? '<option value="">전체</option>' : '<option value="">선택하세요</option>';
+    el.innerHTML = id === 'filterJob' ? '<option value="">All</option>' : '<option value="">Select</option>';
     jobs.forEach(j => el.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`));
   });
   
@@ -334,14 +334,14 @@ async function fetchHistory(){
 
 function setStatusChip() {
   const chip = document.getElementById('statusChip');
-  chip.textContent = running ? ('실행 중: ' + running.job) : '대기';
+  chip.textContent = running ? ('Running: ' + running.job) : 'Standby';
   chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
 }
 
 function renderHistory() {
   const tb = document.getElementById('histTbody');
   tb.innerHTML = '';
-  historyView.slice().reverse().forEach(row => {
+  historyView.forEach(row => {
     const ok = row.exitCode === 0;
     const duration = !row.duration && row.duration !== 0 ? '-' : 
       row.duration < 60 ? `${row.duration}초` : `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
@@ -350,7 +350,7 @@ function renderHistory() {
       <tr class="${ok ? '' : 'bg-rose-50/40'}">
         <td class="py-1 pr-4 text-xs">${row.timestamp || ''}</td>
         <td class="py-1 pr-4 font-medium">${row.job || ''}</td>
-        <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">✅ 성공</span>' : '<span class="text-rose-700 text-sm">❌ 실패</span>'}</td>
+        <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">Success</span>' : '<span class="text-rose-700 text-sm">Failed</span>'}</td>
         <td class="py-1 pr-4 text-xs" title="${(row.summary||'').replace(/</g,'&lt;')}">${(row.summary||'').replace(/</g,'&lt;').substring(0, 60)}${(row.summary||'').length > 60 ? '...' : ''}</td>
         <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
         <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
@@ -523,13 +523,13 @@ async function checkAlertStatus() {
     
     if (config.run_event_alert && config.webhook_url === '설정됨') {
       indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
-      indicator.textContent = '활성화';
+      indicator.textContent = 'Active';
     } else if (config.run_event_alert && config.webhook_url === '미설정') {
       indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800';
-      indicator.textContent = 'URL 미설정';
+      indicator.textContent = 'URL Not Set';
     } else {
       indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
-      indicator.textContent = '비활성화';
+      indicator.textContent = 'Inactive';
     }
   } catch (error) {
     const indicator = document.getElementById('alertIndicator');
