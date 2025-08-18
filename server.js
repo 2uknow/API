@@ -820,149 +820,381 @@ async function runJob(jobName){
     });
     
 
-    proc.on('close', async (code)=>{
-      outStream.end(); 
-      errStream.end();
-      
-      const endTime = nowInTZString();
-      const duration = Math.round((Date.now() - startTs) / 1000);
-      
-      broadcastLog(`[DONE] exit=${code}`);
 
-      // 실패 시 상세 요약 리포트 생성
-      let errorSummary = null;
-      let failureReport = null;
+// runJob 함수의 proc.on('close') 부분을 이렇게 개선하세요:
+
+proc.on('close', async (code) => {
+  outStream.end(); 
+  errStream.end();
+  
+  const endTime = nowInTZString();
+  const duration = Math.round((Date.now() - startTs) / 1000);
+  
+  broadcastLog(`[DONE] exit=${code}`);
+
+  // Newman JSON 리포트에서 상세 통계 정보 추출
+  let summary = `exit=${code}`;
+  let newmanStats = null;
+  let detailedStats = null;
+  let failureDetails = [];
+  
+  try {
+    if (fs.existsSync(jsonReport)) {
+      const jsonData = JSON.parse(fs.readFileSync(jsonReport, 'utf-8'));
+      const run = jsonData.run;
       
-      if (code !== 0) {
-        // 기본 에러 요약
-        errorSummary = `Process exited with code ${code}`;
+      if (run && run.stats) {
+        const stats = run.stats;
+        const requests = stats.requests || {};
+        const assertions = stats.assertions || {};
+        const testScripts = stats.testScripts || {};
+        const prerequestScripts = stats.prerequestScripts || {};
+        const iterations = stats.iterations || {};
+        
+        // 기본 Newman 통계
+        newmanStats = {
+          requests: {
+            total: requests.total || 0,
+            failed: requests.failed || 0,
+            pending: requests.pending || 0
+          },
+          assertions: {
+            total: assertions.total || 0,
+            failed: assertions.failed || 0,
+            pending: assertions.pending || 0
+          },
+          testScripts: {
+            total: testScripts.total || 0,
+            failed: testScripts.failed || 0,
+            pending: testScripts.pending || 0
+          },
+          prerequestScripts: {
+            total: prerequestScripts.total || 0,
+            failed: prerequestScripts.failed || 0,
+            pending: prerequestScripts.pending || 0
+          },
+          iterations: {
+            total: iterations.total || 0,
+            failed: iterations.failed || 0,
+            pending: iterations.pending || 0
+          }
+        };
+        
+        // 상세 통계 계산
+        detailedStats = {
+          totalExecuted: (requests.total || 0) + (assertions.total || 0) + (testScripts.total || 0),
+          totalFailed: (requests.failed || 0) + (assertions.failed || 0) + (testScripts.failed || 0),
+          successRate: 0,
+          avgResponseTime: run.timings?.responseAverage || 0,
+          totalDuration: run.timings?.responseTotal || duration * 1000
+        };
+        
+        if (detailedStats.totalExecuted > 0) {
+          detailedStats.successRate = Math.round(((detailedStats.totalExecuted - detailedStats.totalFailed) / detailedStats.totalExecuted) * 100);
+        }
+        
+        // 실패 상세 정보 수집
+        if (run.failures && run.failures.length > 0) {
+          failureDetails = run.failures.slice(0, 5).map(failure => ({
+            test: failure.source?.name || 'Unknown Test',
+            error: failure.error?.message || 'Unknown Error',
+            assertion: failure.error?.test || null,
+            request: failure.source?.request?.name || null
+          }));
+        }
+        
+        // Summary 생성: 더 세분화된 정보
+        if (code === 0) {
+          // 성공한 경우
+          const parts = [];
+          
+          if (assertions.total > 0) {
+            if (assertions.failed === 0) {
+              parts.push(`All ${assertions.total} Assertions Passed`);
+            } else {
+              parts.push(`${assertions.total - assertions.failed}/${assertions.total} Assertions Passed`);
+            }
+          }
+          
+          if (requests.total > 0) {
+            if (requests.failed === 0) {
+              parts.push(`All ${requests.total} Requests Succeeded`);
+            } else {
+              parts.push(`${requests.total - requests.failed}/${requests.total} Requests Succeeded`);
+            }
+          }
+          
+          if (testScripts.total > 0) {
+            if (testScripts.failed === 0) {
+              parts.push(`All ${testScripts.total} Tests Passed`);
+            } else {
+              parts.push(`${testScripts.total - testScripts.failed}/${testScripts.total} Tests Passed`);
+            }
+          }
+          
+          // 성공률 추가
+          if (detailedStats.successRate < 100) {
+            parts.push(`Success Rate: ${detailedStats.successRate}%`);
+          }
+          
+          summary = parts.length > 0 ? parts.join(', ') : 'All Tests Completed Successfully';
+        } else {
+          // 실패한 경우
+          const failureParts = [];
+          
+          if (assertions.failed > 0) {
+            failureParts.push(`${assertions.failed}/${assertions.total} Assertions Failed`);
+          }
+          if (requests.failed > 0) {
+            failureParts.push(`${requests.failed}/${requests.total} Requests Failed`);
+          }
+          if (testScripts.failed > 0) {
+            failureParts.push(`${testScripts.failed}/${testScripts.total} Tests Failed`);
+          }
+          
+          if (failureParts.length > 0) {
+            summary = failureParts.join(', ');
+            // 성공률이 낮으면 추가 정보
+            if (detailedStats.successRate < 50) {
+              summary += ` (Success Rate: ${detailedStats.successRate}%)`;
+            }
+          } else {
+            // Newman 통계는 있지만 구체적 실패 정보가 없는 경우
+            const totalParts = [];
+            if (assertions.total > 0) totalParts.push(`${assertions.total} Assertions`);
+            if (requests.total > 0) totalParts.push(`${requests.total} Requests`);
+            if (testScripts.total > 0) totalParts.push(`${testScripts.total} Tests`);
+            
+            summary = totalParts.length > 0 ? 
+              `Test Failed - ${totalParts.join(', ')} Executed` : 
+              `Process Failed (exit=${code})`;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[NEWMAN STATS PARSE ERROR]', error);
+    summary = `Parse Error (exit=${code})`;
+  }
+
+  // CLI 출력에서 추가 실패 정보 추출
+  let errorSummary = null;
+  let failureReport = null;
+  let detailedFailures = [];
+  
+  if (code !== 0) {
+  try {
+    const output = fs.readFileSync(stdoutPath, 'utf-8');
+    
+    // # failure detail 섹션 찾기
+    const failureDetailMatch = output.match(/# failure detail\s*\n([\s\S]*?)(?=\n# |$)/);
+    
+    if (failureDetailMatch) {
+      const failureSection = failureDetailMatch[1];
+      
+      // 각 실패 항목 파싱 (1. 2. 3. ... 형태)
+      const failureBlocks = failureSection.match(/\d+\.\s+.*?(?=\n\d+\.|\n\n|$)/gs);
+      
+      if (failureBlocks) {
+        detailedFailures = failureBlocks.map((block, index) => {
+          const lines = block.trim().split('\n');
+          const firstLine = lines[0].replace(/^\d+\.\s*/, ''); // "1. " 부분 제거
+          
+          // 첫 번째 라인에서 테스트 정보 추출
+          let testName = 'Unknown Test';
+          let requestName = 'Unknown Request';
+          let errorType = 'Error';
+          
+          // 패턴 매칭으로 정보 추출
+          if (firstLine.includes(' | ')) {
+            const parts = firstLine.split(' | ');
+            if (parts.length >= 2) {
+              testName = parts[0].trim();
+              requestName = parts[1].trim();
+            }
+          } else {
+            testName = firstLine;
+          }
+          
+          // 에러 타입 확인
+          if (firstLine.includes('AssertionError')) {
+            errorType = 'Assertion Failed';
+          } else if (firstLine.includes('Error')) {
+            errorType = 'Request Error';
+          }
+          
+          // 상세 내용 추출 (2번째 줄부터)
+          const detailLines = lines.slice(1).filter(line => line.trim().length > 0);
+          let errorDetails = '';
+          let expectedValue = '';
+          let actualValue = '';
+          
+          detailLines.forEach(line => {
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('expected')) {
+              expectedValue = trimmedLine.replace(/^expected\s*/, '');
+            } else if (trimmedLine.startsWith('actual')) {
+              actualValue = trimmedLine.replace(/^actual\s*/, '');
+            } else if (trimmedLine.startsWith('at ')) {
+              // Stack trace 정보는 제외
+            } else if (trimmedLine.length > 0) {
+              if (!errorDetails) {
+                errorDetails = trimmedLine;
+              }
+            }
+          });
+          
+          return {
+            index: index + 1,
+            testName: testName,
+            requestName: requestName,
+            errorType: errorType,
+            errorDetails: errorDetails,
+            expectedValue: expectedValue,
+            actualValue: actualValue,
+            fullBlock: block.trim()
+          };
+        });
+      }
+      
+      // 요약용 에러 생성
+      if (detailedFailures.length > 0) {
+        const firstFailure = detailedFailures[0];
+        errorSummary = `${firstFailure.errorType}: ${firstFailure.testName}`;
+        
+        if (detailedFailures.length > 1) {
+          errorSummary += ` (+ ${detailedFailures.length - 1} more failures)`;
+        }
         
         // 상세 실패 리포트 생성
-        const failureLines = [];
+        const reportLines = [`=== Detailed Failure Analysis (${detailedFailures.length} failures) ===\n`];
         
-        // stderr에서 주요 에러 추출
-        if (errorOutput) {
-          const errorLines = errorOutput.split('\n')
-            .filter(line => line.trim() && 
-              (line.includes('error') || line.includes('failed') || line.includes('Error')))
-            .slice(0, 5); // 최대 5개 라인
+        detailedFailures.slice(0, 5).forEach(failure => { // 최대 5개까지
+          reportLines.push(`${failure.index}. ${failure.testName}`);
+          reportLines.push(`   Request: ${failure.requestName}`);
+          reportLines.push(`   Type: ${failure.errorType}`);
           
-          if (errorLines.length > 0) {
-            failureLines.push('Error Output:');
-            errorLines.forEach(line => failureLines.push(`- ${line.trim()}`));
+          if (failure.errorDetails) {
+            reportLines.push(`   Error: ${failure.errorDetails}`);
           }
+          
+          if (failure.expectedValue && failure.actualValue) {
+            reportLines.push(`   Expected: ${failure.expectedValue}`);
+            reportLines.push(`   Actual: ${failure.actualValue}`);
+          }
+          
+          reportLines.push(''); // 빈 줄로 구분
+        });
+        
+        if (detailedFailures.length > 5) {
+          reportLines.push(`... and ${detailedFailures.length - 5} more failures. See full report for details.`);
         }
         
-        // JSON 리포트에서 실패 정보 추출 시도
-        try {
-          if (fs.existsSync(jsonReport)) {
-            const jsonData = JSON.parse(fs.readFileSync(jsonReport, 'utf-8'));
-            if (jsonData.run && jsonData.run.failures && jsonData.run.failures.length > 0) {
-              failureLines.push('\nTest Failures:');
-              jsonData.run.failures.slice(0, 3).forEach(failure => {
-                const testName = failure.source?.name || 'Unknown Test';
-                const errorMsg = failure.error?.message || 'Unknown Error';
-                failureLines.push(`- ${testName}: ${errorMsg}`);
-              });
-            }
-            
-            // 통계 정보 추가
-            if (jsonData.run && jsonData.run.stats) {
-              const stats = jsonData.run.stats;
-              failureLines.push(`\nTest Statistics:`);
-              failureLines.push(`- Total Tests: ${stats.tests?.total || 0}`);
-              failureLines.push(`- Failed Tests: ${stats.tests?.failed || 0}`);
-              failureLines.push(`- Total Assertions: ${stats.assertions?.total || 0}`);
-              failureLines.push(`- Failed Assertions: ${stats.assertions?.failed || 0}`);
-            }
-          }
-        } catch (e) {
-          // JSON 파싱 실패 시 stderr 내용 사용
-          if (errorOutput) {
-            failureLines.push('\nError Details:');
-            const lastLines = errorOutput.trim().split('\n').slice(-5);
-            lastLines.forEach(line => failureLines.push(`- ${line.trim()}`));
-          }
-        }
-        
-        failureReport = failureLines.length > 1 ? failureLines.join('\n') : errorSummary;
+        failureReport = reportLines.join('\n');
       }
-
-      // history 저장
-      const history = histRead();
-      const historyEntry = {
-        timestamp: endTime,
-        job: jobName,
-        type: job.type,
-        exitCode: code,
-        summary: `cli=${path.basename(cliExport)}`,
-        report: htmlReport,
-        stdout: path.basename(stdoutPath),
-        stderr: path.basename(stderrPath),
-        tags: [],
-        duration: duration
-      };
+    }
+    
+    // failure detail이 없으면 일반 에러 라인에서 추출
+    if (!detailedFailures.length) {
+      const errorLines = output.split('\n')
+        .filter(line => line.trim() && 
+          (line.includes('AssertionError') || 
+           line.includes('Error:') || 
+           line.includes('failed') ||
+           line.includes('✗'))) // Newman의 실패 마크
+        .slice(0, 10); // 최대 10개 라인
       
-      history.push(historyEntry);
-      
-      const { history_keep = 500 } = readCfg();
-      if (history.length > history_keep) {
-        history.splice(0, history.length - history_keep);
-      }
-      
-      histWrite(history);
-      cleanupOldReports();
-
-      // 알람 데이터 준비
-      const alertData = {
-        jobName,
-        startTime,
-        endTime,
-        duration,
-        exitCode: code,
-        collection: path.basename(collection),
-        environment: environment ? path.basename(environment) : null,
-        errorSummary,
-        failureReport,  // 상세 실패 리포트 추가
-        reportPath: code === 0 ? htmlReport : null
-      };
-
-      // 결과에 따른 알람 전송
-      if (code === 0) {
-        await sendAlert('success', alertData);
+      if (errorLines.length > 0) {
+        errorSummary = errorLines[0].trim();
+        failureReport = `Error Output:\n${errorLines.join('\n')}`;
       } else {
-        await sendAlert('error', alertData);
+        errorSummary = `Process exited with code ${code}`;
       }
+    }
+    
+  } catch (error) {
+    console.log('[CLI PARSE ERROR]', error);
+    errorSummary = `Parse error: ${error.message}`;
+  }
+}
 
-      state.running = null;
-      broadcastState({ running: null });
-      
-      resolve({ started:true, exitCode:code });
+  // history 저장
+  const history = histRead();
+  const historyEntry = {
+    timestamp: endTime,
+    job: jobName,
+    type: job.type,
+    exitCode: code,
+    summary: summary, // 개선된 summary 사용
+    report: htmlReport,
+    stdout: path.basename(stdoutPath),
+    stderr: path.basename(stderrPath),
+    tags: [],
+    duration: duration,
+    // 상세 Newman 통계 추가
+    newmanStats: newmanStats,
+    detailedStats: detailedStats
+  };
+  
+  history.push(historyEntry);
+  
+  const { history_keep = 500 } = readCfg();
+  if (history.length > history_keep) {
+    history.splice(0, history.length - history_keep);
+  }
+  
+  histWrite(history);
+  cleanupOldReports();
+
+  // 알람 데이터 준비 - 훨씬 풍부한 정보 포함
+  const alertData = {
+  jobName,
+  startTime,
+  endTime,
+  duration,
+  exitCode: code,
+  collection: path.basename(collection),
+  environment: environment ? path.basename(environment) : null,
+  
+  // 기본 오류 정보
+  errorSummary,
+  failureReport,
+  
+  // Newman 상세 통계
+  newmanStats: newmanStats,
+  detailedStats: detailedStats,
+  
+  // 상세 실패 정보 (CLI에서 파싱한 것과 JSON에서 파싱한 것 모두)
+  failureDetails: failureDetails, // JSON에서 파싱한 것
+  detailedFailures: detailedFailures, // CLI에서 파싱한 상세한 것
+  
+  // 성능 정보
+  performanceInfo: {
+    avgResponseTime: detailedStats?.avgResponseTime || 0,
+    totalDuration: detailedStats?.totalDuration || duration * 1000,
+    successRate: detailedStats?.successRate || 0
+  },
+  
+  // 요약 정보
+  summaryText: summary,
+  
+  // 리포트 경로
+  reportPath: fs.existsSync(htmlReport) ? htmlReport : null
+};
+
+  // 결과에 따른 알람 전송
+  if (code === 0) {
+    await sendAlert('success', alertData);
+  } else {
+    await sendAlert('error', alertData);
+  }
+
+  state.running = null;
+  broadcastState({ running: null });
+  
+  resolve({ started: true, exitCode: code });
 });
-
-    // 프로세스 에러 처리
-    proc.on('error', async (err) => {
-      console.error(`[PROC ERROR] ${jobName}:`, err);
-      
-      const endTime = nowInTZString();
-      const duration = Math.round((Date.now() - startTs) / 1000);
-      
-      // 프로세스 시작 실패 알람
-      await sendAlert('error', {
-        jobName,
-        startTime,
-        endTime,
-        duration,
-        exitCode: -1,
-        errorSummary: `프로세스 시작 실패: ${err.message}`,
-        collection: path.basename(collection),
-        environment: environment ? path.basename(environment) : null
-      });
-
-      state.running = null;
-      broadcastState({ running: null });
-      resolve({ started:false, reason:'process_error', error: err.message });
-    });
   });
 }
 

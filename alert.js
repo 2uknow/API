@@ -289,7 +289,10 @@ export function buildStatusText(kind, data) {
   
   return message;
 }
+
 export function buildRunStatusFlex(kind, data) {
+  const baseUrl = getBaseUrl();
+  
   const headerText = kind === 'start' ? 'Execution Started'
                     : kind === 'success' ? 'Execution Success'
                     : 'Execution Failed';
@@ -331,7 +334,104 @@ export function buildRunStatusFlex(kind, data) {
     });
   }
 
-  // 실패한 경우 종료 코드와 에러 정보 추가 + 상세 요약 리포트
+  // Newman 통계 정보 추가 (성공/실패 관계없이)
+  if (data.newmanStats) {
+    bodyContents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+    
+    bodyContents.push({
+      type: 'text',
+      text: 'Test Results',
+      wrap: true,
+      size: 'sm',
+      color: '#333333',
+      weight: 'bold'
+    });
+
+    const stats = data.newmanStats;
+    
+    // Assertions 정보
+    if (stats.assertions && stats.assertions.total > 0) {
+      const assertionColor = stats.assertions.failed > 0 ? '#C62828' : '#2E7D32';
+      const assertionText = stats.assertions.failed > 0 
+        ? `Assertions: ${stats.assertions.total - stats.assertions.failed}/${stats.assertions.total} passed`
+        : `Assertions: ${stats.assertions.total}/${stats.assertions.total} passed`;
+      
+      bodyContents.push({
+        type: 'text',
+        text: assertionText,
+        wrap: true,
+        size: 'xs',
+        color: assertionColor,
+        weight: stats.assertions.failed > 0 ? 'bold' : 'regular'
+      });
+    }
+    
+    // Requests 정보
+    if (stats.requests && stats.requests.total > 0) {
+      const requestColor = stats.requests.failed > 0 ? '#C62828' : '#2E7D32';
+      const requestText = stats.requests.failed > 0 
+        ? `Requests: ${stats.requests.total - stats.requests.failed}/${stats.requests.total} succeeded`
+        : `Requests: ${stats.requests.total}/${stats.requests.total} succeeded`;
+      
+      bodyContents.push({
+        type: 'text',
+        text: requestText,
+        wrap: true,
+        size: 'xs',
+        color: requestColor,
+        weight: stats.requests.failed > 0 ? 'bold' : 'regular'
+      });
+    }
+    
+    // Tests 정보
+    if (stats.testScripts && stats.testScripts.total > 0) {
+      const testColor = stats.testScripts.failed > 0 ? '#C62828' : '#2E7D32';
+      const testText = stats.testScripts.failed > 0 
+        ? `Tests: ${stats.testScripts.total - stats.testScripts.failed}/${stats.testScripts.total} passed`
+        : `Tests: ${stats.testScripts.total}/${stats.testScripts.total} passed`;
+      
+      bodyContents.push({
+        type: 'text',
+        text: testText,
+        wrap: true,
+        size: 'xs',
+        color: testColor,
+        weight: stats.testScripts.failed > 0 ? 'bold' : 'regular'
+      });
+    }
+  }
+
+  // 성능 정보 추가
+  if (data.performanceInfo) {
+    const perf = data.performanceInfo;
+    
+    if (perf.successRate !== undefined) {
+      const rateColor = perf.successRate >= 95 ? '#2E7D32' : perf.successRate >= 80 ? '#F57C00' : '#C62828';
+      bodyContents.push({
+        type: 'text',
+        text: `Success Rate: ${perf.successRate}%`,
+        wrap: true,
+        size: 'xs',
+        color: rateColor,
+        weight: 'bold'
+      });
+    }
+    
+    if (perf.avgResponseTime > 0) {
+      bodyContents.push({
+        type: 'text',
+        text: `Avg Response: ${Math.round(perf.avgResponseTime)}ms`,
+        wrap: true,
+        size: 'xs',
+        color: '#666666'
+      });
+    }
+  }
+
+  // 실패한 경우 상세 실패 정보 추가
   if (kind === 'error') {
     bodyContents.push({
       type: 'separator',
@@ -347,7 +447,116 @@ export function buildRunStatusFlex(kind, data) {
       weight: 'bold'
     });
 
-    if (data.errorSummary) {
+    // CLI에서 파싱한 상세 실패 정보 우선 표시
+    if (data.detailedFailures && data.detailedFailures.length > 0) {
+      bodyContents.push({
+        type: 'text',
+        text: `Failed Tests (${data.detailedFailures.length} total):`,
+        wrap: true,
+        size: 'sm',
+        color: '#C62828',
+        weight: 'bold',
+        margin: 'sm'
+      });
+      
+      // 최대 4개까지 상세 실패 테스트 표시
+      data.detailedFailures.slice(0, 4).forEach(failure => {
+        bodyContents.push({
+          type: 'text',
+          text: `${failure.index}. ${failure.testName}`,
+          wrap: true,
+          size: 'xs',
+          color: '#C62828',
+          weight: 'bold',
+          margin: 'xs'
+        });
+        
+        if (failure.requestName && failure.requestName !== 'Unknown Request') {
+          bodyContents.push({
+            type: 'text',
+            text: `   Request: ${failure.requestName}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666',
+            margin: 'none'
+          });
+        }
+        
+        if (failure.errorDetails) {
+          bodyContents.push({
+            type: 'text',
+            text: `   Error: ${failure.errorDetails}`,
+            wrap: true,
+            size: 'xs',
+            color: '#888888',
+            margin: 'none'
+          });
+        }
+        
+        if (failure.expectedValue && failure.actualValue) {
+          bodyContents.push({
+            type: 'text',
+            text: `   Expected: ${failure.expectedValue}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666',
+            margin: 'none'
+          });
+          bodyContents.push({
+            type: 'text',
+            text: `   Actual: ${failure.actualValue}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666',
+            margin: 'none'
+          });
+        }
+      });
+      
+      if (data.detailedFailures.length > 4) {
+        bodyContents.push({
+          type: 'text',
+          text: `... and ${data.detailedFailures.length - 4} more failures. Check report for full details.`,
+          wrap: true,
+          size: 'xs',
+          color: '#888888',
+          style: 'italic'
+        });
+      }
+    } else if (data.failureDetails && data.failureDetails.length > 0) {
+      // JSON에서 파싱한 기본 실패 정보 표시 (fallback)
+      bodyContents.push({
+        type: 'text',
+        text: 'Failed Tests:',
+        wrap: true,
+        size: 'sm',
+        color: '#C62828',
+        weight: 'bold',
+        margin: 'sm'
+      });
+      
+      data.failureDetails.slice(0, 3).forEach(failure => {
+        bodyContents.push({
+          type: 'text',
+          text: `• ${failure.test}: ${failure.error}`,
+          wrap: true,
+          size: 'xs',
+          color: '#666666',
+          margin: 'xs'
+        });
+      });
+      
+      if (data.failureDetails.length > 3) {
+        bodyContents.push({
+          type: 'text',
+          text: `... and ${data.failureDetails.length - 3} more failures`,
+          wrap: true,
+          size: 'xs',
+          color: '#888888',
+          style: 'italic'
+        });
+      }
+    } else if (data.errorSummary) {
       bodyContents.push({
         type: 'text',
         text: `Error: ${data.errorSummary}`,
@@ -356,56 +565,22 @@ export function buildRunStatusFlex(kind, data) {
         color: '#666666'
       });
     }
-
-    // 상세 실패 리포트 추가 (포맷팅 개선)
-    if (data.failureReport) {
-      bodyContents.push({
-        type: 'separator',
-        margin: 'sm'
-      });
-      
-      bodyContents.push({
-        type: 'text',
-        text: 'Failure Analysis Report',
-        wrap: true,
-        size: 'sm',
-        color: '#C62828',
-        weight: 'bold'
-      });
-
-      // 실패 리포트를 섹션별로 나누어 표시
-      const reportSections = data.failureReport.split('\n\n');
-      reportSections.forEach(section => {
-        if (section.trim()) {
-          bodyContents.push({
-            type: 'text',
-            text: section.trim(),
-            wrap: true,
-            size: 'xs',
-            color: '#555555',
-            margin: 'xs'
-          });
-        }
-      });
-    }
   }
 
   // 성공한 경우 추가 정보
-  if (kind === 'success') {
-    if (data.reportPath) {
-      bodyContents.push({
-        type: 'separator',
-        margin: 'md'
-      });
-      
-      bodyContents.push({
-        type: 'text',
-        text: 'Detailed HTML report has been generated.',
-        wrap: true,
-        size: 'xs',
-        color: '#2E7D32'
-      });
-    }
+  if (kind === 'success' && data.reportPath) {
+    bodyContents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+    
+    bodyContents.push({
+      type: 'text',
+      text: 'Detailed HTML report has been generated.',
+      wrap: true,
+      size: 'xs',
+      color: '#2E7D32'
+    });
   }
 
   // 시간 정보 추가
@@ -422,82 +597,88 @@ export function buildRunStatusFlex(kind, data) {
     align: 'end'
   });
 
-  // buildRunStatusFlex 함수의 끝 부분에서 flexMessage 객체를 이렇게 수정:
-
-const flexMessage = {
-  content: {
-    type: 'flex',
-    altText: `${headerText}: ${data.jobName}`,
-    contents: {
-      type: 'bubble',
-      size: 'mega',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        contents: [
-          {
-            type: 'text',
-            text: headerText,
-            weight: 'bold',
-            size: 'lg',
-            color: '#FFFFFF'
-          },
-          {
-            type: 'text',
-            text: 'API Test Automation Monitoring',
-            size: 'sm',
-            color: '#E0E0E0'
-          }
-        ],
-        backgroundColor: headerColor,
-        paddingAll: '15px'
-      },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        contents: bodyContents,
-        paddingAll: '15px'
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'sm',
-            contents: [
-              {
-                type: 'button',
-                action: {
-                  type: 'uri',
-                  label: 'Dashboard',
-                  uri: process.env.DASHBOARD_URL || 'http://localhost:3000'
+  const flexMessage = {
+    content: {
+      type: 'flex',
+      altText: `${headerText}: ${data.jobName}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: headerText,
+              weight: 'bold',
+              size: 'lg',
+              color: '#FFFFFF'
+            },
+            {
+              type: 'text',
+              text: 'API Test Automation Monitoring',
+              size: 'sm',
+              color: '#E0E0E0'
+            }
+          ],
+          backgroundColor: headerColor,
+          paddingAll: '15px'
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: bodyContents,
+          paddingAll: '15px'
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              spacing: 'sm',
+              contents: [
+                {
+                  type: 'button',
+                  action: {
+                    type: 'uri',
+                    label: 'Dashboard',
+                    uri: baseUrl
+                  },
+                  style: 'primary',
+                  color: '#1976D2'
                 },
-                style: 'primary',
-                color: '#1976D2'
-              },
-              {
-                type: 'button',
-                action: {
-                  type: 'uri',
-                  label: 'Reports',
-                  uri: (process.env.DASHBOARD_URL || 'http://localhost:3000') + '/reports'
-                },
-                style: 'secondary'
-              }
-            ]
-          }
-        ],
-        paddingAll: '12px'
+                ...(data.reportPath ? [{
+                  type: 'button',
+                  action: {
+                    type: 'uri',
+                    label: 'View Report',
+                    uri: `${baseUrl}/reports/${path.basename(data.reportPath)}`
+                  },
+                  style: 'secondary'
+                }] : [{
+                  type: 'button',
+                  action: {
+                    type: 'uri',
+                    label: 'Reports',
+                    uri: `${baseUrl}/reports`
+                  },
+                  style: 'secondary'
+                }])
+              ]
+            }
+          ],
+          paddingAll: '12px'
+        }
       }
     }
-  }
-};
+  };
 
-return flexMessage;
+  return flexMessage;
 }
 /** 웹훅 URL 유효성 검사 */
 export function validateWebhookUrl(url) {

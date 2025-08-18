@@ -83,9 +83,6 @@
         <div class="text-xs bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"></path>
-              </svg>
               <span class="font-medium text-blue-700">알람 시스템</span>
             </div>
             <span id="alertIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
@@ -280,7 +277,7 @@ async function loadJobs() {
 function updateJobSummary() {
   const name = document.getElementById('jobSelect').value;
   const j = jobs.find(x => x.name === name);
-  const chips = [`컬렉션: ${j?.collection?.split('/').pop() || '-'}`, `환경: ${j?.environment?.split('/').pop() || '-'}`];
+  const chips = [`Collections: ${j?.collection?.split('/').pop() || '-'}`, `env: ${j?.environment?.split('/').pop() || '-'}`];
   document.getElementById('jobSummary').innerHTML = chips.map(c => 
     `<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`
   ).join('');
@@ -344,14 +341,102 @@ function renderHistory() {
   historyView.forEach(row => {
     const ok = row.exitCode === 0;
     const duration = !row.duration && row.duration !== 0 ? '-' : 
-      row.duration < 60 ? `${row.duration}초` : `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
+      row.duration < 60 ? `${row.duration}s` : `${Math.floor(row.duration / 60)}m ${row.duration % 60}s`;
+    
+    // Summary 개선 - Newman 통계 기반으로 유용한 정보 표시
+    let summaryDisplay = '';
+    let summaryTooltip = '';
+    
+    if (row.newmanStats) {
+      const stats = row.newmanStats;
+      const parts = [];
+      const tooltipParts = [];
+      
+      // Assertions 정보
+      if (stats.assertions && stats.assertions.total > 0) {
+        const assertionsPassed = stats.assertions.total - (stats.assertions.failed || 0);
+        if (stats.assertions.failed > 0) {
+          parts.push(`<span class="text-red-600 font-medium">Assertions Failed ${stats.assertions.failed}/${stats.assertions.total}</span>`);
+          tooltipParts.push(`Assertions: ${assertionsPassed}/${stats.assertions.total} passed`);
+        } else {
+          parts.push(`<span class="text-green-600">Assertions ${assertionsPassed}/${stats.assertions.total} passed</span>`);
+          tooltipParts.push(`All ${stats.assertions.total} assertions passed`);
+        }
+      }
+      
+      // Requests 정보
+      if (stats.requests && stats.requests.total > 0) {
+        const requestsPassed = stats.requests.total - (stats.requests.failed || 0);
+        if (stats.requests.failed > 0) {
+          parts.push(`<span class="text-red-600">Requests Failed ${stats.requests.failed}/${stats.requests.total}</span>`);
+          tooltipParts.push(`Requests: ${requestsPassed}/${stats.requests.total} succeeded`);
+        } else {
+          parts.push(`<span class="text-green-600">Requests ${requestsPassed}/${stats.requests.total} succeeded</span>`);
+          tooltipParts.push(`All ${stats.requests.total} requests succeeded`);
+        }
+      }
+      
+      // Tests 정보
+      if (stats.testScripts && stats.testScripts.total > 0) {
+        const testsPassed = stats.testScripts.total - (stats.testScripts.failed || 0);
+        if (stats.testScripts.failed > 0) {
+          parts.push(`<span class="text-red-600">Tests Failed ${stats.testScripts.failed}/${stats.testScripts.total}</span>`);
+          tooltipParts.push(`Tests: ${testsPassed}/${stats.testScripts.total} passed`);
+        } else {
+          parts.push(`<span class="text-green-600">Tests ${testsPassed}/${stats.testScripts.total} passed</span>`);
+          tooltipParts.push(`All ${stats.testScripts.total} tests passed`);
+        }
+      }
+      
+      // Success Rate 추가 (detailedStats가 있는 경우)
+      if (row.detailedStats && row.detailedStats.successRate !== undefined) {
+        const rate = row.detailedStats.successRate;
+        const rateColor = rate >= 95 ? 'text-green-600' : rate >= 80 ? 'text-yellow-600' : 'text-red-600';
+        parts.push(`<span class="${rateColor}">${rate}% Success</span>`);
+        tooltipParts.push(`Overall success rate: ${rate}%`);
+      }
+      
+      // Average Response Time 추가
+      if (row.detailedStats && row.detailedStats.avgResponseTime > 0) {
+        const avgTime = Math.round(row.detailedStats.avgResponseTime);
+        const timeColor = avgTime < 500 ? 'text-green-600' : avgTime < 1000 ? 'text-yellow-600' : 'text-red-600';
+        parts.push(`<span class="${timeColor}">${avgTime}ms avg</span>`);
+        tooltipParts.push(`Average response time: ${avgTime}ms`);
+      }
+      
+      summaryDisplay = parts.join(' • ');
+      summaryTooltip = tooltipParts.join(' | ');
+      
+    } else {
+      // Newman 통계가 없는 경우 기존 summary 사용
+      const rawSummary = row.summary || '';
+      if (rawSummary.length > 0) {
+        summaryDisplay = rawSummary.replace(/</g,'&lt;').substring(0, 80);
+        summaryTooltip = rawSummary.replace(/</g,'&lt;');
+        if (rawSummary.length > 80) {
+          summaryDisplay += '...';
+        }
+      } else {
+        summaryDisplay = ok ? '<span class="text-gray-500">No details</span>' : '<span class="text-red-500">Execution failed</span>';
+        summaryTooltip = ok ? 'No detailed statistics available' : `Process exited with code ${row.exitCode}`;
+      }
+    }
+    
+    // 실패한 경우 주요 실패 원인 추가 표시
+    if (!ok && row.detailedFailures && row.detailedFailures.length > 0) {
+      const firstFailure = row.detailedFailures[0];
+      const shortError = firstFailure.testName.length > 30 ? 
+        firstFailure.testName.substring(0, 30) + '...' : firstFailure.testName;
+      summaryDisplay += `<br><span class="text-xs text-red-500">→ ${shortError}</span>`;
+      summaryTooltip += ` | First failure: ${firstFailure.testName}`;
+    }
     
     tb.insertAdjacentHTML('beforeend', `
       <tr class="${ok ? '' : 'bg-rose-50/40'}">
         <td class="py-1 pr-4 text-xs">${row.timestamp || ''}</td>
         <td class="py-1 pr-4 font-medium">${row.job || ''}</td>
         <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">Success</span>' : '<span class="text-rose-700 text-sm">Failed</span>'}</td>
-        <td class="py-1 pr-4 text-xs" title="${(row.summary||'').replace(/</g,'&lt;')}">${(row.summary||'').replace(/</g,'&lt;').substring(0, 60)}${(row.summary||'').length > 60 ? '...' : ''}</td>
+        <td class="py-1 pr-4 text-xs" title="${summaryTooltip}">${summaryDisplay}</td>
         <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
         <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
         <td class="py-1">
