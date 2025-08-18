@@ -69,36 +69,61 @@ let broadcastTimeoutId = null;
 const BATCH_SIZE = 10; // 한 번에 보낼 로그 수
 const BATCH_INTERVAL = 50; // 배치 전송 간격 (ms)
 
-function sseHeaders(res){ 
-  res.writeHead(200, { 
-    'Content-Type':'text/event-stream',
-    'Cache-Control':'no-cache',
-    'Connection':'keep-alive',
+// SSE 헤더 최적화
+function sseHeaders(res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Connection': 'keep-alive',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  }); 
-  res.write('\n'); 
+    'Access-Control-Allow-Headers': 'Cache-Control, Last-Event-ID',
+    'Access-Control-Expose-Headers': 'Last-Event-ID',
+    'X-Accel-Buffering': 'no', // nginx용
+    'Content-Encoding': 'identity' // 압축 비활성화
+  });
+  
+  // 즉시 연결 확인을 위한 초기 데이터
+  res.write('retry: 5000\n');
+  res.write('event: connected\n');
+  res.write('data: {"status":"connected","timestamp":' + Date.now() + '}\n\n');
+  res.flushHeaders?.(); // 즉시 전송
 }
 
-function broadcastState(payload){ 
-  const data=`event: state\ndata: ${JSON.stringify(payload)}\n\n`; 
-  for (const c of stateClients){ 
-    try{c.write(data);}catch{
-      stateClients.delete(c);
-    } 
-  } 
+// 개선된 상태 브로드캐스트
+function broadcastState(payload) {
+  const data = `event: state\ndata: ${JSON.stringify(payload)}\n\n`;
+  
+  const deadClients = new Set();
+  for (const c of stateClients) {
+    try {
+      if (!c.destroyed && !c.finished) {
+        c.write(data);
+        c.flushHeaders?.();
+      } else {
+        deadClients.add(c);
+      }
+    } catch (error) {
+      console.log(`[SSE] State client error: ${error.message}`);
+      deadClients.add(c);
+    }
+  }
+  
+  // 끊어진 연결 정리
+  for (const c of deadClients) {
+    stateClients.delete(c);
+  }
 }
 
-// 최적화된 로그 브로드캐스트 - 배치 처리
-function broadcastLog(line){ 
+// 개선된 로그 브로드캐스트
+function broadcastLog(line) {
   logBuffer.push(line);
   
-  // 배치 크기에 도달하거나 타이머가 설정되지 않았으면 즉시 전송
+  // 즉시 전송 조건 완화 (더 빠른 응답)
   if (logBuffer.length >= BATCH_SIZE || !broadcastTimeoutId) {
     flushLogBuffer();
   } else if (!broadcastTimeoutId) {
-    // 타이머 설정하여 지연 전송
-    broadcastTimeoutId = setTimeout(flushLogBuffer, BATCH_INTERVAL);
+    // 더 짧은 지연시간으로 응답성 향상
+    broadcastTimeoutId = setTimeout(flushLogBuffer, 20); // 50ms -> 20ms
   }
 }
 function parseNewmanResult(jsonReportPath) {
@@ -163,22 +188,27 @@ function parseNewmanResult(jsonReportPath) {
   }
 }
 
-// 개선된 runJob 함수 - Newman 결과 통계 포함
+
+// 향상된 로그 버퍼 플러시
 function flushLogBuffer() {
   if (logBuffer.length === 0) return;
   
-  // 배치로 로그 전송
   const batch = logBuffer.splice(0, BATCH_SIZE);
   const data = batch.map(line => 
     `event: log\ndata: ${JSON.stringify({ line, at: Date.now() })}\n\n`
   ).join('');
   
-  // 연결이 끊어진 클라이언트 정리하면서 전송
   const deadClients = new Set();
   for (const c of logClients) {
     try {
-      c.write(data);
+      if (!c.destroyed && !c.finished) {
+        c.write(data);
+        c.flushHeaders?.();
+      } else {
+        deadClients.add(c);
+      }
     } catch (error) {
+      console.log(`[SSE] Log client error: ${error.message}`);
       deadClients.add(c);
     }
   }
@@ -188,9 +218,9 @@ function flushLogBuffer() {
     logClients.delete(c);
   }
   
-  // 더 보낼 로그가 있으면 다시 스케줄링
+  // 다음 배치 스케줄링
   if (logBuffer.length > 0) {
-    broadcastTimeoutId = setTimeout(flushLogBuffer, BATCH_INTERVAL);
+    broadcastTimeoutId = setTimeout(flushLogBuffer, 20);
   } else {
     broadcastTimeoutId = null;
   }
@@ -409,35 +439,132 @@ app.get('/api/history', (req, res) => {
   });
 });
 // SSE 엔드포인트들 (최적화된 버전)
-app.get('/api/stream/state', (req,res)=>{ 
-  sseHeaders(res); 
-  stateClients.add(res); 
+// SSE 엔드포인트 개선
+app.get('/api/stream/state', (req, res) => {
+  sseHeaders(res);
+  stateClients.add(res);
   
-  // 연결 수 로깅
-  console.log(`[SSE] State 클라이언트 연결: ${stateClients.size}개`);
+  console.log(`[SSE] State client connected: ${stateClients.size} total`);
   
-  const last=histRead().at(-1)||null; 
-  res.write(`event: state\ndata: ${JSON.stringify({ running:state.running, last })}\n\n`); 
+  // 초기 상태 전송
+  const last = histRead().at(-1) || null;
+  res.write(`event: state\ndata: ${JSON.stringify({ 
+    running: state.running, 
+    last,
+    serverTime: Date.now()
+  })}\n\n`);
   
-  req.on('close',()=>{
+  // 연결 종료 처리
+  req.on('close', () => {
     stateClients.delete(res);
-    console.log(`[SSE] State 클라이언트 연결 해제: ${stateClients.size}개`);
-  }); 
+    console.log(`[SSE] State client disconnected: ${stateClients.size} remaining`);
+  });
+  
+  req.on('error', (error) => {
+    console.log(`[SSE] State client error: ${error.message}`);
+    stateClients.delete(res);
+  });
+  
+  // 연결 유지를 위한 즉시 핑
+  setTimeout(() => {
+    if (!res.destroyed && !res.finished) {
+      try {
+        res.write(`event: ping\ndata: ${Date.now()}\n\n`);
+      } catch (e) {
+        stateClients.delete(res);
+      }
+    }
+  }, 1000);
 });
 
-app.get('/api/stream/logs', (req,res)=>{ 
-  sseHeaders(res); 
-  logClients.add(res); 
+app.get('/api/stream/logs', (req, res) => {
+  sseHeaders(res);
+  logClients.add(res);
   
-  // 연결 수 로깅
-  console.log(`[SSE] Log 클라이언트 연결: ${logClients.size}개`);
+  console.log(`[SSE] Log client connected: ${logClients.size} total`);
   
-  req.on('close',()=>{
+  // 연결 종료 처리
+  req.on('close', () => {
     logClients.delete(res);
-    console.log(`[SSE] Log 클라이언트 연결 해제: ${logClients.size}개`);
-  }); 
+    console.log(`[SSE] Log client disconnected: ${logClients.size} remaining`);
+  });
+  
+  req.on('error', (error) => {
+    console.log(`[SSE] Log client error: ${error.message}`);
+    logClients.delete(res);
+  });
+  
+  // 연결 유지를 위한 즉시 핑
+  setTimeout(() => {
+    if (!res.destroyed && !res.finished) {
+      try {
+        res.write(`event: ping\ndata: ${Date.now()}\n\n`);
+      } catch (e) {
+        logClients.delete(res);
+      }
+    }
+  }, 1000);
 });
 
+// 더 자주, 더 안정적인 하트비트
+setInterval(() => {
+  const timestamp = Date.now();
+  const heartbeatData = `event: heartbeat\ndata: ${JSON.stringify({ 
+    timestamp, 
+    stateClients: stateClients.size,
+    logClients: logClients.size 
+  })}\n\n`;
+  
+  // State 클라이언트 하트비트
+  const deadStateClients = new Set();
+  for (const c of stateClients) {
+    try {
+      if (!c.destroyed && !c.finished) {
+        c.write(heartbeatData);
+        c.flushHeaders?.();
+      } else {
+        deadStateClients.add(c);
+      }
+    } catch (error) {
+      deadStateClients.add(c);
+    }
+  }
+  
+  // Log 클라이언트 하트비트
+  const deadLogClients = new Set();
+  for (const c of logClients) {
+    try {
+      if (!c.destroyed && !c.finished) {
+        c.write(heartbeatData);
+        c.flushHeaders?.();
+      } else {
+        deadLogClients.add(c);
+      }
+    } catch (error) {
+      deadLogClients.add(c);
+    }
+  }
+  
+  // 끊어진 연결들 정리
+  for (const c of deadStateClients) stateClients.delete(c);
+  for (const c of deadLogClients) logClients.delete(c);
+  
+  if (deadStateClients.size > 0 || deadLogClients.size > 0) {
+    console.log(`[SSE] Cleaned up ${deadStateClients.size + deadLogClients.size} dead connections`);
+  }
+  
+}, 15000); // 30초 -> 15초로 단축
+
+// 연결 상태 모니터링 (개발 모드)
+if (process.env.NODE_ENV === 'development') {
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    console.log(`[MONITOR] Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
+    console.log(`[MONITOR] SSE Connections - State: ${stateClients.size}, Log: ${logClients.size}`);
+    console.log(`[MONITOR] Log Buffer: ${logBuffer.length} pending`);
+    console.log(`[MONITOR] Running Jobs: ${state.running ? 1 : 0}`);
+  }, 30000);
+}
 // Schedules
 const schedFile=path.join(root,'config','schedules.json'); 
 const schedules=new Map();
