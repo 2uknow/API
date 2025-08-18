@@ -766,38 +766,207 @@ function clearAllConsoles() {
 }
 
 // SSE
+// 개선된 SSE 연결 관리
 function startSSE() {
-  const esState = new EventSource('/api/stream/state');
-  esState.addEventListener('state', e => {
-    const payload = JSON.parse(e.data);
-    const was = !!running;
-    running = payload.running || null;
-    setStatusChip();
-    if (was && !running) {
-      fetchHistory();
-      setTimeout(checkAlertStatus, 1000);
+  let stateReconnectAttempts = 0;
+  let logReconnectAttempts = 0;
+  const maxReconnectAttempts = 10;
+  const baseReconnectDelay = 1000; // 1초
+  
+  function connectStateSSE() {
+    console.log('[SSE] Connecting to state stream...');
+    const esState = new EventSource('/api/stream/state');
+    
+    esState.addEventListener('open', () => {
+      console.log('[SSE] State connection opened');
+      stateReconnectAttempts = 0;
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+      document.getElementById('stateIndicator').title = 'State: Connected';
+    });
+    
+    esState.addEventListener('connected', (e) => {
+      console.log('[SSE] State connection confirmed:', e.data);
+    });
+    
+    esState.addEventListener('state', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const was = !!running;
+        running = payload.running || null;
+        setStatusChip();
+        
+        if (was && !running) {
+          fetchHistory();
+          setTimeout(checkAlertStatus, 1000);
+        }
+        document.getElementById('runBtn').disabled = !!running;
+      } catch (error) {
+        console.error('[SSE] State parse error:', error);
+      }
+    });
+    
+    esState.addEventListener('heartbeat', (e) => {
+      // 연결 상태 확인용 (로그는 생략)
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+    });
+    
+    esState.addEventListener('ping', (e) => {
+      // 연결 유지용 핑 (조용히 처리)
+    });
+    
+    esState.addEventListener('error', (e) => {
+      console.warn('[SSE] State connection error');
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+      document.getElementById('stateIndicator').title = 'State: Disconnected';
+      
+      esState.close();
+      
+      // 재연결 시도
+      if (stateReconnectAttempts < maxReconnectAttempts) {
+        stateReconnectAttempts++;
+        const delay = baseReconnectDelay * Math.pow(2, Math.min(stateReconnectAttempts, 5));
+        console.log(`[SSE] Reconnecting state in ${delay}ms (attempt ${stateReconnectAttempts})`);
+        
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') { // 탭이 활성화된 경우만
+            connectStateSSE();
+          }
+        }, delay);
+      } else {
+        console.error('[SSE] State max reconnection attempts reached');
+        document.getElementById('stateIndicator').className = 'w-2 h-2 bg-gray-400 rounded-full';
+        document.getElementById('stateIndicator').title = 'State: Connection failed';
+      }
+    });
+    
+    return esState;
+  }
+  
+  function connectLogSSE() {
+    console.log('[SSE] Connecting to log stream...');
+    const esLog = new EventSource('/api/stream/logs');
+    
+    esLog.addEventListener('open', () => {
+      console.log('[SSE] Log connection opened');
+      logReconnectAttempts = 0;
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+      document.getElementById('logIndicator').title = 'Logs: Connected';
+    });
+    
+    esLog.addEventListener('log', (e) => {
+      try {
+        const { line } = JSON.parse(e.data);
+        addLogToConsoles(line);
+      } catch (error) {
+        console.error('[SSE] Log parse error:', error);
+      }
+    });
+    
+    esLog.addEventListener('heartbeat', (e) => {
+      // 연결 상태 확인용
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+    });
+    
+    esLog.addEventListener('ping', (e) => {
+      // 연결 유지용 핑
+    });
+    
+    esLog.addEventListener('error', (e) => {
+      console.warn('[SSE] Log connection error');
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+      document.getElementById('logIndicator').title = 'Logs: Disconnected';
+      
+      esLog.close();
+      
+      // 재연결 시도
+      if (logReconnectAttempts < maxReconnectAttempts) {
+        logReconnectAttempts++;
+        const delay = baseReconnectDelay * Math.pow(2, Math.min(logReconnectAttempts, 5));
+        console.log(`[SSE] Reconnecting logs in ${delay}ms (attempt ${logReconnectAttempts})`);
+        
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            connectLogSSE();
+          }
+        }, delay);
+      } else {
+        console.error('[SSE] Log max reconnection attempts reached');
+        document.getElementById('logIndicator').className = 'w-2 h-2 bg-gray-400 rounded-full';
+        document.getElementById('logIndicator').title = 'Logs: Connection failed';
+      }
+    });
+    
+    return esLog;
+  }
+  
+  // 초기 연결
+  let stateES = connectStateSSE();
+  let logES = connectLogSSE();
+  
+  // 탭 활성화/비활성화 처리
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('[SSE] Tab became visible, checking connections...');
+      
+      // 연결이 끊어진 경우 재연결
+      if (stateES.readyState === EventSource.CLOSED) {
+        stateReconnectAttempts = 0;
+        stateES = connectStateSSE();
+      }
+      
+      if (logES.readyState === EventSource.CLOSED) {
+        logReconnectAttempts = 0;
+        logES = connectLogSSE();
+      }
+    } else {
+      console.log('[SSE] Tab became hidden');
     }
-    document.getElementById('runBtn').disabled = !!running;
   });
   
-  const esLog = new EventSource('/api/stream/logs');
-  esLog.addEventListener('log', e => {
-    const { line } = JSON.parse(e.data);
-    addLogToConsoles(line);
-  });
-
-  esState.addEventListener('open', () => {
-    document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
-    const modalIndicator = document.getElementById('modalLogIndicator');
-    if (modalIndicator) modalIndicator.className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+  // 페이지 언로드 시 연결 정리
+  window.addEventListener('beforeunload', () => {
+    stateES.close();
+    logES.close();
   });
   
-  esState.addEventListener('error', () => {
-    document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
-    const modalIndicator = document.getElementById('modalLogIndicator');
-    if (modalIndicator) modalIndicator.className = 'w-2 h-2 bg-red-400 rounded-full';
-  });
+  // 연결 상태 표시 추가 (HTML에 추가 필요)
+  const statusContainer = document.querySelector('.flex.items-center.space-x-2');
+  if (statusContainer) {
+    statusContainer.insertAdjacentHTML('beforeend', `
+      <div class="flex items-center space-x-1 text-xs">
+        <span class="text-slate-500">State:</span>
+        <div id="stateIndicator" class="w-2 h-2 bg-gray-400 rounded-full" title="State: Connecting..."></div>
+        <span class="text-slate-500">Logs:</span>
+        <div id="logIndicator" class="w-2 h-2 bg-gray-400 rounded-full" title="Logs: Connecting..."></div>
+      </div>
+    `);
+  }
 }
+
+// 네트워크 상태 확인
+function checkNetworkStatus() {
+  const isOnline = navigator.onLine;
+  console.log(`[NETWORK] Status: ${isOnline ? 'Online' : 'Offline'}`);
+  
+  if (!isOnline) {
+    document.getElementById('stateIndicator')?.classList.add('bg-yellow-400');
+    document.getElementById('logIndicator')?.classList.add('bg-yellow-400');
+  }
+}
+
+// 네트워크 상태 이벤트 리스너
+window.addEventListener('online', () => {
+  console.log('[NETWORK] Back online, reinitializing SSE...');
+  setTimeout(startSSE, 1000); // 1초 후 재연결
+});
+
+window.addEventListener('offline', () => {
+  console.log('[NETWORK] Gone offline');
+  checkNetworkStatus();
+});
+
+// 초기 네트워크 상태 확인
+checkNetworkStatus();
 
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
