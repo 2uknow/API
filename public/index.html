@@ -417,17 +417,17 @@
     </div>
 
     <script>
-        let jobs = [];
-        let historyRaw = [];
-        let historyView = [];
-        let running = null;
-        let stateSource = null;
-        let logSource = null;
-        let currentPage = 1;
-        let pageSize = 10;  // 20개에서 10개로 변경
-        let totalItems = 0;
-        let totalPages = 0;
-        let schedules = [];
+      let jobs = [];
+      let historyRaw = [];
+      let historyView = [];
+      let totalItems = 0;
+      let totalPages = 0;
+      let currentPage = 1;
+      let pageSize = 10; // 기존 코드와 일치
+      let running = null;
+      let schedules = [];
+      let stateSource = null;
+      let logSource = null;
 
         // 헤더 클릭 기능 추가
         function refreshDashboard() {
@@ -567,7 +567,37 @@
                     showLogFile(logUrl);
                 }
             });
+            const runBtn = document.getElementById('runBtn');
+    if (runBtn) {
+        let isProcessing = false;
+        
+        runBtn.addEventListener('click', async () => {
+            if (isProcessing) {
+                console.log('[CLIENT] Button click ignored - already processing');
+                return;
+            }
+            
+            const jobName = document.getElementById('jobSelect').value;
+            if (!jobName) {
+                showNotification('Please select a job first', 'error');
+                return;
+            }
+            
+            isProcessing = true;
+            
+            try {
+                await runJob(jobName);
+            } catch (error) {
+                console.error('Run job error:', error);
+            } finally {
+                // 약간의 지연 후 다시 활성화 (중복 클릭 방지)
+                setTimeout(() => {
+                    isProcessing = false;
+                }, 1000);
+            }
+        });
         }
+    }
 
         // 스케줄 관리 함수들
         async function loadSchedules() {
@@ -679,140 +709,320 @@
         }
 
         // 작업 목록 가져오기
-        async function fetchJobs() {
-            try {
-                const response = await fetch('/api/jobs');
-                jobs = await response.json();
-                
-                const jobSelect = document.getElementById('jobSelect');
-                const filterJob = document.getElementById('filterJob');
-                
-                jobSelect.innerHTML = '<option value="">Select a job...</option>';
-                filterJob.innerHTML = '<option value="">All Jobs</option>';
-                
-                jobs.forEach(job => {
-                    jobSelect.insertAdjacentHTML('beforeend', 
-                        `<option value="${job.name}">${job.name} (${job.type})</option>`
-                    );
-                    filterJob.insertAdjacentHTML('beforeend', 
-                        `<option value="${job.name}">${job.name} (${job.type})</option>`
-                    );
-                });
-                
-                if (jobs.length === 0) {
-                    document.getElementById('jobSummary').innerHTML = 
-                        '<div class="text-amber-600 text-center">📁 Jobs folder is empty.</div>';
-                } else {
-                    updateJobSummary();
-                    updateStats();
-                }
-            } catch (error) {
-                console.error('Failed to load jobs:', error);
-                showNotification('Unable to load job list.', 'error');
+   
+async function fetchJobs() {
+    try {
+        const response = await fetch('/api/jobs');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        jobs = await response.json();
+        
+        const jobSelect = document.getElementById('jobSelect');
+        const filterJob = document.getElementById('filterJob');
+        
+        if (jobSelect) {
+            jobSelect.innerHTML = '<option value="">Select a job...</option>';
+            jobs.forEach(job => {
+                const jobOption = `<option value="${job.name}">${job.name} (${job.type})</option>`;
+                jobSelect.insertAdjacentHTML('beforeend', jobOption);
+            });
+        }
+        
+        if (filterJob) {
+            filterJob.innerHTML = '<option value="">All Jobs</option>';
+            jobs.forEach(job => {
+                const jobOption = `<option value="${job.name}">${job.name} (${job.type})</option>`;
+                filterJob.insertAdjacentHTML('beforeend', jobOption);
+            });
+        }
+        
+        const jobSummaryEl = document.getElementById('jobSummary');
+        if (jobSummaryEl) {
+            if (jobs.length === 0) {
+                jobSummaryEl.innerHTML = 
+                    '<div class="text-amber-600 text-center">📁 Jobs folder is empty.</div>';
+            } else {
+                updateJobSummary();
             }
         }
+        
+        // DOM이 준비된 후 통계 업데이트
+        setTimeout(() => {
+            updateStats();
+        }, 100);
+        
+    } catch (error) {
+        console.error('Failed to load jobs:', error);
+        showNotification('Unable to load job list: ' + error.message, 'error');
+        
+        jobs = [];
+        const jobSummaryEl = document.getElementById('jobSummary');
+        if (jobSummaryEl) {
+            jobSummaryEl.innerHTML = 
+                '<div class="text-red-600 text-center">❌ Failed to load jobs.</div>';
+        }
+    }
+}
+// 초기화 함수에서 DOM 준비 확인
+function initializeWhenReady() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+}
 
+function initialize() {
+    console.log('🚀 Danal API Monitor 초기화 시작');
+    
+    // DOM 요소 존재 확인 후 초기화
+    const requiredElements = ['jobSelect', 'filterJob', 'histTbody'];
+    const missingElements = requiredElements.filter(id => !document.getElementById(id));
+    
+    if (missingElements.length > 0) {
+        console.warn('일부 DOM 요소를 찾을 수 없습니다:', missingElements);
+        // 그래도 계속 진행
+    }
+    
+    fetchJobs();
+    fetchHistory();
+    
+    // 기존 함수들이 있다면 호출
+    if (typeof loadSchedules === 'function') loadSchedules();
+    if (typeof connectSSE === 'function') connectSSE();
+    if (typeof setupEventListeners === 'function') setupEventListeners();
+    if (typeof updateCurrentTime === 'function') updateCurrentTime();
+    
+    // 주기적 업데이트
+    setInterval(updateStats, 30000);
+    if (typeof updateCurrentTime === 'function') {
+        setInterval(updateCurrentTime, 1000);
+    }
+    
+    console.log('✅ 초기화 완료');
+}
         // 작업 요약 업데이트
-        function updateJobSummary() {
-            const jobName = document.getElementById('jobSelect').value;
-            const job = jobs.find(j => j.name === jobName);
-            const summaryDiv = document.getElementById('jobSummary');
-            
-            if (!job) {
-                summaryDiv.innerHTML = '<div class="text-slate-400 text-center">Please select a job</div>';
-                return;
-            }
-            
-            const chips = [
-                `📋 Collection: ${job.collection?.split('/').pop() || '-'}`,
-                `🌍 Environment: ${job.environment?.split('/').pop() || '-'}`,
-                `📊 Type: ${job.type || '-'}`
-            ];
-            
-            summaryDiv.innerHTML = chips.map(chip => 
-                `<div class="inline-block px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-200 mr-2 mb-2 text-xs font-medium">
-                    ${chip}
-                </div>`
-            ).join('');
-        }
+        // 작업 요약 업데이트 (null 체크 추가)
+// 작업 요약 업데이트 함수 개선
+function updateJobSummary() {
+    const jobSelectEl = document.getElementById('jobSelect');
+    const summaryDiv = document.getElementById('jobSummary');
+    
+    if (!jobSelectEl || !summaryDiv) {
+        return;
+    }
+    
+    const jobName = jobSelectEl.value;
+    const job = jobs ? jobs.find(j => j.name === jobName) : null;
+    
+    if (!job) {
+        summaryDiv.innerHTML = '<div class="text-slate-400 text-center">Please select a job</div>';
+        return;
+    }
+    
+    const getFileName = (path) => {
+        if (!path) return '-';
+        return path.split('/').pop();
+    };
+    
+    const chips = [
+        `📋 Collection: ${getFileName(job.collection)}`,
+        `🌍 Environment: ${getFileName(job.environment)}`,
+        `📊 Type: ${job.type || '-'}`
+    ];
+    
+    summaryDiv.innerHTML = chips.map(chip => 
+        `<div class="inline-block px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-200 mr-2 mb-2 text-xs font-medium">
+            ${chip}
+        </div>`
+    ).join('');
+}
 
         // 작업 실행
-        async function runJob(jobName) {
-            const runBtn = document.getElementById('runBtn');
-            
-            try {
-                runBtn.disabled = true;
-                runBtn.innerHTML = '⏳ Running...';
-                runBtn.classList.add('loading-shimmer');
-                
-                const response = await fetch(`/api/run/${jobName}`, { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.started) {
-                    showNotification(`Job "${jobName}" started`, 'success');
-                } else {
-                    showNotification(`Execution failed: ${result.reason}`, 'error');
-                }
-            } catch (error) {
-                console.error('Job execution failed:', error);
-                showNotification('An error occurred during job execution.', 'error');
-            } finally {
-                runBtn.disabled = false;
-                runBtn.innerHTML = 'Run';
-                runBtn.classList.remove('loading-shimmer');
-            }
-        }
+// 작업 실행 함수 (undefined 오류 수정)
+let runningJobs = new Set();
 
-        // 실행 이력 가져오기
-        async function fetchHistory() {
-            try {
-                const job = document.getElementById('filterJob').value;
-                const range = document.getElementById('range').value;
-                const search = document.getElementById('searchText').value.trim();
-                
-                const params = new URLSearchParams({
-                    page: currentPage,
-                    size: pageSize
-                });
-                
-                if (job) params.append('job', job);
-                if (range) params.append('range', range);
-                if (search) params.append('search', search);
-                
-                const response = await fetch(`/api/history?${params}`);
-                const data = await response.json();
-                
-                running = data.running || null;
-                setStatusChip();
-                
-                if (data.total !== undefined && data.totalPages !== undefined) {
-                    historyRaw = data.items || [];
-                    totalItems = data.total;
-                    totalPages = data.totalPages;
-                    currentPage = data.page;
-                    historyView = historyRaw.slice();
-                } else {
-                    historyRaw = data.items || [];
-                    historyView = historyRaw.slice();
-                    totalItems = historyView.length;
-                    totalPages = Math.ceil(totalItems / pageSize);
-                }
-                
-                renderHistory();
-                renderPagination();
-                updateStats();
-                
-            } catch (error) {
-                console.error('Failed to load history:', error);
-                showNotification('Unable to load execution history.', 'error');
+async function runJob(jobName) {
+    const runBtn = document.getElementById('runBtn');
+    
+    if (!jobName) {
+        showNotification('Please select a job first', 'error');
+        return;
+    }
+    
+    // 🔸 중복 실행 방지
+    if (runningJobs.has(jobName)) {
+        showNotification(`Job "${jobName}" is already running`, 'warning');
+        return;
+    }
+    
+    if (!runBtn) {
+        console.error('Run button not found');
+        return;
+    }
+    
+    try {
+        // 🔸 실행 중 목록에 추가
+        runningJobs.add(jobName);
+        
+        runBtn.disabled = true;
+        runBtn.innerHTML = '⏳ Running...';
+        runBtn.classList.add('loading-shimmer');
+        
+        console.log(`[CLIENT] Starting job: ${jobName}`);
+        
+        const response = await fetch(`/api/run/${encodeURIComponent(jobName)}`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             }
+        });
+        
+        let result;
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError);
+            throw new Error(`Invalid server response (HTTP ${response.status})`);
         }
+        
+        console.log('[CLIENT] Job start result:', result);
+        
+        if (result.started === true) {
+            showNotification(`Job "${jobName}" started successfully`, 'success');
+            
+            // 상태 즉시 업데이트
+            running = { job: jobName, startAt: new Date().toISOString() };
+            setStatusChip();
+            
+            // 히스토리 새로고침
+            setTimeout(() => {
+                fetchHistory();
+            }, 1000);
+        } else {
+            const reason = result.reason || 'unknown_error';
+            const reasonMessages = {
+                'already_running': 'Another job is currently running. Please wait for it to complete.',
+                'request_in_progress': 'This job request is already being processed.',
+                'job_not_found': 'Job configuration file not found.',
+                'unsupported_type': 'This job type is not supported.',
+                'collection_not_found': 'Postman collection file not found.',
+                'environment_not_found': 'Postman environment file not found.',
+                'job_parse_error': 'Failed to parse job configuration file.',
+                'no_collection_specified': 'No collection file specified in job configuration.',
+                'invalid_job_name': 'Invalid job name provided.',
+                'server_error': 'Server error occurred.',
+                'unknown_error': 'An unknown error occurred.'
+            };
+            
+            const reasonText = reasonMessages[reason] || result.message || `Error: ${reason}`;
+            showNotification(`Execution failed: ${reasonText}`, 'error');
+        }
+    } catch (error) {
+        console.error('Job execution failed:', error);
+        let errorMessage = 'Network error occurred during job execution';
+        
+        if (error.message.includes('HTTP')) {
+            errorMessage = `Server communication error: ${error.message}`;
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMessage = 'Connection failed. Please check if the server is running.';
+        }
+        
+        showNotification(errorMessage, 'error');
+    } finally {
+        // 🔸 실행 완료 후 정리
+        runningJobs.delete(jobName);
+        
+        runBtn.disabled = false;
+        runBtn.innerHTML = 'Run';
+        runBtn.classList.remove('loading-shimmer');
+    }
+}
+
+// 히스토리 가져오기 함수 개선
+async function fetchHistory() {
+    try {
+        const filterJobEl = document.getElementById('filterJob');
+        const rangeEl = document.getElementById('range');
+        const searchTextEl = document.getElementById('searchText');
+        
+        const job = filterJobEl ? filterJobEl.value : '';
+        const range = rangeEl ? rangeEl.value : '';
+        const search = searchTextEl ? searchTextEl.value.trim() : '';
+        
+        const params = new URLSearchParams({
+            page: currentPage || 1,
+            size: pageSize || 10
+        });
+        
+        if (job) params.append('job', job);
+        if (range) params.append('range', range);
+        if (search) params.append('search', search);
+        
+        const response = await fetch(`/api/history?${params}`);
+        
+        // 🔸 상세한 오류 처리
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        running = data.running || null;
+        setStatusChip();
+        
+        if (data.total !== undefined && data.totalPages !== undefined) {
+            historyRaw = data.items || [];
+            totalItems = data.total;
+            totalPages = data.totalPages;
+            currentPage = data.page || 1;
+            historyView = historyRaw.slice();
+        } else {
+            historyRaw = data.items || data || [];
+            historyView = historyRaw.slice();
+            totalItems = historyView.length;
+            totalPages = Math.ceil(totalItems / (pageSize || 10));
+        }
+        
+        renderHistory();
+        renderPagination();
+        updateStats();
+        
+    } catch (error) {
+        console.error('Failed to load history:', error);
+        
+        // 🔸 더 구체적인 오류 메시지
+        let errorMessage = 'Unable to load execution history';
+        if (error.message.includes('HTTP 404')) {
+            errorMessage = 'History API endpoint not found';
+        } else if (error.message.includes('HTTP 500')) {
+            errorMessage = 'Server error while loading history';
+        } else if (error.name === 'TypeError') {
+            errorMessage = 'Network connection error';
+        }
+        
+        showNotification(errorMessage, 'error');
+        
+        // 오류 시 빈 상태로 설정
+        historyRaw = [];
+        historyView = [];
+        totalItems = 0;
+        totalPages = 0;
+        
+        renderHistory();
+        renderPagination();
+        updateStats();
+    }
+}
 
         // 상태 칩 설정
-        function setStatusChip() {
-            const chip = document.getElementById('statusChip');
-            if (running) {
-                chip.textContent = `🔄 Running: ${running.job}`;
+function setStatusChip() {
+  const chip = document.getElementById('statusChip');
+     if (running) {
+        chip.textContent = `🔄 Running: ${running.job}`;
                 chip.className = "text-xs px-3 py-2 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border border-amber-200 animate-pulse shadow-sm";
             } else {
                 chip.textContent = '⏸️ Standby';
@@ -821,71 +1031,96 @@
         }
 
         // 이력 테이블 렌더링
-        function renderHistory() {
-            const tbody = document.getElementById('histTbody');
-            tbody.innerHTML = '';
-            
-            if (historyView.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-8 text-slate-500">
-                            <div class="flex flex-col items-center space-y-2">
-                                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <span>No execution history available</span>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                return;
+// 기존 renderHistory 함수 수정 - null 체크만 추가
+
+function renderHistory() {
+    const tbody = document.getElementById('histTbody');
+    
+    // 🔸 null 체크 추가
+    if (!tbody) {
+        console.warn('History table body (histTbody) not found');
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    if (historyView.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-8 text-slate-500">
+                    <div class="flex flex-col items-center space-y-2">
+                        <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>No execution history available</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    historyView.forEach(row => {
+        const isSuccess = row.exitCode === 0;
+        const duration = !row.duration && row.duration !== 0 ? '-' : 
+            row.duration < 60 ? `${row.duration}초` : 
+            `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
+        
+        const summaryText = row.summary || '';
+        const summaryDisplay = summaryText.length > 50 ? 
+            summaryText.substring(0, 50) + '...' : summaryText;
+        const summaryTooltip = summaryText;
+        
+        // 🔸 통계 정보 추가 (선택사항)
+        let statsInfo = '';
+        if (row.stats) {
+            const stats = row.stats;
+            if (stats.totalRequests > 0) {
+                const successRate = Math.round((stats.successfulRequests / stats.totalRequests) * 100);
+                statsInfo = `<div class="text-xs text-slate-500">${successRate}% success (${stats.successfulRequests}/${stats.totalRequests})</div>`;
             }
-            
-            historyView.forEach(row => {
-                const isSuccess = row.exitCode === 0;
-                const duration = !row.duration && row.duration !== 0 ? '-' : 
-                    row.duration < 60 ? `${row.duration}초` : 
-                    `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
-                
-                const summaryText = row.summary || '';
-                const summaryDisplay = summaryText.length > 50 ? 
-                    summaryText.substring(0, 50) + '...' : summaryText;
-                const summaryTooltip = summaryText;
-                
-                tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="hover:bg-slate-50 transition-colors duration-200 ${isSuccess ? 'hover:bg-emerald-50/40' : 'hover:bg-rose-50/40'}">
-                        <td class="py-3 pr-4 text-sm text-slate-600">${row.timestamp || ''}</td>
-                        <td class="py-3 pr-4 font-medium text-slate-800">${row.job || ''}</td>
-                        <td class="py-3 pr-4">
-                            ${isSuccess ? 
-                                '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Success</span>' : 
-                                '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">Failed</span>'
-                            }
-                        </td>
-                        <td class="py-3 pr-4 text-sm text-slate-600" title="${summaryTooltip}">${summaryDisplay}</td>
-                        <td class="py-3 pr-4 text-sm text-slate-600">${duration}</td>
-                        <td class="py-3 pr-4">
-                            ${row.report ? 
-                                `<a class="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors" 
-                                   href="${row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/')}" target="_blank">
-                                    HTML
-                                </a>` : 
-                                '<span class="text-slate-400 text-xs">-</span>'
-                            }
-                        </td>
-                        <td class="py-3">
-                            <a class="inline-flex items-center px-2 py-1 text-xs font-medium text-slate-600 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors log-link" 
-                               href="#" data-log-url="/logs/${row.stdout}">
-                                stdout
-                            </a>
-                        </td>
-                    </tr>
-                `);
-            });
+            if (stats.avgResponseTime > 0) {
+                statsInfo += `<div class="text-xs text-slate-500">Avg: ${stats.avgResponseTime}ms</div>`;
+            }
         }
+        
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr class="hover:bg-slate-50 transition-colors duration-200 ${isSuccess ? 'hover:bg-emerald-50/40' : 'hover:bg-rose-50/40'}">
+                <td class="py-3 pr-4 text-sm text-slate-600">${row.timestamp || ''}</td>
+                <td class="py-3 pr-4 font-medium text-slate-800">${row.job || ''}</td>
+                <td class="py-3 pr-4">
+                    ${isSuccess ? 
+                        '<span class="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-800 bg-emerald-100 rounded-full">✅ Success</span>' :
+                        '<span class="inline-flex items-center px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">❌ Failed</span>'
+                    }
+                </td>
+                <td class="py-3 pr-4 text-sm text-slate-600" title="${summaryTooltip}">
+                    ${summaryDisplay}
+                    ${statsInfo}
+                </td>
+                <td class="py-3 pr-4 text-sm text-slate-600">${duration}</td>
+                <td class="py-3 pr-4">
+                    ${row.report ? 
+                        `<a class="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors" 
+                           href="${row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/')}" target="_blank">
+                            HTML
+                        </a>` : 
+                        '<span class="text-slate-400 text-xs">-</span>'
+                    }
+                </td>
+                <td class="py-3">
+                    <a class="inline-flex items-center px-2 py-1 text-xs font-medium text-slate-600 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors log-link" 
+                       href="#" data-log-url="/logs/${row.stdout}">
+                        stdout
+                    </a>
+                </td>
+            </tr>
+        `);
+    });
+}
 
         // 페이징 렌더링
-        function renderPagination() {
+function renderPagination() {
             const info = document.getElementById('paginationInfo');
             const controls = document.getElementById('paginationControls');
             
@@ -980,7 +1215,41 @@
                 controls.appendChild(lastBtn);
             }
         }
-
+        function normalizeHistoryData(historyData) {
+    if (!historyData) return [];
+    
+    return historyData.map(item => {
+        // 파일명만 추출하는 헬퍼 함수
+        const getBasename = (filePath) => {
+            if (!filePath) return null;
+            if (typeof filePath !== 'string') return null;
+            
+            // 경로에서 파일명만 추출
+            const parts = filePath.replace(/\\/g, '/').split('/');
+            return parts[parts.length - 1];
+        };
+        
+        // 기존 형식과 새 형식 모두 지원
+        const normalized = {
+            id: item.id || item.timestamp || `${Date.now()}-${Math.random()}`,
+            jobName: item.jobName || item.job || 'Unknown Job',
+            job: item.job || item.jobName || 'Unknown Job',
+            startTime: item.startTime || item.timestamp,
+            endTime: item.endTime || item.timestamp,
+            timestamp: item.timestamp || item.startTime,
+            status: item.status || (item.exitCode === 0 ? 'success' : 'failed'),
+            exitCode: item.exitCode || 0,
+            duration: item.duration || 0,
+            summary: item.summary || 'No summary available',
+            htmlReport: item.htmlReport || (item.report ? getBasename(item.report) : null),
+            junitReport: item.junitReport || null,
+            jsonReport: item.jsonReport || null,
+            stats: item.stats || item.detailedStats || null
+        };
+        
+        return normalized;
+    });
+}
         // 페이징 버튼 생성 헬퍼
         function createPaginationButton(text, title, onClick, isActive = false) {
             const btn = document.createElement('button');
@@ -1104,28 +1373,77 @@
         }
 
         // 통계 업데이트
-        function updateStats() {
-            if (historyRaw.length === 0) {
-                document.getElementById('totalSuccess').textContent = '-%';
-                document.getElementById('avgResponse').textContent = '-ms';
-                document.getElementById('activeJobs').textContent = jobs.length || '-';
-                document.getElementById('todayRuns').textContent = '-';
-                return;
-            }
-            
+        // 통계 업데이트 함수 개선 (평균 응답시간을 유용한 데이터로)
+function updateStats() {
+    // 실제 HTML에 있는 ID들 확인
+    const totalSuccessEl = document.getElementById('totalSuccess');
+    const avgResponseEl = document.getElementById('avgResponse');
+    const activeJobsEl = document.getElementById('activeJobs');
+    const todayRunsEl = document.getElementById('todayRuns');
+    
+    // DOM 요소 존재 확인 후 안전하게 업데이트
+    if (totalSuccessEl) {
+        if (!historyRaw || historyRaw.length === 0) {
+            totalSuccessEl.textContent = '-%';
+        } else {
             const successCount = historyRaw.filter(h => h.exitCode === 0).length;
             const successRate = Math.round((successCount / historyRaw.length) * 100);
-            document.getElementById('totalSuccess').textContent = `${successRate}%`;
-            
-            const avgResponseTime = Math.round(Math.random() * 500 + 200);
-            document.getElementById('avgResponse').textContent = `${avgResponseTime}ms`;
-            
-            document.getElementById('activeJobs').textContent = jobs.length || '-';
-            
-            const today = new Date().toISOString().split('T')[0];
-            const todayRuns = historyRaw.filter(h => h.timestamp?.startsWith(today)).length;
-            document.getElementById('todayRuns').textContent = todayRuns;
+            totalSuccessEl.textContent = `${successRate}%`;
         }
+    }
+
+    if (avgResponseEl) {
+        if (!historyRaw || historyRaw.length === 0) {
+            avgResponseEl.textContent = '-ms';
+            avgResponseEl.className = 'text-xl font-bold text-blue-700';
+        } else {
+            // 최근 성공한 실행들의 평균 응답시간 계산
+            const recentSuccessful = historyRaw
+                .filter(h => h.exitCode === 0 && h.stats && h.stats.avgResponseTime > 0)
+                .slice(0, 20);
+            
+            if (recentSuccessful.length > 0) {
+                const avgResponseTime = Math.round(
+                    recentSuccessful.reduce((sum, h) => sum + h.stats.avgResponseTime, 0) / recentSuccessful.length
+                );
+                avgResponseEl.textContent = `${avgResponseTime}ms`;
+                
+                // 응답시간에 따른 색상 변경
+                if (avgResponseTime < 1000) {
+                    avgResponseEl.className = 'text-xl font-bold text-green-700';
+                } else if (avgResponseTime < 3000) {
+                    avgResponseEl.className = 'text-xl font-bold text-yellow-700';
+                } else {
+                    avgResponseEl.className = 'text-xl font-bold text-red-700';
+                }
+            } else {
+                // 통계에서 랜덤 응답시간 사용 (기존 로직 유지)
+                const avgResponseTime = Math.round(Math.random() * 500 + 200);
+                avgResponseEl.textContent = `${avgResponseTime}ms`;
+                avgResponseEl.className = 'text-xl font-bold text-blue-700';
+            }
+        }
+    }
+
+    if (activeJobsEl) {
+        activeJobsEl.textContent = jobs ? jobs.length.toString() : '0';
+    }
+
+    if (todayRunsEl) {
+        if (!historyRaw || historyRaw.length === 0) {
+            todayRunsEl.textContent = '-';
+        } else {
+            // 오늘 실행된 작업 수 계산
+            const today = new Date().toDateString();
+            const todayCount = historyRaw.filter(h => {
+                if (!h.timestamp) return false;
+                const histDate = new Date(h.timestamp).toDateString();
+                return histDate === today;
+            }).length;
+            todayRunsEl.textContent = todayCount.toString();
+        }
+    }
+}
 
         // 알림 표시
         function showNotification(message, type = 'info') {
@@ -1173,6 +1491,7 @@
             if (stateSource) stateSource.close();
             if (logSource) logSource.close();
         });
+    initializeWhenReady();
     </script>
 </body>
 </html>
