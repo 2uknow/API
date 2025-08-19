@@ -42,10 +42,11 @@
 									"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
 									"});\r",
 									"\r",
-									"let tidNumber = Number(parsed.TID);\r",
-									"\r",
 									"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"    pm.expect(tidNumber).to.be.a(\"number\")\r",
+									"    pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"    pm.expect(parsed.TID).to.not.be.empty;\r",
+									"    pm.expect(parsed.TID).to.not.be.null;\r",
+									"    pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"});\r",
 									"\r",
 									"// Environments에 TID 저장\r",
@@ -484,7 +485,7 @@
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"));\r",
+									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
 									"    });\r",
 									"\r",
 									"    // 마지막에 테스트 실패 처리\r",
@@ -569,10 +570,11 @@
 									"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
 									"});\r",
 									"\r",
-									"let tidNumber = Number(parsed.TID);\r",
-									"\r",
 									"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"    pm.expect(tidNumber).to.be.a(\"number\")\r",
+									"    pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"    pm.expect(parsed.TID).to.not.be.empty;\r",
+									"    pm.expect(parsed.TID).to.not.be.null;\r",
+									"    pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"});\r",
 									"\r",
 									"// Environments에 TID 저장\r",
@@ -936,6 +938,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"} else if (parsed.RETURNCODE == 0000) {  // 정상 본인 인증\r",
 									"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -948,6 +954,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // byteCount 함수는 문자열의 각 문자를 순회하며, 해당 문자가 UTF-8에서 몇 바이트로 인코딩되는지를 계산 \r",
@@ -1011,7 +1021,11 @@
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"));\r",
+									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // 마지막에 테스트 실패 처리\r",
@@ -1096,10 +1110,11 @@
 									"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
 									"});\r",
 									"\r",
-									"let tidNumber = Number(parsed.TID);\r",
-									"\r",
 									"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"    pm.expect(tidNumber).to.be.a(\"number\")\r",
+									"    pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"    pm.expect(parsed.TID).to.not.be.empty;\r",
+									"    pm.expect(parsed.TID).to.not.be.null;\r",
+									"    pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"});\r",
 									"\r",
 									"// Environments에 TID 저장\r",
@@ -1463,6 +1478,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"} else if (parsed.RETURNCODE == 0000) {  // 정상 본인 인증\r",
 									"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -1475,6 +1494,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // byteCount 함수는 문자열의 각 문자를 순회하며, 해당 문자가 UTF-8에서 몇 바이트로 인코딩되는지를 계산 \r",
@@ -1538,7 +1561,11 @@
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"));\r",
+									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // 마지막에 테스트 실패 처리\r",
@@ -1623,10 +1650,11 @@
 									"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
 									"});\r",
 									"\r",
-									"let tidNumber = Number(parsed.TID);\r",
-									"\r",
 									"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"    pm.expect(tidNumber).to.be.a(\"number\")\r",
+									"    pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"    pm.expect(parsed.TID).to.not.be.empty;\r",
+									"    pm.expect(parsed.TID).to.not.be.null;\r",
+									"    pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"});\r",
 									"\r",
 									"// Environments에 TID 저장\r",
@@ -1723,6 +1751,11 @@
 									"    pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
 									"});\r",
 									"\r",
+									"// LGU+만 해당 필드 출력됨\r",
+									"pm.test(\"정보제공 동의 여부(INFOAGREE) 미출력\", function () {\r",
+									"    pm.expect(parsed.INFOAGREE).to.be.undefined;\r",
+									"});\r",
+									"\r",
 									"pm.test(\"알뜰폰 업체명(MVNONAME) 정상 출력\", function () {\r",
 									"    pm.expect(parsed.MVNONAME).to.eql(\"kt M모바일\")\r",
 									"});"
@@ -1742,7 +1775,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김하늘&PHONE=01085402697&IDEN=0001174&TID={{TID}}&=",
+							"raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김태욱&PHONE=01026116634&IDEN=9002051&TID={{TID}}",
 							"host": [
 								"{{uas-web}}"
 							],
@@ -1765,53 +1798,19 @@
 								},
 								{
 									"key": "NAME",
-									"value": "김하늘"
+									"value": "김태욱"
 								},
 								{
 									"key": "PHONE",
-									"value": "01085402697"
+									"value": "01026116634"
 								},
 								{
 									"key": "IDEN",
-									"value": "0001174"
+									"value": "9002051"
 								},
 								{
 									"key": "TID",
 									"value": "{{TID}}"
-								},
-								{
-									"key": "IPADDR",
-									"value": "10.10.52.70",
-									"disabled": true
-								},
-								{
-									"key": "REFERURL",
-									"value": "https://paytest.teledit.com:888/",
-									"disabled": true
-								},
-								{
-									"key": "TERMAGREE",
-									"value": "Y",
-									"disabled": true
-								},
-								{
-									"key": "NOTIAGEE",
-									"value": "N",
-									"disabled": true
-								},
-								{
-									"key": "MVNOCARRIER",
-									"value": "KTF",
-									"disabled": true
-								},
-								{
-									"key": "CARRIER",
-									"value": "MVNO",
-									"disabled": true
-								},
-								{
-									"key": "",
-									"value": ""
 								}
 							]
 						}
@@ -1889,7 +1888,7 @@
 							"urlencoded": []
 						},
 						"url": {
-							"raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01085402697&IDEN=0001174&IPADDR=10.10.52.70&CARRIER=KT&NAME=김하늘&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
+							"raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
 							"host": [
 								"{{uas-web}}"
 							],
@@ -1900,11 +1899,11 @@
 								},
 								{
 									"key": "PHONE",
-									"value": "01085402697"
+									"value": "01026116634"
 								},
 								{
 									"key": "IDEN",
-									"value": "0001174"
+									"value": "9002051"
 								},
 								{
 									"key": "IPADDR",
@@ -1916,7 +1915,7 @@
 								},
 								{
 									"key": "NAME",
-									"value": "김하늘"
+									"value": "김태욱"
 								},
 								{
 									"key": "TID",
@@ -1975,9 +1974,9 @@
 									"    pm.test(\"가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TARGETURL).to.be.empty;\r",
 									"    });\r",
-									"} else if (parsed.RETURNCODE == 1710) { // 인증번호 불일치인 경우\r",
+									"} else if (parsed.RETURNCODE == 3431) { // 인증번호 불일치인 경우\r",
 									"    pm.test(\"거래 결과 코드(RETURNCODE) : \" + pm.environment.get(\"RETURNCODE\"), function () {\r",
-									"        pm.expect(parsed.RETURNCODE).to.eql(\"1710\")\r",
+									"        pm.expect(parsed.RETURNCODE).to.eql(\"3431\")\r",
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 결과 메시지(RETURNMSG) : \" + pm.environment.get(\"RETURNMSG\"), function () {\r",
@@ -2125,6 +2124,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"} else if (parsed.RETURNCODE == 0000) {  // 정상 본인 인증\r",
 									"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -2137,6 +2140,10 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // byteCount 함수는 문자열의 각 문자를 순회하며, 해당 문자가 UTF-8에서 몇 바이트로 인코딩되는지를 계산 \r",
@@ -2200,7 +2207,11 @@
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"));\r",
+									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"        pm.expect(parsed.TID).to.not.be.empty;\r",
+									"        pm.expect(parsed.TID).to.not.be.null;\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // 마지막에 테스트 실패 처리\r",
@@ -2285,10 +2296,11 @@
 									"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
 									"});\r",
 									"\r",
-									"let tidNumber = Number(parsed.TID);\r",
-									"\r",
 									"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"    pm.expect(tidNumber).to.be.a(\"number\")\r",
+									"    pm.expect(parsed.TID).to.not.be.undefined;\r",
+									"    pm.expect(parsed.TID).to.not.be.empty;\r",
+									"    pm.expect(parsed.TID).to.not.be.null;\r",
+									"    pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"});\r",
 									"\r",
 									"// Environments에 TID 저장\r",
@@ -2385,6 +2397,10 @@
 									"    pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
 									"});\r",
 									"\r",
+									"pm.test(\"정보제공 동의 여부(INFOAGREE) 정상 출력\", function () {\r",
+									"    pm.expect(parsed.INFOAGREE).to.eql(\"Y\")\r",
+									"});\r",
+									"\r",
 									"pm.test(\"알뜰폰 업체명(MVNONAME) 정상 출력\", function () {\r",
 									"    pm.expect(parsed.MVNONAME).to.eql(\"(주)미디어로그(U+유모바일)\")\r",
 									"});"
@@ -2404,7 +2420,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=LGT&NAME=김태욱&PHONE=01081896634&IDEN=9002051&TID={{TID}}&=",
+							"raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=LGT&NAME=김태욱&PHONE=01081896634&IDEN=9002051&TID={{TID}}",
 							"host": [
 								"{{uas-web}}"
 							],
@@ -2440,40 +2456,6 @@
 								{
 									"key": "TID",
 									"value": "{{TID}}"
-								},
-								{
-									"key": "IPADDR",
-									"value": "10.10.52.70",
-									"disabled": true
-								},
-								{
-									"key": "REFERURL",
-									"value": "https://paytest.teledit.com:888/",
-									"disabled": true
-								},
-								{
-									"key": "TERMAGREE",
-									"value": "Y",
-									"disabled": true
-								},
-								{
-									"key": "NOTIAGEE",
-									"value": "N",
-									"disabled": true
-								},
-								{
-									"key": "MVNOCARRIER",
-									"value": "KTF",
-									"disabled": true
-								},
-								{
-									"key": "CARRIER",
-									"value": "MVNO",
-									"disabled": true
-								},
-								{
-									"key": "",
-									"value": ""
 								}
 							]
 						}
@@ -2787,6 +2769,7 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"} else if (parsed.RETURNCODE == 0000) {  // 정상 본인 인증\r",
 									"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -2799,6 +2782,7 @@
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
 									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // byteCount 함수는 문자열의 각 문자를 순회하며, 해당 문자가 UTF-8에서 몇 바이트로 인코딩되는지를 계산 \r",
@@ -2862,7 +2846,8 @@
 									"    });\r",
 									"\r",
 									"    pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
-									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"));\r",
+									"        pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
+									"        pm.expect(parsed.TID).to.have.lengthOf(24);\r",
 									"    });\r",
 									"\r",
 									"    // 마지막에 테스트 실패 처리\r",
