@@ -6,100 +6,321 @@
     <title>알람 설정 - Danal API Monitor</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' stroke='%23fff' stroke-width='3'/><path d='M35 35 L50 20 L65 35 L50 50 Z' fill='%23fff'/><path d='M35 65 L50 50 L65 65 L50 80 Z' fill='%23fff' opacity='0.8'/></svg>" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Manrope', sans-serif;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gradient-border {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1px;
+            border-radius: 1rem;
+        }
+        
+        .gradient-border > div {
+            background: #f8fafc;
+            border-radius: calc(1rem - 1px);
+        }
+        
+        .neo-shadow {
+            box-shadow: 
+                8px 8px 16px rgba(148, 163, 184, 0.15),
+                -8px -8px 16px rgba(255, 255, 255, 0.8),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+        
+        .floating-card {
+            transform: translateY(0);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .floating-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .glow-on-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .glow-on-hover:hover {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            transition: .4s;
+            border-radius: 34px;
+            border: 2px solid #f1f5f9;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            bottom: 3px;
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* Custom Radio Buttons */
+        .custom-radio {
+            position: relative;
+            cursor: pointer;
+            padding-left: 35px;
+            margin-bottom: 12px;
+            display: block;
+            font-size: 14px;
+            user-select: none;
+        }
+        
+        .custom-radio input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .custom-radio .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 20px;
+            width: 20px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-radio:hover input ~ .checkmark {
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        }
+        
+        .custom-radio input:checked ~ .checkmark {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-color: #1d4ed8;
+        }
+        
+        .custom-radio .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+        
+        .custom-radio input:checked ~ .checkmark:after {
+            display: block;
+        }
+        
+        .custom-radio .checkmark:after {
+            top: 3px;
+            left: 3px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+        }
+        
+        /* Custom Checkbox */
+        .custom-checkbox {
+            position: relative;
+            cursor: pointer;
+            padding-left: 35px;
+            margin-bottom: 12px;
+            display: block;
+            font-size: 14px;
+            user-select: none;
+        }
+        
+        .custom-checkbox input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        
+        .custom-checkbox .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 20px;
+            width: 20px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 4px;
+            border: 2px solid #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-checkbox:hover input ~ .checkmark {
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        }
+        
+        .custom-checkbox input:checked ~ .checkmark {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-color: #1d4ed8;
+        }
+        
+        .custom-checkbox .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+        
+        .custom-checkbox input:checked ~ .checkmark:after {
+            display: block;
+        }
+        
+        .custom-checkbox .checkmark:after {
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-    <div class="max-w-4xl mx-auto p-6 space-y-6">
+<body class="bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-800 min-h-screen">
+    <div class="max-w-4xl mx-auto p-6 space-y-8">
         <!-- 헤더 -->
-        <header class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z"></path>
-                    </svg>
+        <header class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">알람 설정</h1>
+                        <p class="text-sm text-slate-500 font-medium">API 모니터링 알람을 설정합니다</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">알람 설정</h1>
-                    <p class="text-sm text-slate-500">API 모니터링 알람을 설정합니다</p>
-                </div>
+                <a href="/" class="px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all duration-300 glow-on-hover font-medium">
+                    ← 대시보드
+                </a>
             </div>
-            <a href="/" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors">
-                ← 대시보드
-            </a>
         </header>
 
         <!-- 현재 설정 상태 -->
-        <section class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">현재 설정 상태</h2>
+        <section class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
+            <h2 class="text-xl font-bold text-slate-800 mb-6">현재 설정 상태</h2>
             <div id="currentStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- 동적으로 채워짐 -->
             </div>
         </section>
 
         <!-- 알람 설정 -->
-        <section class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">알람 설정</h2>
-            <form id="alertConfigForm" class="space-y-6">
+        <section class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
+            <h2 class="text-xl font-bold text-slate-800 mb-6">알람 설정</h2>
+            <form id="alertConfigForm" class="space-y-8">
                 <!-- 전체 알람 활성화 -->
-                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div class="flex items-center justify-between p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl border border-slate-200">
                     <div>
-                        <h3 class="font-medium">알람 시스템 활성화</h3>
-                        <p class="text-sm text-slate-600">모든 알람 기능의 총 스위치입니다</p>
+                        <h3 class="text-lg font-semibold text-slate-800">알람 시스템 활성화</h3>
+                        <p class="text-sm text-slate-600 font-medium mt-1">모든 알람 기능의 총 스위치입니다</p>
                     </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="run_event_alert" class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="run_event_alert">
+                        <span class="toggle-slider"></span>
                     </label>
                 </div>
 
                 <!-- 세부 알람 설정 -->
-                <div id="detailSettings" class="space-y-4 opacity-50 pointer-events-none">
-                    <h3 class="font-medium text-slate-700">세부 알람 설정</h3>
+                <div id="detailSettings" class="space-y-6 opacity-50 pointer-events-none transition-all duration-500">
+                    <h3 class="text-lg font-semibold text-slate-800">세부 알람 설정</h3>
                     
-                    <div class="space-y-3">
-                        <label class="flex items-center space-x-3">
-                            <input type="checkbox" id="alert_on_start" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                            <div>
-                                <span class="font-medium">실행 시작 알람</span>
-                                <p class="text-sm text-slate-600">테스트 실행이 시작될 때 알람을 보냅니다</p>
+                    <div class="grid grid-cols-1 md:grid-cols-1 gap-6">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="alert_on_start">
+                            <span class="checkmark"></span>
+                            <div class="ml-2">
+                                <span class="font-semibold text-slate-800">실행 시작 알람</span>
+                                <p class="text-sm text-slate-600 mt-1">테스트 실행이 시작될 때 알람을 보냅니다</p>
                             </div>
                         </label>
 
-                        <label class="flex items-center space-x-3">
-                            <input type="checkbox" id="alert_on_success" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                            <div>
-                                <span class="font-medium">실행 성공 알람</span>
-                                <p class="text-sm text-slate-600">테스트가 성공적으로 완료되었을 때 알람을 보냅니다</p>
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="alert_on_success">
+                            <span class="checkmark"></span>
+                            <div class="ml-2">
+                                <span class="font-semibold text-slate-800">실행 성공 알람</span>
+                                <p class="text-sm text-slate-600 mt-1">테스트가 성공적으로 완료되었을 때 알람을 보냅니다</p>
                             </div>
                         </label>
 
-                        <label class="flex items-center space-x-3">
-                            <input type="checkbox" id="alert_on_error" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
-                            <div>
-                                <span class="font-medium">실행 실패 알람</span>
-                                <p class="text-sm text-slate-600">테스트가 실패했을 때 알람을 보냅니다</p>
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="alert_on_error">
+                            <span class="checkmark"></span>
+                            <div class="ml-2">
+                                <span class="font-semibold text-slate-800">실행 실패 알람</span>
+                                <p class="text-sm text-slate-600 mt-1">테스트가 실패했을 때 알람을 보냅니다</p>
                             </div>
                         </label>
                     </div>
 
                     <!-- 알람 방식 선택 -->
-                    <div class="pt-4 border-t">
-                        <h4 class="font-medium text-slate-700 mb-3">알람 방식</h4>
-                        <div class="space-y-2">
-                            <label class="flex items-center space-x-3">
-                                <input type="radio" name="alert_method" value="text" class="w-4 h-4 text-blue-600">
-                                <span class="text-sm">텍스트 메시지</span>
+                    <div class="pt-6 border-t border-slate-200">
+                        <h4 class="text-lg font-semibold text-slate-800 mb-4">알람 방식</h4>
+                        <div class="space-y-3">
+                            <label class="custom-radio">
+                                <input type="radio" name="alert_method" value="text">
+                                <span class="checkmark"></span>
+                                <span class="font-medium text-slate-800">텍스트 메시지</span>
                             </label>
-                            <label class="flex items-center space-x-3">
-                                <input type="radio" name="alert_method" value="flex" class="w-4 h-4 text-blue-600">
-                                <span class="text-sm">Flex 메시지 (카드 형태)</span>
+                            <label class="custom-radio">
+                                <input type="radio" name="alert_method" value="flex">
+                                <span class="checkmark"></span>
+                                <span class="font-medium text-slate-800">Flex 메시지 (카드 형태)</span>
                             </label>
                         </div>
                     </div>
                 </div>
 
                 <!-- 저장 버튼 -->
-                <div class="flex justify-end pt-6">
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <div class="flex justify-end pt-8">
+                    <button type="submit" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-semibold glow-on-hover">
                         설정 저장
                     </button>
                 </div>
@@ -138,27 +359,27 @@
         function updateStatusDisplay(config) {
             const statusContainer = document.getElementById('currentStatus');
             statusContainer.innerHTML = `
-                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span class="text-sm font-medium">알람 시스템</span>
-                    <span class="px-2 py-1 text-xs rounded-full ${config.run_event_alert ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+                    <span class="text-sm font-semibold text-slate-700">알람 시스템</span>
+                    <span class="px-3 py-1.5 text-sm rounded-full font-medium ${config.run_event_alert ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                         ${config.run_event_alert ? '활성화' : '비활성화'}
                     </span>
                 </div>
-                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span class="text-sm font-medium">웹훅 URL</span>
-                    <span class="px-2 py-1 text-xs rounded-full ${config.webhook_url === '설정됨' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+                    <span class="text-sm font-semibold text-slate-700">웹훅 URL</span>
+                    <span class="px-3 py-1.5 text-sm rounded-full font-medium ${config.webhook_url === '설정됨' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                         ${config.webhook_url}
                     </span>
                 </div>
-                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span class="text-sm font-medium">알람 방식</span>
-                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+                    <span class="text-sm font-semibold text-slate-700">알람 방식</span>
+                    <span class="px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded-full font-medium">
                         ${config.alert_method === 'flex' ? 'Flex 메시지' : '텍스트 메시지'}
                     </span>
                 </div>
-                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span class="text-sm font-medium">활성화된 알람</span>
-                    <span class="text-xs text-slate-600">
+                <div class="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+                    <span class="text-sm font-semibold text-slate-700">활성화된 알람</span>
+                    <span class="text-sm text-slate-600 font-medium">
                         ${[
                             config.alert_on_start && '시작',
                             config.alert_on_success && '성공', 
@@ -182,7 +403,7 @@
         // 알림 표시
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-xl text-white z-50 shadow-lg font-medium ${
                 type === 'success' ? 'bg-green-500' : 
                 type === 'error' ? 'bg-red-500' : 'bg-blue-500'
             }`;
