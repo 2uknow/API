@@ -873,28 +873,7 @@ function generateSummary(newmanResult, exitCode) {
     return `실행 실패 (exit=${exitCode})`;
   }
 }
-// 개선된 runJob 함수
-// server.js의 runJob 함수 시작 부분 (undefined 방지 개선)
-// runJob 함수 전체 - 기존 runJob 함수를 찾아서 이것으로 완전히 교체하세요
-
 async function runJob(jobName) {
-  console.log('='.repeat(50));
-  console.log(`[EMERGENCY DEBUG] runJob 호출됨`);
-  console.log(`[EMERGENCY DEBUG] jobName: "${jobName}"`);
-  console.log(`[EMERGENCY DEBUG] state.running 값: ${state.running}`);
-  console.log(`[EMERGENCY DEBUG] state.running === null: ${state.running === null}`);
-  console.log('='.repeat(50));
-
-  if (state.running !== null && state.running !== undefined) {
-  console.log(`[EMERGENCY DEBUG] 이미 실행 중인 작업이 있음:`, state.running);
-  return { started: false, reason: 'already_running' };
-  }
-  
-  // 입력 검증
-  if (!jobName || typeof jobName !== 'string') {
-    console.log(`[EMERGENCY DEBUG] 잘못된 job name으로 종료`);
-    return { started: false, reason: 'invalid_job_name' };
-  }
 
   // 상태 체크 (이미 null로 설정했으므로 통과할 것임)
   if (state.running) {

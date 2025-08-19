@@ -481,6 +481,7 @@
 
         // 이벤트 리스너 설정
         function setupEventListeners() {
+          
             document.getElementById('runBtn').addEventListener('click', () => {
                 const jobName = document.getElementById('jobSelect').value;
                 if (!jobName) {
@@ -766,37 +767,23 @@ async function fetchJobs() {
         }
     }
 }
-// 초기화 함수에서 DOM 준비 확인
-function initializeWhenReady() {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialize);
-    } else {
-        initialize();
-    }
-}
 
 function initialize() {
     console.log('🚀 Danal API Monitor 초기화 시작');
     
-    // DOM 요소 존재 확인 후 초기화
-    const requiredElements = ['jobSelect', 'filterJob', 'histTbody'];
-    const missingElements = requiredElements.filter(id => !document.getElementById(id));
+    // 🔸 클라이언트 상태 초기화
+    runningJobs.clear();
+    console.log('[CLIENT INIT] runningJobs cleared');
     
-    if (missingElements.length > 0) {
-        console.warn('일부 DOM 요소를 찾을 수 없습니다:', missingElements);
-        // 그래도 계속 진행
-    }
-    
+    // 기존 초기화 코드...
     fetchJobs();
     fetchHistory();
     
-    // 기존 함수들이 있다면 호출
     if (typeof loadSchedules === 'function') loadSchedules();
     if (typeof connectSSE === 'function') connectSSE();
     if (typeof setupEventListeners === 'function') setupEventListeners();
     if (typeof updateCurrentTime === 'function') updateCurrentTime();
     
-    // 주기적 업데이트
     setInterval(updateStats, 30000);
     if (typeof updateCurrentTime === 'function') {
         setInterval(updateCurrentTime, 1000);
@@ -804,9 +791,28 @@ function initialize() {
     
     console.log('✅ 초기화 완료');
 }
-        // 작업 요약 업데이트
-        // 작업 요약 업데이트 (null 체크 추가)
-// 작업 요약 업데이트 함수 개선
+let isInitialized = false;
+
+function initializeWhenReady() {
+    if (isInitialized) {
+        console.log('[INIT] Already initialized, skipping');
+        return;
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!isInitialized) {
+                isInitialized = true;
+                initialize();
+            }
+        });
+    } else {
+        if (!isInitialized) {
+            isInitialized = true;
+            initialize();
+        }
+    }
+}      
 function updateJobSummary() {
     const jobSelectEl = document.getElementById('jobSelect');
     const summaryDiv = document.getElementById('jobSummary');
@@ -848,13 +854,18 @@ let runningJobs = new Set();
 async function runJob(jobName) {
     const runBtn = document.getElementById('runBtn');
     
+    console.log(`[CLIENT DEBUG] runJob 호출: ${jobName}`);
+    console.log(`[CLIENT DEBUG] 현재 runningJobs:`, Array.from(runningJobs));
+    console.log(`[CLIENT DEBUG] runningJobs.has(${jobName}):`, runningJobs.has(jobName));
+    
     if (!jobName) {
         showNotification('Please select a job first', 'error');
         return;
     }
     
-    // 🔸 중복 실행 방지
+    // 🔸 중복 실행 방지 - 디버깅 추가
     if (runningJobs.has(jobName)) {
+        console.log(`[CLIENT DEBUG] 중복 실행 차단: ${jobName}`);
         showNotification(`Job "${jobName}" is already running`, 'warning');
         return;
     }
@@ -867,6 +878,7 @@ async function runJob(jobName) {
     try {
         // 🔸 실행 중 목록에 추가
         runningJobs.add(jobName);
+        console.log(`[CLIENT DEBUG] runningJobs에 추가: ${jobName}`, Array.from(runningJobs));
         
         runBtn.disabled = true;
         runBtn.innerHTML = '⏳ Running...';
@@ -933,8 +945,10 @@ async function runJob(jobName) {
         
         showNotification(errorMessage, 'error');
     } finally {
-        // 🔸 실행 완료 후 정리
+        // 🔸 실행 완료 후 정리 - 디버깅 추가
+        console.log(`[CLIENT DEBUG] runningJobs에서 제거 전: ${jobName}`, Array.from(runningJobs));
         runningJobs.delete(jobName);
+        console.log(`[CLIENT DEBUG] runningJobs에서 제거 후: ${jobName}`, Array.from(runningJobs));
         
         runBtn.disabled = false;
         runBtn.innerHTML = 'Run';
@@ -1268,56 +1282,61 @@ function renderPagination() {
 
         // SSE 연결
         function connectSSE() {
-            if (stateSource) stateSource.close();
-            stateSource = new EventSource('/api/stream/state');
+    if (stateSource) stateSource.close();
+    stateSource = new EventSource('/api/stream/state');
+    
+    stateSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            running = data.running;
+            setStatusChip();
             
-            stateSource.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    running = data.running;
-                    setStatusChip();
-                    
-                    if (data.last) {
-                        fetchHistory();
-                    }
-                } catch (error) {
-                    console.error('State stream parsing error:', error);
+            // 🔸 서버 상태와 클라이언트 상태 동기화
+            if (!running) {
+                // 서버에서 실행 중인 작업이 없으면 클라이언트도 정리
+                if (runningJobs.size > 0) {
+                    console.log('[CLIENT SYNC] 서버 상태에 맞춰 runningJobs 정리');
+                    runningJobs.clear();
                 }
-            };
+            }
             
-            stateSource.onerror = function(error) {
-                console.warn('State stream connection error:', error);
-                document.getElementById('logIndicator').className = 'w-3 h-3 bg-red-500 rounded-full';
-                
-                setTimeout(() => {
-                    if (stateSource.readyState === EventSource.CLOSED) {
-                        connectSSE();
-                    }
-                }, 5000);
-            };
-            
-            if (logSource) logSource.close();
-            logSource = new EventSource('/api/stream/logs');
-            
-            logSource.addEventListener('log', function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    appendLog(data.line);
-                } catch (error) {
-                    console.error('Log stream parsing error:', error);
-                }
-            });
-            
-            logSource.onopen = function() {
-                document.getElementById('logIndicator').className = 'w-3 h-3 bg-green-500 rounded-full animate-pulse';
-            };
-            
-            logSource.onerror = function(error) {
-                console.warn('Log stream connection error:', error);
-                document.getElementById('logIndicator').className = 'w-3 h-3 bg-red-500 rounded-full';
-            };
+            if (data.last) {
+                fetchHistory();
+            }
+        } catch (error) {
+            console.error('State stream parsing error:', error);
         }
-
+    };
+    
+    stateSource.onerror = function(error) {
+        console.error('State stream error:', error);
+        setTimeout(connectSSE, 5000);
+    };
+    
+    if (logSource) logSource.close();
+    logSource = new EventSource('/api/stream/logs');
+    
+    logSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            addLogLine(data.line);
+        } catch (error) {
+            console.error('Log stream parsing error:', error);
+        }
+    };
+    
+    logSource.onerror = function(error) {
+        console.error('Log stream error:', error);
+        setTimeout(() => {
+            logSource = new EventSource('/api/stream/logs');
+        }, 5000);
+    };
+}
+function clearRunningJobs() {
+    console.log('[CLIENT] runningJobs 강제 초기화');
+    runningJobs.clear();
+    showNotification('Client running jobs cleared', 'info');
+}
         // 로그 추가
         function appendLog(line) {
             const console1 = document.getElementById('console');
