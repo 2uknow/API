@@ -115,17 +115,57 @@ function broadcastState(payload) {
 }
 
 // 개선된 로그 브로드캐스트
-function broadcastLog(line) {
-  logBuffer.push(line);
+function broadcastLog(line, jobName = '') {
+  const logData = {
+    line: line,
+    jobName: jobName,
+    timestamp: Date.now(),
+    type: line.includes('[HISTORY_UPDATE]') ? 'history_update' : 
+          line.includes('[DONE]') ? 'execution_done' : 'log'
+  };
   
-  // 즉시 전송 조건 완화 (더 빠른 응답)
-  if (logBuffer.length >= BATCH_SIZE || !broadcastTimeoutId) {
-    flushLogBuffer();
-  } else if (!broadcastTimeoutId) {
-    // 더 짧은 지연시간으로 응답성 향상
-    broadcastTimeoutId = setTimeout(flushLogBuffer, 20); // 50ms -> 20ms
+  const data = `event: log\ndata: ${JSON.stringify(logData)}\n\n`;
+  
+  const deadClients = new Set();
+  let successCount = 0;
+  
+  for (const client of logClients) {
+    try {
+      if (!client.destroyed && !client.finished && client.writable) {
+        client.write(data);
+        successCount++;
+      } else {
+        deadClients.add(client);
+      }
+    } catch (error) {
+      deadClients.add(client);
+    }
+  }
+  
+  // 끊어진 연결 정리
+  for (const client of deadClients) {
+    logClients.delete(client);
+  }
+  
+  // HISTORY_UPDATE 시그널일 때 디버그 로그
+  if (line.includes('[HISTORY_UPDATE]')) {
+    console.log(`[BROADCAST_LOG] History update signal sent to ${successCount} clients`);
   }
 }
+
+// 테스트용 로그 브로드캐스트 API 엔드포인트 추가
+app.post('/api/test/log', (req, res) => {
+  const { message = 'Test log message' } = req.body;
+  
+  console.log(`[TEST_LOG] 테스트 로그 전송: ${message}`);
+  broadcastLog(message, 'TEST');
+  
+  res.json({ 
+    success: true, 
+    message: 'Test log sent',
+    clientCount: logClients.size 
+  });
+});
 function parseNewmanResult(jsonReportPath) {
   try {
     if (!fs.existsSync(jsonReportPath)) {
@@ -319,38 +359,75 @@ async function sendAlert(type, data) {
 function parseNewmanJsonReport(jsonReportPath) {
   try {
     if (!fs.existsSync(jsonReportPath)) {
+      console.log(`[NEWMAN PARSE] JSON 리포트 파일 없음: ${jsonReportPath}`);
       return null;
     }
     
     const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf-8'));
     const run = reportData.run;
     
-    if (!run) return null;
+    if (!run) {
+      console.log('[NEWMAN PARSE] run 데이터 없음');
+      return null;
+    }
     
-    const stats = run.stats;
+    const stats = run.stats || {};
+    const timings = run.timings || {};
     const failures = run.failures || [];
     
-    return {
+    // 상세 통계 계산
+    const requests = stats.requests || {};
+    const assertions = stats.assertions || {};
+    const testScripts = stats.testScripts || {};
+    
+    const result = {
       summary: {
-        iterations: stats.iterations,
-        requests: stats.requests,
-        testScripts: stats.testScripts,
-        prerequestScripts: stats.prerequestScripts,
-        assertions: stats.assertions
+        iterations: stats.iterations || { total: 0, failed: 0 },
+        requests: { total: requests.total || 0, failed: requests.failed || 0 },
+        testScripts: { total: testScripts.total || 0, failed: testScripts.failed || 0 },
+        assertions: { total: assertions.total || 0, failed: assertions.failed || 0 }
+      },
+      timings: {
+        responseAverage: timings.responseAverage || 0,      // 평균 응답시간 (밀리초)
+        responseMin: timings.responseMin || 0,              // 최소 응답시간
+        responseMax: timings.responseMax || 0,              // 최대 응답시간
+        responseTotal: timings.responseTotal || 0,          // 총 응답시간
+        started: timings.started || 0,                      // 시작 시간
+        completed: timings.completed || 0                   // 완료 시간
       },
       failures: failures.map(failure => ({
         source: failure.source?.name || 'Unknown',
         error: failure.error?.message || 'Unknown error',
-        test: failure.error?.test || null
+        test: failure.error?.test || null,
+        at: failure.at || null
       })),
-      timings: {
-        responseAverage: run.timings?.responseAverage || 0,
-        responseMin: run.timings?.responseMin || 0,
-        responseMax: run.timings?.responseMax || 0
-      }
+      // 성공률 계산
+      successRate: (() => {
+        const totalRequests = requests.total || 0;
+        const failedRequests = requests.failed || 0;
+        const totalAssertions = assertions.total || 0;
+        const failedAssertions = assertions.failed || 0;
+        const totalTests = testScripts.total || 0;
+        const failedTests = testScripts.failed || 0;
+        
+        const totalItems = totalRequests + totalAssertions + totalTests;
+        const failedItems = failedRequests + failedAssertions + failedTests;
+        
+        if (totalItems === 0) return 100;
+        return Math.round(((totalItems - failedItems) / totalItems) * 100);
+      })()
     };
+    
+    console.log(`[NEWMAN PARSE] 성공적으로 파싱됨:`, {
+      responseAverage: result.timings.responseAverage,
+      successRate: result.successRate,
+      totalRequests: result.summary.requests.total,
+      failedRequests: result.summary.requests.failed
+    });
+    
+    return result;
   } catch (error) {
-    console.error('JSON 리포트 파싱 오류:', error);
+    console.error('[NEWMAN PARSE ERROR]', error);
     return null;
   }
 }
@@ -874,6 +951,104 @@ function generateSummary(newmanResult, exitCode) {
   }
 }
 // 개선된 runJob 함수
+// 오늘 날짜 통계 API 엔드포인트 추가 - server.js에 추가
+app.get('/api/statistics/today', (req, res) => {
+  try {
+    const history = histRead();
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    
+    // 오늘 실행된 이력만 필터링
+    const todayHistory = history.filter(item => {
+      if (!item.timestamp) return false;
+      
+      // timestamp를 Date 객체로 변환 (한국 시간 고려)
+      const itemDate = new Date(item.timestamp.replace(' ', 'T') + '+09:00');
+      const itemDateStr = itemDate.toISOString().split('T')[0];
+      
+      return itemDateStr === todayStr;
+    });
+    
+    if (todayHistory.length === 0) {
+      return res.json({
+        totalExecutions: 0,
+        successRate: 0,
+        avgResponseTime: 0,
+        failedTests: 0,
+        lastExecution: null
+      });
+    }
+    
+    // 통계 계산
+    const totalExecutions = todayHistory.length;
+    const successfulExecutions = todayHistory.filter(item => item.exitCode === 0).length;
+    const failedTests = totalExecutions - successfulExecutions;
+    const successRate = Math.round((successfulExecutions / totalExecutions) * 100);
+    
+    // Newman JSON 리포트에서 평균 응답 시간 계산
+    let avgResponseTime = 0;
+    const validResponseTimes = [];
+    
+    todayHistory.forEach(item => {
+      // detailedStats에서 Newman의 avgResponseTime 사용 (우선순위 1)
+      if (item.detailedStats && item.detailedStats.avgResponseTime > 0) {
+        validResponseTimes.push(item.detailedStats.avgResponseTime);
+      }
+      // newmanStats가 있고 timings 정보가 있는 경우 (우선순위 2)
+      else if (item.newmanStats && item.newmanStats.timings && item.newmanStats.timings.responseAverage > 0) {
+        validResponseTimes.push(item.newmanStats.timings.responseAverage);
+      }
+      // 백업으로 duration 사용하되 초를 밀리초로 변환 (우선순위 3)
+      else if (item.duration && item.duration > 0) {
+        validResponseTimes.push(item.duration * 1000); // 초를 밀리초로 변환
+      }
+    });
+    
+    if (validResponseTimes.length > 0) {
+      const totalResponseTime = validResponseTimes.reduce((sum, time) => sum + time, 0);
+      avgResponseTime = Math.round(totalResponseTime / validResponseTimes.length);
+    }
+    
+    // 마지막 실행 정보 - Newman 통계 포함
+    let lastExecution = null;
+    if (todayHistory.length > 0) {
+      const lastItem = todayHistory[0];
+      lastExecution = {
+        timestamp: lastItem.timestamp,
+        job: lastItem.job,
+        exitCode: lastItem.exitCode,
+        duration: lastItem.duration,
+        responseTime: lastItem.detailedStats?.avgResponseTime || 
+                     lastItem.newmanStats?.timings?.responseAverage || 
+                     (lastItem.duration ? lastItem.duration * 1000 : null)
+      };
+    }
+    
+    res.json({
+      totalExecutions,
+      successRate,
+      avgResponseTime, // 이제 Newman의 실제 응답 시간 (밀리초)
+      failedTests,
+      lastExecution,
+      debug: {
+        validResponseTimes: validResponseTimes.length,
+        todayHistoryCount: todayHistory.length,
+        sampleResponseTimes: validResponseTimes.slice(0, 3) // 디버깅용 샘플
+      }
+    });
+    
+  } catch (error) {
+    console.error('[STATISTICS ERROR]', error);
+    res.status(500).json({ 
+      error: error.message,
+      totalExecutions: 0,
+      successRate: 0,
+      avgResponseTime: 0,
+      failedTests: 0,
+      lastExecution: null
+    });
+  }
+});
 async function runJob(jobName){
   if (state.running) return { started:false, reason:'already_running' };
 
@@ -1031,6 +1206,7 @@ proc.on('close', async (code) => {
         }
         
         // Summary 생성: 더 세분화된 정보
+        /*
         if (code === 0) {
           // 성공한 경우
           const parts = [];
@@ -1097,6 +1273,110 @@ proc.on('close', async (code) => {
               `Process Failed (exit=${code})`;
           }
         }
+          */
+         function generateImprovedSummary(stats, timings, code, failures = []) {
+  const requests = stats.requests || {};
+  const assertions = stats.assertions || {};
+  const testScripts = stats.testScripts || {};
+  
+  const totalRequests = requests.total || 0;
+  const failedRequests = requests.failed || 0;
+  const totalAssertions = assertions.total || 0;
+  const failedAssertions = assertions.failed || 0;
+  const totalTests = testScripts.total || 0;
+  const failedTests = testScripts.failed || 0;
+  
+  const avgResponseTime = timings?.responseAverage || 0;
+  
+  // 성공한 경우
+  if (code === 0) {
+    const parts = [];
+    
+    // 핵심 성공 정보만 간결하게
+    if (totalRequests > 0) {
+      parts.push(`✅ ${totalRequests} API calls`);
+    }
+    
+    if (totalAssertions > 0) {
+      parts.push(`${totalAssertions} validations`);
+    }
+    
+    if (totalTests > 0) {
+      parts.push(`${totalTests} tests`);
+    }
+    
+    // 응답시간 추가 (의미있는 값일 때만)
+    if (avgResponseTime >= 50) {
+      parts.push(`avg ${Math.round(avgResponseTime)}ms`);
+    }
+    
+    return parts.length > 0 ? parts.join(' • ') : '✅ Execution completed';
+  }
+  
+  // 실패한 경우 - 더 상세하고 유용한 정보
+  const issues = [];
+  const details = [];
+  
+  if (failedRequests > 0) {
+    if (failedRequests === totalRequests) {
+      issues.push(`❌ All ${totalRequests} API calls failed`);
+    } else {
+      issues.push(`❌ ${failedRequests}/${totalRequests} API calls failed`);
+      details.push(`${totalRequests - failedRequests} API calls succeeded`);
+    }
+  }
+  
+  if (failedAssertions > 0) {
+    if (failedAssertions === totalAssertions) {
+      issues.push(`⚠️ All ${totalAssertions} validations failed`);
+    } else {
+      issues.push(`⚠️ ${failedAssertions}/${totalAssertions} validations failed`);
+      details.push(`${totalAssertions - failedAssertions} validations passed`);
+    }
+  }
+  
+  if (failedTests > 0) {
+    if (failedTests === totalTests) {
+      issues.push(`🚫 All ${totalTests} tests failed`);
+    } else {
+      issues.push(`🚫 ${failedTests}/${totalTests} tests failed`);
+      details.push(`${totalTests - failedTests} tests passed`);
+    }
+  }
+ 
+  // 응답시간 정보 (실패해도 유용함)
+  if (avgResponseTime >= 100) {
+    details.push(`avg ${Math.round(avgResponseTime)}ms`);
+  }
+  
+  // 성공률 계산 및 추가
+  const totalItems = totalRequests + totalAssertions + totalTests;
+  const failedItems = failedRequests + failedAssertions + failedTests;
+  
+  if (totalItems > 0) {
+    const successRate = Math.round(((totalItems - failedItems) / totalItems) * 100);
+    if (successRate > 0) {
+      details.push(`${successRate}% success rate`);
+    }
+  }
+  
+  // 최종 조합
+  if (issues.length === 0) {
+    return `❌ Process failed (exit code: ${code})`;
+  }
+  
+  let summary = issues.join(' • ');
+  if (details.length > 0) {
+    // 가장 중요한 상세 정보 2-3개만 추가
+    const importantDetails = details.slice(0, 3);
+    summary += ` | ${importantDetails.join(', ')}`;
+  }
+  
+  return summary;
+}
+
+// Summary 생성 - 개선된 함수 사용 (failures 정보도 전달)
+summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
       }
     }
   } catch (error) {
@@ -1494,6 +1774,15 @@ process.on('SIGINT', () => {
 app.use('/reports', express.static(reportsDir));
 app.use('/logs',    express.static(logsDir));
 app.use('/',        express.static(path.join(root, 'public')));
+
+app.get('/api/debug/sse-status', (req, res) => {
+  res.json({
+    stateClients: stateClients.size,
+    logClients: logClients.size,
+    logBuffer: logBuffer.length,
+    serverTime: new Date().toISOString()
+  });
+});
 
 // 기본 라우트
 app.get('/', (req, res) => {
