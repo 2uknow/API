@@ -1,37 +1,37 @@
-# 🚀 2uknow API Monitor
+# 2uknow API Monitor
 
 **네이버웍스 알람 통합 API 모니터링 시스템**
 
 Postman Collection을 활용한 실시간 API 모니터링과 네이버웍스 알람을 제공하는 웹 기반 대시보드입니다.
 
-## ✨ 주요 특징
+## 주요 특징
 
-### 🔄 **Newman 기반 API 테스트**
+### Newman 기반 API 테스트
 - Postman Collection/Environment 파일 직접 활용
 - Newman CLI를 통한 안정적인 실행 엔진
 - 실시간 로그 스트리밍 (Server-Sent Events)
 - HTML/JSON/JUnit 리포트 자동 생성
 
-### 📊 **실시간 모니터링 대시보드**
+### 실시간 모니터링 대시보드
 - 오늘의 실행 통계 (총 실행 횟수, 성공률, 평균 응답시간, 실패 횟수)
 - 페이지네이션 지원 실행 이력 조회
 - 필터링 & 검색 기능 (Job별, 기간별, 키워드)
 - 실시간 콘솔 로그 (전체화면 모달 지원)
 
-### 🔔 **네이버웍스 알람 시스템**
+### 네이버웍스 알람 시스템
 - 웹훅 기반 즉시 알람 전송
 - Flex 메시지와 텍스트 메시지 지원
 - 시작/성공/실패별 세분화된 알람 설정
 - 웹 UI에서 알람 설정 관리
 
-### ⏰ **자동 스케줄링**
+### 자동 스케줄링
 - Cron 표현식 기반 자동 실행
 - 웹 UI에서 스케줄 생성/삭제 관리
 - 다중 Job 동시 스케줄링 지원
 
-## 🚀 빠른 시작
+## 빠른 시작
 
-### 1️⃣ 설치
+### 1. 설치
 
 ```bash
 # 저장소 클론
@@ -42,14 +42,14 @@ cd danal-external-api-monitor
 npm run setup
 ```
 
-### 2️⃣ Newman 리포터 설치
+### 2. Newman 리포터 설치
 
 ```bash
 # Newman과 HTML 리포터 설치
 npm run install-reporters
 ```
 
-### 3️⃣ 기본 설정
+### 3. 기본 설정
 
 프로젝트 실행 시 `config/settings.json`이 자동 생성됩니다:
 
@@ -68,7 +68,7 @@ npm run install-reporters
 }
 ```
 
-### 4️⃣ Postman Collection 준비
+### 4. Postman Collection 준비
 
 ```bash
 # Postman에서 Collection과 Environment 파일을 내보내서 저장
@@ -76,7 +76,7 @@ collections/your_api.postman_collection.json      # 필수
 environments/your_env.postman_environment.json    # 선택사항
 ```
 
-### 5️⃣ Job 설정 파일 생성
+### 5. Job 설정 파일 생성
 
 ```json
 // jobs/api_health_check.json
@@ -89,7 +89,7 @@ environments/your_env.postman_environment.json    # 선택사항
 }
 ```
 
-### 6️⃣ 실행
+### 6. 실행
 
 ```bash
 # 개발 모드 (자동 재시작)
@@ -102,11 +102,11 @@ npm start
 npm run start:env
 ```
 
-🌐 **웹 대시보드**: `http://localhost:3001`
+**웹 대시보드**: `http://localhost:3001`
 
-## 📋 사용법
+## 사용법
 
-### 🎯 **Job 실행**
+### Job 실행
 
 **웹 대시보드에서**:
 1. Job Selection 드롭다운에서 실행할 Job 선택
@@ -115,7 +115,7 @@ npm run start:env
 4. Execution History에서 결과 확인
 5. HTML 리포트 링크 클릭하여 상세 결과 확인
 
-### ⏰ **스케줄 관리**
+### 스케줄 관리
 
 **웹 UI에서 스케줄 설정**:
 1. 자동 스케줄 섹션의 **관리** 버튼 클릭
@@ -131,19 +131,19 @@ curl -X POST http://localhost:3001/api/schedule \
   -d '{"name": "api_health_check", "cronExpr": "*/10 * * * *"}'
 ```
 
-### 🔔 **알람 설정**
+### 알람 설정
 
 **웹 UI에서 설정**:
 1. 헤더의 **Alert Settings** 버튼 클릭
 2. 네이버웍스 웹훅 URL 입력 (서버 재시작 필요)
 3. 알람 시스템 활성화 토글
 4. 세부 알람 설정:
-   - ✅ 실행 시작 알람
-   - ✅ 실행 성공 알람  
-   - ✅ 실행 실패 알람
+   - 실행 시작 알람
+   - 실행 성공 알람  
+   - 실행 실패 알람
 5. 알람 방식 선택 (텍스트/Flex 메시지)
 
-### 📊 **모니터링**
+### 모니터링
 
 **실시간 통계 확인**:
 - 오늘의 총 실행 횟수
@@ -156,27 +156,27 @@ curl -X POST http://localhost:3001/api/schedule \
 - 키워드 검색 (Success/Failed)
 - 페이지네이션 (10/20/50/100개씩 보기)
 
-## 📁 프로젝트 구조
+## 프로젝트 구조
 
 ```
 danal-external-api-monitor/
-├── 📂 collections/          # Postman Collection 파일들
-├── 📂 environments/         # Postman Environment 파일들
-├── 📂 jobs/                 # Job 설정 파일들 (.json)
-├── 📂 config/               # 시스템 설정 파일
+├── collections/          # Postman Collection 파일들
+├── environments/         # Postman Environment 파일들
+├── jobs/                 # Job 설정 파일들 (.json)
+├── config/               # 시스템 설정 파일
 │   └── settings.json        # 메인 설정 파일
-├── 📂 reports/              # Newman HTML 리포트 저장소
-├── 📂 logs/                 # 실행 로그 및 히스토리 JSON
-├── 📂 scripts/              # 디버그/테스트 스크립트
-├── 📂 public/               # 웹 대시보드 정적 파일
+├── reports/              # Newman HTML 리포트 저장소
+├── logs/                 # 실행 로그 및 히스토리 JSON
+├── scripts/              # 디버그/테스트 스크립트
+├── public/               # 웹 대시보드 정적 파일
 │   ├── index.html           # 메인 대시보드
 │   └── alert-config.html    # 알람 설정 페이지
-├── 📄 server.js             # Express 서버 (SSE, API, 스케줄링)
-├── 📄 alert.js              # 네이버웍스 알람 시스템
-└── 📄 package.json
+├── server.js             # Express 서버 (SSE, API, 스케줄링)
+├── alert.js              # 네이버웍스 알람 시스템
+└── package.json
 ```
 
-## ⚙️ 설정 옵션
+## 설정 옵션
 
 ### `config/settings.json`
 
@@ -211,9 +211,9 @@ export DASHBOARD_URL="https://api-monitor.yourdomain.com"
 export NODE_ENV=development
 ```
 
-## 🛠️ 문제 해결
+## 문제 해결
 
-### ❓ 자주 발생하는 문제들
+### 자주 발생하는 문제들
 
 **Q: Newman 실행이 실패합니다**
 ```bash
@@ -248,7 +248,7 @@ npm run update-newman
 - 브라우저 개발자 도구에서 SSE 연결 상태 확인
 - 방화벽/프록시가 SSE를 차단하지 않는지 확인
 
-### ⚡ 성능 최적화 기능
+### 성능 최적화 기능
 
 - **SSE 연결 관리**: 자동 재연결 및 클라이언트 정리
 - **로그 배치 처리**: 10개씩 묶어서 50ms 간격으로 전송
@@ -256,7 +256,7 @@ npm run update-newman
 - **메모리 모니터링**: 개발 모드에서 메모리 사용량 추적
 - **리포트 자동 정리**: 설정된 보관 일수에 따라 오래된 파일 삭제
 
-## 🔧 개발 정보
+## 개발 정보
 
 ### 기술 스택
 - **Backend**: Node.js v16+, Express.js
@@ -266,7 +266,7 @@ npm run update-newman
 - **알람**: 네이버웍스 웹훅
 - **스케줄링**: node-cron
 
-### 🌐 API 엔드포인트
+### API 엔드포인트
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -282,7 +282,7 @@ npm run update-newman
 | `GET` | `/api/alert/config` | 알람 설정 조회 |
 | `POST` | `/api/alert/config` | 알람 설정 저장 |
 
-### 🧪 테스트 스크립트
+### 테스트 스크립트
 
 ```bash
 # 알람 테스트
@@ -298,7 +298,7 @@ npm run test:connection
 npm run debug:all
 ```
 
-### 📦 유틸리티 스크립트
+### 유틸리티 스크립트
 
 ```bash
 # 디렉토리 및 설정 파일 생성
