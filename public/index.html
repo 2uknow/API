@@ -1,1516 +1,1067 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danal API Monitor</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' stroke='%23fff' stroke-width='3'/><path d='M35 35 L50 20 L65 35 L50 50 Z' fill='%23fff'/><path d='M35 65 L50 50 L65 65 L50 80 Z' fill='%23fff' opacity='0.8'/></svg>" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* 커스텀 애니메이션 */
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
-            50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
-        }
-        
-        .pulse-glow {
-            animation: pulse-glow 2s infinite;
-        }
-        
-        .header-clickable {
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .header-clickable:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-        }
-        
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.9);
-        }
-        
-        .loading-shimmer {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-        
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-        
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Danal API Monitor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)' stroke='%23fff' stroke-width='3'/><path d='M35 35 L50 20 L65 35 L50 50 Z' fill='%23fff'/><path d='M35 65 L50 50 L65 65 L50 80 Z' fill='%23fff' opacity='0.8'/></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/ansi_up@5.2.1/ansi_up.js"></script>
+  <style>
+    #modalConsole {
+      height: 100% !important;
+      max-height: 100% !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+    }
+    #modalConsole::-webkit-scrollbar {
+      width: 8px;
+    }
+    #modalConsole::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    #modalConsole::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    #modalConsole::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    #logModal .flex-1 {
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+  </style>
 </head>
+<body class="bg-slate-50 text-slate-800">
+  <div class="max-w-full mx-auto p-6 space-y-6">
+      <header class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Danal API Monitor</h1>
+          <p class="text-sm text-slate-500">실시간 API 상태 모니터링</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span id="statusChip" class="text-xs px-2 py-1 rounded bg-slate-200">Standby</span>
+        <a href="/alert-config.html" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Alert Settings</a>
+      </div>
+    </header>
 
-<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 text-slate-800 min-h-screen">
-    <div class="max-w-[95vw] mx-auto p-4 space-y-6">
-        <!-- 개선된 헤더 (클릭 가능) -->
-        <header class="glass-effect rounded-2xl shadow-lg p-6 fade-in">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center pulse-glow">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                    </div>
-                    <div class="header-clickable" onclick="refreshDashboard()">
-                        <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Danal API Monitor
-                        </h1>
-                        <p class="text-sm text-slate-500">실시간 API 상태 모니터링 - 클릭하여 새로고침</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span id="statusChip" class="text-xs px-3 py-2 rounded-full bg-slate-200 shadow-sm transition-all duration-300">Standby</span>
-                    <a href="/alert-config.html" class="px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
-                        🔔 Alert Settings
-                    </a>
-                </div>
+    <section class="grid grid-cols-1 xl:grid-cols-4 gap-5">
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <div class="text-sm font-semibold">Job Selection & Execution</div>
+        <select id="jobSelect" class="w-full border rounded px-3 py-2"></select>
+        <div class="flex gap-2">
+          <button id="runBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50 flex-1">Run</button>
+        </div>
+        <div class="text-xs text-slate-500">Current Job Configuration</div>
+        <div id="jobSummary" class="text-xs bg-slate-50 border rounded p-3 min-h-[40px]"></div>
+        
+        <!-- 실시간 로그 -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-500">Real-time Log</span>
+            <div class="flex items-center space-x-2">
+              <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors">전체화면</button>
+              <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 bg-gray-50 rounded hover:bg-gray-100 transition-colors">Clear</button>
+              <div id="logIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span class="text-xs text-slate-500">연결</span>
             </div>
-        </header>
-
-        <!-- 메인 콘텐츠 -->
-        <section class="grid grid-cols-1 2xl:grid-cols-5 gap-4">
-            <!-- 작업 실행 패널 -->
-            <div class="2xl:col-span-1 glass-effect rounded-2xl shadow-lg p-4 space-y-3 card-hover fade-in">
-                <div class="flex items-center space-x-2 mb-4">
-                    <div class="w-3 h-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"></div>
-                    <h2 class="text-lg font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                        Job Selection & Execution
-                    </h2>
-                </div>
-                
-                <select id="jobSelect" class="w-full border-2 border-slate-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300">
-                    <option value="">Select a job...</option>
-                </select>
-                
-                <div class="flex gap-3">
-                    <button id="runBtn" class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white disabled:opacity-50 flex-1 font-medium shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none">
-                        🚀 Run
-                    </button>
-                </div>
-                
-                <div class="space-y-2">
-                    <h3 class="text-sm font-medium text-slate-600">Current Job Configuration</h3>
-                    <div id="jobSummary" class="text-sm bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-slate-200 rounded-xl p-4 min-h-[50px] transition-all duration-300"></div>
-                </div>
-                
-                <!-- 실시간 로그 -->
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                            <span class="text-sm font-medium text-slate-600">Real-time Log</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <button id="expandLogModal" class="text-xs text-blue-600 hover:text-blue-800 px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-all duration-300 font-medium">
-                                🔍 Full Screen
-                            </button>
-                            <button id="clearConsole" class="text-xs text-gray-600 hover:text-gray-800 px-3 py-1.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-300 font-medium">
-                                🗑️ Clear
-                            </button>
-                            <div id="logIndicator" class="w-3 h-3 bg-gray-400 rounded-full transition-all duration-300"></div>
-                        </div>
-                    </div>
-                    <div id="console" class="bg-slate-900 text-green-400 text-sm p-4 rounded-xl h-52 overflow-y-auto font-mono leading-relaxed shadow-inner border-2 border-slate-700"></div>
-                </div>
-           
-                <!-- 스케줄 관리 -->
-                <div class="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4 card-hover">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-purple-800">Schedule Management</span>
-                                <div id="scheduleStatus" class="text-xs text-purple-600">Automated Execution</div>
-                            </div>
-                        </div>
-                        <button id="scheduleToggle" class="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all duration-300 font-medium">
-                            Manage
-                        </button>
-                    </div>
-                    <div id="scheduleIndicator" class="text-xs text-purple-600">Loading...</div>
-                    <div id="scheduleList" class="mt-2 space-y-1 max-h-24 overflow-y-auto"></div>
-                </div>
-            </div>
-
-            <!-- 통계 대시보드 -->
-            <div class="2xl:col-span-4 space-y-4">
-                <!-- 통계 카드들 -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <!-- 총 성공률 -->
-                    <div class="glass-effect rounded-xl p-3 border-l-4 border-emerald-500 card-hover fade-in">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-medium text-emerald-600">총 성공률</p>
-                                <p id="totalSuccess" class="text-xl font-bold text-emerald-700">-%</p>
-                            </div>
-                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 평균 응답시간 -->
-                    <div class="glass-effect rounded-xl p-3 border-l-4 border-blue-500 card-hover fade-in">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-medium text-blue-600">평균 응답시간</p>
-                                <p id="avgResponse" class="text-xl font-bold text-blue-700">-ms</p>
-                            </div>
-                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 활성 잡 -->
-                    <div class="glass-effect rounded-xl p-3 border-l-4 border-purple-500 card-hover fade-in">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-medium text-purple-600">활성 잡</p>
-                                <p id="activeJobs" class="text-xl font-bold text-purple-700">-</p>
-                            </div>
-                            <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 오늘 실행 -->
-                    <div class="glass-effect rounded-xl p-3 border-l-4 border-amber-500 card-hover fade-in">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-medium text-amber-600">오늘 실행</p>
-                                <p id="todayRuns" class="text-xl font-bold text-amber-700">-</p>
-                            </div>
-                            <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 실행 이력 -->
-                <div class="glass-effect rounded-2xl shadow-lg p-4 fade-in">
-                    <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-4 gap-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-3 h-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-full"></div>
-                            <h2 class="text-lg font-semibold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                                Execution History
-                            </h2>
-                        </div>
-                        
-                        <!-- 필터 컨트롤 -->
-                        <div class="flex flex-wrap items-center gap-2">
-                            <select id="filterJob" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all duration-300">
-                                <option value="">All Jobs</option>
-                            </select>
-                            <select id="range" class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all duration-300">
-                                <option value="">All Time</option>
-                                <option value="24h">24 Hours</option>
-                                <option value="7d">7 Days</option>
-                            </select>
-                            <input id="searchText" placeholder="Search..." class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all duration-300 min-w-[120px]" />
-                            <button id="searchBtn" class="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg">
-                                🔍 Search
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- 테이블 -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="border-b-2 border-slate-200">
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Time</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Job</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Status</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Summary</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Duration</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Report</th>
-                                    <th class="text-left py-3 px-2 text-sm font-semibold text-slate-600">Log</th>
-                                </tr>
-                            </thead>
-                            <tbody id="histTbody" class="divide-y divide-slate-100">
-                                <!-- 동적 생성 -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- 페이징 -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between mt-4 pt-3 border-t border-slate-200 gap-2">
-                        <div id="paginationInfo" class="text-sm text-slate-600 text-center sm:text-left"></div>
-                        <div id="paginationControls" class="flex items-center justify-center sm:justify-end space-x-1 flex-wrap"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 로그 모달 -->
-        <div id="logModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden z-50">
-            <div class="flex items-center justify-center min-h-screen p-4">
-                <div class="glass-effect rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-                    <div class="flex items-center justify-between p-6 border-b border-slate-200">
-                        <h3 class="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Real-time Log - Full Screen
-                        </h3>
-                        <div class="flex items-center space-x-3">
-                            <button id="clearModalConsole" class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300">
-                                🗑️ Clear
-                            </button>
-                            <button id="closeLogModal" class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-300">
-                                ✕ Close
-                            </button>
-                        </div>
-                    </div>
-                    <div id="modalConsole" class="flex-1 bg-slate-900 text-green-400 text-sm p-6 font-mono leading-relaxed overflow-y-auto m-6 rounded-xl shadow-inner"></div>
-                </div>
-            </div>
+          </div>
+          <div id="console" class="bg-slate-900 text-green-400 text-xs p-3 rounded h-48 overflow-y-auto font-mono leading-relaxed"></div>
         </div>
 
-        <!-- 파일 내용 모달 -->
-        <div id="fileModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden z-50">
-            <div class="flex items-center justify-center min-h-screen p-4">
-                <div class="glass-effect rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                    <div class="flex items-center justify-between p-6 border-b border-slate-200">
-                        <h3 id="fileModalTitle" class="text-xl font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            File Content
-                        </h3>
-                        <button id="closeFileModal" class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-300">
-                            ✕ Close
-                        </button>
-                    </div>
-                    <div id="fileContent" class="flex-1 bg-slate-900 text-green-400 text-sm p-6 font-mono leading-relaxed overflow-y-auto m-6 rounded-xl shadow-inner whitespace-pre-wrap"></div>
-                </div>
+        <!-- 알람 상태 -->
+        <div class="text-xs bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="font-medium text-blue-700">알람 시스템</span>
             </div>
+            <span id="alertIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
+          </div>
         </div>
 
-        <!-- 푸터 -->
-        <footer class="glass-effect rounded-2xl shadow-lg p-6 fade-in">
-            <div class="flex flex-col md:flex-row justify-between items-center text-sm text-slate-600 space-y-3 md:space-y-0">
-                <div class="flex flex-col md:flex-row items-center space-y-1 md:space-y-0 md:space-x-4">
-                    <span class="font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        © 2025 Danal API Monitor
-                    </span>
-                </div>
-                
-                <!-- 개발자 정보 -->
-                <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-slate-400">Developed by</span>
-                        <div class="flex items-center space-x-2">
-                            <div class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-100">
-                                <div class="w-5 h-5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-blue-700 font-medium text-xs">2uknow</span>
-                            </div>
-                            <span class="text-slate-300">&</span>
-                            <div class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-emerald-50 to-green-50 rounded-full border border-emerald-100">
-                                <div class="w-5 h-5 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
-                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-emerald-700 font-medium text-xs">hnkim</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center space-x-2 text-slate-400">
-                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span id="currentTime" class="font-mono text-sm tracking-wider">--:--:--</span>
-                    </div>
-                </div>
+        <!-- 스케줄 관리 -->
+        <div class="text-xs bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="font-medium text-purple-700">자동 스케줄</span>
             </div>
-        </footer>
-    </div>
-
-    <!-- 스케줄 관리 모달 -->
-    <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm hidden z-50">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="glass-effect rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div class="flex items-center justify-between p-6 border-b border-slate-200">
-                    <h3 class="text-xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        Schedule Management
-                    </h3>
-                    <button id="closeScheduleModal" class="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg hover:from-red-600 hover:to-pink-600 transition-all duration-300">
-                        ✕ Close
-                    </button>
-                </div>
-                
-                <div class="flex-1 p-6 overflow-y-auto">
-                    <div class="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
-                        <h4 class="font-medium mb-3 text-purple-800">Add New Schedule</h4>
-                        <form id="scheduleForm" class="space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700">Job</label>
-                                    <select id="modalJobSelect" class="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300" required>
-                                        <option value="">Select a job...</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700">Cron Expression</label>
-                                    <input type="text" id="cronExpr" class="w-full border-2 border-slate-200 rounded-lg px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300" placeholder="Every minute: * * * * *" required>
-                                </div>
-                            </div>
-                            
-                            <div class="flex flex-wrap gap-2">
-                                <span class="text-sm text-slate-600 font-medium">Quick Select:</span>
-                                <button type="button" onclick="setCronExpression('* * * * *')" class="px-3 py-1 text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition-colors">Every minute</button>
-                                <button type="button" onclick="setCronExpression('*/5 * * * *')" class="px-3 py-1 text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition-colors">Every 5 min</button>
-                                <button type="button" onclick="setCronExpression('0 9 * * *')" class="px-3 py-1 text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition-colors">9 AM daily</button>
-                            </div>
-                            
-                            <button type="submit" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-medium shadow-lg">
-                                Add Schedule
-                            </button>
-                        </form>
-                    </div>
-
-                    <div>
-                        <h4 class="font-medium mb-3 text-slate-800">Current Schedules</h4>
-                        <div id="modalScheduleList" class="space-y-2"></div>
-                    </div>
-                </div>
-            </div>
+            <button id="scheduleToggle" class="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors">관리</button>
+          </div>
+          <span id="scheduleIndicator" class="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">확인 중...</span>
+          <div id="scheduleList" class="mt-2 space-y-1 max-h-24 overflow-y-auto"></div>
         </div>
-    </div>
+      </div>
 
-    <script>
-      let jobs = [];
-      let historyRaw = [];
-      let historyView = [];
-      let totalItems = 0;
-      let totalPages = 0;
-      let currentPage = 1;
-      let pageSize = 10; // 기존 코드와 일치
-      let running = null;
-      let schedules = [];
-      let stateSource = null;
-      let logSource = null;
+      <div class="xl:col-span-3 bg-white rounded-2xl shadow p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-semibold">Execution History</div>
+          <div class="flex items-center gap-2 text-xs">
+            <label>Page</label>
+            <select id="pageSize" class="border rounded px-2 py-1"><option>10</option><option selected>20</option><option>50</option><option>100</option></select>
+          </div>
+        </div>
 
-        // 헤더 클릭 기능 추가
-        function refreshDashboard() {
-            const baseUrl = getBaseUrl();
-            if (baseUrl && baseUrl !== window.location.origin) {
-                window.location.href = baseUrl;
-            } else {
-                window.location.reload();
-            }
-        }
+        <div class="flex items-end gap-3 mb-3">
+          <div>
+            <label class="block text-xs mb-1">Job</label>
+            <select id="filterJob" class="border rounded px-2 py-1 min-w-[180px]"><option value="">All</option></select>
+          </div>
+          <div>
+            <label class="block text-xs mb-1">Period</label>
+            <select id="range" class="border rounded px-2 py-1">
+              <option value="">All</option>
+              <option value="24h">최근 24시간</option>
+              <option value="7d">최근 7일</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs mb-1">Keyword</label>
+            <input id="searchText" class="w-full border rounded px-2 py-1" placeholder="Success / Failed">
+          </div>
+          <div class="flex gap-2">
+            <button id="applyFilter" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded">Apply</button>
+            <button id="resetFilter" class="px-3 py-1.5 text-xs border rounded">Reset</button>
+          </div>
+        </div>
 
-        // base_url 가져오기 함수
-        function getBaseUrl() {
-            return window.location.origin;
-        }
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="text-xs bg-slate-50">
+              <tr>
+                <th class="py-2 pr-4 font-medium">Time</th>
+                <th class="py-2 pr-4 font-medium">Job</th>
+                <th class="py-2 pr-4 font-medium">Status</th>
+                <th class="py-2 pr-4 font-medium">Summary</th>
+                <th class="py-2 pr-4 font-medium">Duration</th>
+                <th class="py-2 pr-4 font-medium">Report</th>
+                <th class="py-2 font-medium">Log</th>
+              </tr>
+            </thead>
+            <tbody id="histTbody" class="text-xs"></tbody>
+          </table>
+                  <div id="paginationContainer" class="mt-4 flex items-center justify-between text-sm border-t pt-3">
+          <div id="paginationInfo" class="text-slate-600"></div>
+          <div id="paginationControls" class="flex items-center space-x-2"></div>
+        </div>
+        </div>
+      </div>
+    </section>
+  </div>
 
-        // DOM 로드 완료 시 초기화
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Danal API Monitor 초기화 시작');
-            
-            fetchJobs();
-            fetchHistory();
-            loadSchedules();
-            connectSSE();
-            setupEventListeners();
-            updateCurrentTime();
-            
-            setInterval(updateStats, 30000);
-            setInterval(updateCurrentTime, 1000); // 시간 업데이트
-            
-            console.log('✅ 초기화 완료');
-        });
-
-        // 현재 시간 업데이트
-        function updateCurrentTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('ko-KR', { 
-                hour12: false,
-                timeZone: 'Asia/Seoul',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            
-            // 시분초를 분리해서 스타일링
-            const [hours, minutes, seconds] = timeString.split(':');
-            const styledTime = `<span class="text-blue-400">${hours}</span><span class="text-slate-300">:</span><span class="text-blue-400">${minutes}</span><span class="text-slate-300">:</span><span class="text-blue-400">${seconds}</span>`;
-            
-            document.getElementById('currentTime').innerHTML = styledTime;
-        }
-
-        // 이벤트 리스너 설정
-        function setupEventListeners() {
+  <!-- 스케줄 관리 모달 -->
+  <div id="scheduleModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">스케줄 관리</h3>
+        <button id="closeScheduleModal" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+        <h4 class="font-medium mb-3">새 스케줄 추가</h4>
+        <form id="scheduleForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Job</label>
+              <select id="modalJobSelect" class="w-full border rounded px-3 py-2" required>
+                <option value="">Select</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Cron 표현식</label>
+              <input type="text" id="cronExpr" class="w-full border rounded px-3 py-2" placeholder="매분: * * * * *" required>
+            </div>
+          </div>
           
-            document.getElementById('runBtn').addEventListener('click', () => {
-                const jobName = document.getElementById('jobSelect').value;
-                if (!jobName) {
-                    alert('Please select a job.');
-                    return;
-                }
-                runJob(jobName);
-            });
+          <div class="flex flex-wrap gap-2">
+            <span class="text-sm text-gray-600">빠른 선택:</span>
+            <button type="button" onclick="setCronExpression('* * * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">매분</button>
+            <button type="button" onclick="setCronExpression('*/5 * * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">5분마다</button>
+            <button type="button" onclick="setCronExpression('0 9 * * *')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">오전9시</button>
+          </div>
+          
+          <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">추가</button>
+        </form>
+      </div>
 
-            document.getElementById('jobSelect').addEventListener('change', updateJobSummary);
+      <div>
+        <h4 class="font-medium mb-3">현재 등록된 스케줄</h4>
+        <div id="modalScheduleList" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
 
-            document.getElementById('searchBtn').addEventListener('click', () => {
-                currentPage = 1;
-                fetchHistory();
-            });
+  <!-- 로그 전체화면 모달 -->
+  <div id="logModal" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-50">
+    <div class="bg-slate-900 rounded-xl w-[95%] h-[90%] flex flex-col shadow-2xl border border-slate-700">
+      <div class="flex items-center justify-between p-4 border-b border-slate-700 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-white">Real-time Log</h3>
+            <div class="flex items-center space-x-2 text-sm text-slate-300">
+              <div id="modalLogIndicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span>연결 상태</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="clearModalConsole" class="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">🗑️ 지우기</button>
+          <button id="closeLogModal" class="text-slate-400 hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 p-4 overflow-hidden">
+        <div id="modalConsole" class="w-full h-full bg-black text-green-400 text-sm p-4 rounded overflow-y-auto font-mono leading-relaxed border border-slate-700"></div>
+      </div>
+    </div>
+  </div>
 
-            document.getElementById('searchText').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    currentPage = 1;
-                    fetchHistory();
-                }
-            });
+<script>
+const ansiUp = new AnsiUp();
+let jobs=[], running=null, pageSize=20, historyRaw=[], historyView=[];
+let currentPage = 1, totalPages = 1, totalItems = 0;
+let isModalOpen = false;
 
-            document.getElementById('filterJob').addEventListener('change', () => {
-                currentPage = 1;
-                fetchHistory();
-            });
-
-            document.getElementById('range').addEventListener('change', () => {
-                currentPage = 1;
-                fetchHistory();
-            });
-
-            document.getElementById('clearConsole').addEventListener('click', () => {
-                document.getElementById('console').innerHTML = '';
-            });
-
-            document.getElementById('expandLogModal').addEventListener('click', () => {
-                document.getElementById('logModal').classList.remove('hidden');
-                syncConsoles();
-            });
-
-            document.getElementById('closeLogModal').addEventListener('click', () => {
-                document.getElementById('logModal').classList.add('hidden');
-            });
-
-            document.getElementById('clearModalConsole').addEventListener('click', () => {
-                document.getElementById('modalConsole').innerHTML = '';
-                document.getElementById('console').innerHTML = '';
-            });
-
-            document.getElementById('closeFileModal').addEventListener('click', () => {
-                document.getElementById('fileModal').classList.add('hidden');
-            });
-
-            // 스케줄 관리 모달
-            document.getElementById('scheduleToggle').addEventListener('click', () => {
-                document.getElementById('scheduleModal').classList.remove('hidden');
-                loadModalSchedules();
-            });
-
-            document.getElementById('closeScheduleModal').addEventListener('click', () => {
-                document.getElementById('scheduleModal').classList.add('hidden');
-            });
-
-            // 스케줄 폼 제출
-            document.getElementById('scheduleForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const jobName = document.getElementById('modalJobSelect').value;
-                const cronExpr = document.getElementById('cronExpr').value.trim();
-                
-                if (!jobName || !cronExpr) {
-                    alert('Please fill in all fields.');
-                    return;
-                }
-                
-                addSchedule(jobName, cronExpr);
-            });
-
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('log-link')) {
-                    e.preventDefault();
-                    const logUrl = e.target.dataset.logUrl;
-                    showLogFile(logUrl);
-                }
-            });
-            const runBtn = document.getElementById('runBtn');
-    if (runBtn) {
-        let isProcessing = false;
-        
-        runBtn.addEventListener('click', async () => {
-            if (isProcessing) {
-                console.log('[CLIENT] Button click ignored - already processing');
-                return;
-            }
-            
-            const jobName = document.getElementById('jobSelect').value;
-            if (!jobName) {
-                showNotification('Please select a job first', 'error');
-                return;
-            }
-            
-            isProcessing = true;
-            
-            try {
-                await runJob(jobName);
-            } catch (error) {
-                console.error('Run job error:', error);
-            } finally {
-                // 약간의 지연 후 다시 활성화 (중복 클릭 방지)
-                setTimeout(() => {
-                    isProcessing = false;
-                }, 1000);
-            }
-        });
-        }
-    }
-
-        // 스케줄 관리 함수들
-        async function loadSchedules() {
-            try {
-                const response = await fetch('/api/schedule');
-                schedules = await response.json();
-                updateScheduleStatus();
-            } catch (error) {
-                console.error('Failed to load schedules:', error);
-                document.getElementById('scheduleIndicator').textContent = 'Error loading schedules';
-            }
-        }
-
-        function updateScheduleStatus() {
-            const indicator = document.getElementById('scheduleIndicator');
-            const list = document.getElementById('scheduleList');
-            
-            if (schedules.length === 0) {
-                indicator.textContent = 'No schedules';
-                list.innerHTML = '<div class="text-xs text-purple-500">No registered schedules</div>';
-            } else {
-                indicator.textContent = `${schedules.length} active schedule(s)`;
-                list.innerHTML = schedules.slice(0, 3).map(s => `
-                    <div class="flex items-center justify-between py-1 px-2 bg-white rounded border border-purple-100">
-                        <div>
-                            <div class="font-medium text-xs text-purple-800">${s.name}</div>
-                            <div class="text-xs text-purple-600 font-mono">${s.cronExpr}</div>
-                        </div>
-                        <button onclick="deleteSchedule('${s.name}')" class="text-red-600 hover:text-red-800 text-xs px-1">🗑️</button>
-                    </div>
-                `).join('');
-                
-                if (schedules.length > 3) {
-                    list.innerHTML += `<div class="text-xs text-purple-500 text-center">+${schedules.length - 3} more...</div>`;
-                }
-            }
-        }
-
-        function loadModalSchedules() {
-            const modalJobSelect = document.getElementById('modalJobSelect');
-            modalJobSelect.innerHTML = '<option value="">Select a job...</option>';
-            
-            jobs.forEach(job => {
-                modalJobSelect.insertAdjacentHTML('beforeend', 
-                    `<option value="${job.name}">${job.name} (${job.type})</option>`
-                );
-            });
-            
-            renderModalScheduleList();
-        }
-
-        function renderModalScheduleList() {
-            const container = document.getElementById('modalScheduleList');
-            if (schedules.length === 0) {
-                container.innerHTML = '<div class="text-center text-slate-500 py-4">No registered schedules</div>';
-                return;
-            }
-            container.innerHTML = schedules.map(s => `
-                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div class="flex-1">
-                        <div class="font-medium text-slate-800">${s.name}</div>
-                        <div class="text-sm text-slate-600 font-mono">${s.cronExpr}</div>
-                    </div>
-                    <button onclick="deleteSchedule('${s.name}')" class="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
-                        Delete
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function setCronExpression(expression) {
-            document.getElementById('cronExpr').value = expression;
-        }
-
-        async function addSchedule(jobName, cronExpr) {
-            try {
-                const response = await fetch('/api/schedule', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: jobName, cronExpr })
-                });
-                
-                if (!response.ok) throw new Error(`Server error (${response.status})`);
-                
-                showNotification('Schedule added successfully', 'success');
-                await loadSchedules();
-                loadModalSchedules();
-                document.getElementById('scheduleForm').reset();
-            } catch (error) {
-                showNotification(`Failed to add schedule: ${error.message}`, 'error');
-            }
-        }
-
-        async function deleteSchedule(name) {
-            if (!confirm(`Delete "${name}" schedule?`)) return;
-            
-            try {
-                const response = await fetch(`/api/schedule/${name}`, { method: 'DELETE' });
-                if (response.ok) {
-                    showNotification('Schedule deleted successfully', 'success');
-                    await loadSchedules();
-                    loadModalSchedules();
-                } else {
-                    throw new Error('Delete failed');
-                }
-            } catch (error) {
-                showNotification('Failed to delete schedule', 'error');
-            }
-        }
-
-        // 작업 목록 가져오기
-   
-async function fetchJobs() {
-    try {
-        const response = await fetch('/api/jobs');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        jobs = await response.json();
-        
-        const jobSelect = document.getElementById('jobSelect');
-        const filterJob = document.getElementById('filterJob');
-        
-        if (jobSelect) {
-            jobSelect.innerHTML = '<option value="">Select a job...</option>';
-            jobs.forEach(job => {
-                const jobOption = `<option value="${job.name}">${job.name} (${job.type})</option>`;
-                jobSelect.insertAdjacentHTML('beforeend', jobOption);
-            });
-        }
-        
-        if (filterJob) {
-            filterJob.innerHTML = '<option value="">All Jobs</option>';
-            jobs.forEach(job => {
-                const jobOption = `<option value="${job.name}">${job.name} (${job.type})</option>`;
-                filterJob.insertAdjacentHTML('beforeend', jobOption);
-            });
-        }
-        
-        const jobSummaryEl = document.getElementById('jobSummary');
-        if (jobSummaryEl) {
-            if (jobs.length === 0) {
-                jobSummaryEl.innerHTML = 
-                    '<div class="text-amber-600 text-center">📁 Jobs folder is empty.</div>';
-            } else {
-                updateJobSummary();
-            }
-        }
-        
-        // DOM이 준비된 후 통계 업데이트
-        setTimeout(() => {
-            updateStats();
-        }, 100);
-        
-    } catch (error) {
-        console.error('Failed to load jobs:', error);
-        showNotification('Unable to load job list: ' + error.message, 'error');
-        
-        jobs = [];
-        const jobSummaryEl = document.getElementById('jobSummary');
-        if (jobSummaryEl) {
-            jobSummaryEl.innerHTML = 
-                '<div class="text-red-600 text-center">❌ Failed to load jobs.</div>';
-        }
-    }
+// 초기화
+async function init() {
+  await Promise.all([loadJobs(), fetchHistory(), checkAlertStatus(), loadSchedules()]);
+  startSSE();
+  setInterval(async () => {
+    await checkAlertStatus();
+    await loadSchedules();
+  }, 5 * 60 * 1000);
 }
 
-function initialize() {
-    console.log('🚀 Danal API Monitor 초기화 시작');
-    
-    // 🔸 클라이언트 상태 초기화
-    runningJobs.clear();
-    console.log('[CLIENT INIT] runningJobs cleared');
-    
-    // 기존 초기화 코드...
-    fetchJobs();
-    fetchHistory();
-    
-    if (typeof loadSchedules === 'function') loadSchedules();
-    if (typeof connectSSE === 'function') connectSSE();
-    if (typeof setupEventListeners === 'function') setupEventListeners();
-    if (typeof updateCurrentTime === 'function') updateCurrentTime();
-    
-    setInterval(updateStats, 30000);
-    if (typeof updateCurrentTime === 'function') {
-        setInterval(updateCurrentTime, 1000);
-    }
-    
-    console.log('✅ 초기화 완료');
+// 잡 관리
+async function loadJobs() {
+  const res = await fetch('/api/jobs', { cache: 'no-store' });
+  jobs = await res.json();
+  const elements = ['jobSelect', 'filterJob', 'modalJobSelect'];
+  elements.forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = id === 'filterJob' ? '<option value="">All</option>' : '<option value="">Select</option>';
+    jobs.forEach(j => el.insertAdjacentHTML('beforeend', `<option value="${j.name}">${j.name} (${j.type})</option>`));
+  });
+  
+  if (jobs.length === 0) {
+    document.getElementById('jobSummary').textContent = 'jobs 폴더가 비어 있습니다.';
+  } else {
+    updateJobSummary();
+  }
 }
-let isInitialized = false;
 
-function initializeWhenReady() {
-    if (isInitialized) {
-        console.log('[INIT] Already initialized, skipping');
-        return;
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!isInitialized) {
-                isInitialized = true;
-                initialize();
-            }
-        });
-    } else {
-        if (!isInitialized) {
-            isInitialized = true;
-            initialize();
-        }
-    }
-}      
 function updateJobSummary() {
-    const jobSelectEl = document.getElementById('jobSelect');
-    const summaryDiv = document.getElementById('jobSummary');
-    
-    if (!jobSelectEl || !summaryDiv) {
-        return;
-    }
-    
-    const jobName = jobSelectEl.value;
-    const job = jobs ? jobs.find(j => j.name === jobName) : null;
-    
-    if (!job) {
-        summaryDiv.innerHTML = '<div class="text-slate-400 text-center">Please select a job</div>';
-        return;
-    }
-    
-    const getFileName = (path) => {
-        if (!path) return '-';
-        return path.split('/').pop();
-    };
-    
-    const chips = [
-        `📋 Collection: ${getFileName(job.collection)}`,
-        `🌍 Environment: ${getFileName(job.environment)}`,
-        `📊 Type: ${job.type || '-'}`
-    ];
-    
-    summaryDiv.innerHTML = chips.map(chip => 
-        `<div class="inline-block px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-200 mr-2 mb-2 text-xs font-medium">
-            ${chip}
-        </div>`
-    ).join('');
+  const name = document.getElementById('jobSelect').value;
+  const j = jobs.find(x => x.name === name);
+  const chips = [`Collections: ${j?.collection?.split('/').pop() || '-'}`, `env: ${j?.environment?.split('/').pop() || '-'}`];
+  document.getElementById('jobSummary').innerHTML = chips.map(c => 
+    `<span class="inline-block px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 mr-1">${c}</span>`
+  ).join('');
 }
 
-        // 작업 실행
-// 작업 실행 함수 (undefined 오류 수정)
-let runningJobs = new Set();
-
-async function runJob(jobName) {
-    const runBtn = document.getElementById('runBtn');
-    
-    console.log(`[CLIENT DEBUG] runJob 호출: ${jobName}`);
-    console.log(`[CLIENT DEBUG] 현재 runningJobs:`, Array.from(runningJobs));
-    console.log(`[CLIENT DEBUG] runningJobs.has(${jobName}):`, runningJobs.has(jobName));
-    
-    if (!jobName) {
-        showNotification('Please select a job first', 'error');
-        return;
-    }
-    
-    // 🔸 중복 실행 방지 - 디버깅 추가
-    if (runningJobs.has(jobName)) {
-        console.log(`[CLIENT DEBUG] 중복 실행 차단: ${jobName}`);
-        showNotification(`Job "${jobName}" is already running`, 'warning');
-        return;
-    }
-    
-    if (!runBtn) {
-        console.error('Run button not found');
-        return;
-    }
-    
-    try {
-        // 🔸 실행 중 목록에 추가
-        runningJobs.add(jobName);
-        console.log(`[CLIENT DEBUG] runningJobs에 추가: ${jobName}`, Array.from(runningJobs));
-        
-        runBtn.disabled = true;
-        runBtn.innerHTML = '⏳ Running...';
-        runBtn.classList.add('loading-shimmer');
-        
-        console.log(`[CLIENT] Starting job: ${jobName}`);
-        
-        const response = await fetch(`/api/run/${encodeURIComponent(jobName)}`, { 
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        let result;
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-            console.error('Failed to parse JSON response:', jsonError);
-            throw new Error(`Invalid server response (HTTP ${response.status})`);
-        }
-        
-        console.log('[CLIENT] Job start result:', result);
-        
-        if (result.started === true) {
-            showNotification(`Job "${jobName}" started successfully`, 'success');
-            
-            // 상태 즉시 업데이트
-            running = { job: jobName, startAt: new Date().toISOString() };
-            setStatusChip();
-            
-            // 히스토리 새로고침
-            setTimeout(() => {
-                fetchHistory();
-            }, 1000);
-        } else {
-            const reason = result.reason || 'unknown_error';
-            const reasonMessages = {
-                'already_running': 'Another job is currently running. Please wait for it to complete.',
-                'request_in_progress': 'This job request is already being processed.',
-                'job_not_found': 'Job configuration file not found.',
-                'unsupported_type': 'This job type is not supported.',
-                'collection_not_found': 'Postman collection file not found.',
-                'environment_not_found': 'Postman environment file not found.',
-                'job_parse_error': 'Failed to parse job configuration file.',
-                'no_collection_specified': 'No collection file specified in job configuration.',
-                'invalid_job_name': 'Invalid job name provided.',
-                'server_error': 'Server error occurred.',
-                'unknown_error': 'An unknown error occurred.'
-            };
-            
-            const reasonText = reasonMessages[reason] || result.message || `Error: ${reason}`;
-            showNotification(`Execution failed: ${reasonText}`, 'error');
-        }
-    } catch (error) {
-        console.error('Job execution failed:', error);
-        let errorMessage = 'Network error occurred during job execution';
-        
-        if (error.message.includes('HTTP')) {
-            errorMessage = `Server communication error: ${error.message}`;
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            errorMessage = 'Connection failed. Please check if the server is running.';
-        }
-        
-        showNotification(errorMessage, 'error');
-    } finally {
-        // 🔸 실행 완료 후 정리 - 디버깅 추가
-        console.log(`[CLIENT DEBUG] runningJobs에서 제거 전: ${jobName}`, Array.from(runningJobs));
-        runningJobs.delete(jobName);
-        console.log(`[CLIENT DEBUG] runningJobs에서 제거 후: ${jobName}`, Array.from(runningJobs));
-        
-        runBtn.disabled = false;
-        runBtn.innerHTML = 'Run';
-        runBtn.classList.remove('loading-shimmer');
-    }
+// 히스토리 관리
+async function fetchHistory(){
+  const job = document.getElementById('filterJob').value;
+  const range = document.getElementById('range').value;
+  const search = document.getElementById('searchText').value.trim();
+  
+  const params = new URLSearchParams({
+    page: currentPage,
+    size: pageSize
+  });
+  
+  if (job) params.append('job', job);
+  if (range) params.append('range', range);
+  if (search) params.append('search', search);
+  
+  const r = await fetch(`/api/history?${params}`); 
+  const data = await r.json();
+  
+  running = data.running || null; 
+  setStatusChip();
+  
+  // 여기 조건 수정!
+  if (data.total !== undefined && data.totalPages !== undefined) {
+    // 서버측 페이징 (현재 구조)
+    console.log('서버측 페이징 사용');
+    historyRaw = data.items || [];
+    totalItems = data.total;        // data.pagination.total → data.total
+    totalPages = data.totalPages;   // data.pagination.totalPages → data.totalPages  
+    currentPage = data.page;        // data.pagination.page → data.page
+    historyView = historyRaw.slice();
+  } else {
+    // 클라이언트측 처리 (하위호환)
+    console.log('클라이언트측 페이징 사용');
+    historyRaw = data.items || [];
+    historyView = historyRaw.slice();
+    totalItems = historyView.length;
+    totalPages = Math.ceil(totalItems / pageSize);
+  }
+  
+  console.log('최종 계산:', { totalItems, totalPages, currentPage, pageSize });
+  
+  renderHistory();
+  renderPagination();
 }
 
-// 히스토리 가져오기 함수 개선
-async function fetchHistory() {
-    try {
-        const filterJobEl = document.getElementById('filterJob');
-        const rangeEl = document.getElementById('range');
-        const searchTextEl = document.getElementById('searchText');
-        
-        const job = filterJobEl ? filterJobEl.value : '';
-        const range = rangeEl ? rangeEl.value : '';
-        const search = searchTextEl ? searchTextEl.value.trim() : '';
-        
-        const params = new URLSearchParams({
-            page: currentPage || 1,
-            size: pageSize || 10
-        });
-        
-        if (job) params.append('job', job);
-        if (range) params.append('range', range);
-        if (search) params.append('search', search);
-        
-        const response = await fetch(`/api/history?${params}`);
-        
-        // 🔸 상세한 오류 처리
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        running = data.running || null;
-        setStatusChip();
-        
-        if (data.total !== undefined && data.totalPages !== undefined) {
-            historyRaw = data.items || [];
-            totalItems = data.total;
-            totalPages = data.totalPages;
-            currentPage = data.page || 1;
-            historyView = historyRaw.slice();
-        } else {
-            historyRaw = data.items || data || [];
-            historyView = historyRaw.slice();
-            totalItems = historyView.length;
-            totalPages = Math.ceil(totalItems / (pageSize || 10));
-        }
-        
-        renderHistory();
-        renderPagination();
-        updateStats();
-        
-    } catch (error) {
-        console.error('Failed to load history:', error);
-        
-        // 🔸 더 구체적인 오류 메시지
-        let errorMessage = 'Unable to load execution history';
-        if (error.message.includes('HTTP 404')) {
-            errorMessage = 'History API endpoint not found';
-        } else if (error.message.includes('HTTP 500')) {
-            errorMessage = 'Server error while loading history';
-        } else if (error.name === 'TypeError') {
-            errorMessage = 'Network connection error';
-        }
-        
-        showNotification(errorMessage, 'error');
-        
-        // 오류 시 빈 상태로 설정
-        historyRaw = [];
-        historyView = [];
-        totalItems = 0;
-        totalPages = 0;
-        
-        renderHistory();
-        renderPagination();
-        updateStats();
-    }
-}
 
-        // 상태 칩 설정
 function setStatusChip() {
   const chip = document.getElementById('statusChip');
-     if (running) {
-        chip.textContent = `🔄 Running: ${running.job}`;
-                chip.className = "text-xs px-3 py-2 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border border-amber-200 animate-pulse shadow-sm";
-            } else {
-                chip.textContent = '⏸️ Standby';
-                chip.className = "text-xs px-3 py-2 rounded-full bg-slate-200 text-slate-600 shadow-sm";
-            }
-        }
-
-        // 이력 테이블 렌더링
-// 기존 renderHistory 함수 수정 - null 체크만 추가
+  chip.textContent = running ? ('Running: ' + running.job) : 'Standby';
+  chip.className = running ? "text-xs px-2 py-1 rounded bg-amber-100 text-amber-700" : "text-xs px-2 py-1 rounded bg-slate-200";
+}
 
 function renderHistory() {
-    const tbody = document.getElementById('histTbody');
+  const tb = document.getElementById('histTbody');
+  tb.innerHTML = '';
+  historyView.forEach(row => {
+    const ok = row.exitCode === 0;
+    const duration = !row.duration && row.duration !== 0 ? '-' : 
+      row.duration < 60 ? `${row.duration}s` : `${Math.floor(row.duration / 60)}m ${row.duration % 60}s`;
     
-    // 🔸 null 체크 추가
-    if (!tbody) {
-        console.warn('History table body (histTbody) not found');
-        return;
-    }
+    // Summary 개선 - Newman 통계 기반으로 유용한 정보 표시
+    let summaryDisplay = '';
+    let summaryTooltip = '';
     
-    tbody.innerHTML = '';
-    
-    if (historyView.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-8 text-slate-500">
-                    <div class="flex flex-col items-center space-y-2">
-                        <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>No execution history available</span>
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    historyView.forEach(row => {
-        const isSuccess = row.exitCode === 0;
-        const duration = !row.duration && row.duration !== 0 ? '-' : 
-            row.duration < 60 ? `${row.duration}초` : 
-            `${Math.floor(row.duration / 60)}분 ${row.duration % 60}초`;
-        
-        const summaryText = row.summary || '';
-        const summaryDisplay = summaryText.length > 50 ? 
-            summaryText.substring(0, 50) + '...' : summaryText;
-        const summaryTooltip = summaryText;
-        
-        // 🔸 통계 정보 추가 (선택사항)
-        let statsInfo = '';
-        if (row.stats) {
-            const stats = row.stats;
-            if (stats.totalRequests > 0) {
-                const successRate = Math.round((stats.successfulRequests / stats.totalRequests) * 100);
-                statsInfo = `<div class="text-xs text-slate-500">${successRate}% success (${stats.successfulRequests}/${stats.totalRequests})</div>`;
-            }
-            if (stats.avgResponseTime > 0) {
-                statsInfo += `<div class="text-xs text-slate-500">Avg: ${stats.avgResponseTime}ms</div>`;
-            }
+    if (row.newmanStats) {
+      const stats = row.newmanStats;
+      const parts = [];
+      const tooltipParts = [];
+      
+      // Assertions 정보
+      if (stats.assertions && stats.assertions.total > 0) {
+        const assertionsPassed = stats.assertions.total - (stats.assertions.failed || 0);
+        if (stats.assertions.failed > 0) {
+          parts.push(`<span class="text-red-600 font-medium">Assertions Failed ${stats.assertions.failed}/${stats.assertions.total}</span>`);
+          tooltipParts.push(`Assertions: ${assertionsPassed}/${stats.assertions.total} passed`);
+        } else {
+          parts.push(`<span class="text-green-600">Assertions ${assertionsPassed}/${stats.assertions.total} passed</span>`);
+          tooltipParts.push(`All ${stats.assertions.total} assertions passed`);
         }
-        
-        tbody.insertAdjacentHTML('beforeend', `
-            <tr class="hover:bg-slate-50 transition-colors duration-200 ${isSuccess ? 'hover:bg-emerald-50/40' : 'hover:bg-rose-50/40'}">
-                <td class="py-3 pr-4 text-sm text-slate-600">${row.timestamp || ''}</td>
-                <td class="py-3 pr-4 font-medium text-slate-800">${row.job || ''}</td>
-                <td class="py-3 pr-4">
-                    ${isSuccess ? 
-                        '<span class="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-800 bg-emerald-100 rounded-full">✅ Success</span>' :
-                        '<span class="inline-flex items-center px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">❌ Failed</span>'
-                    }
-                </td>
-                <td class="py-3 pr-4 text-sm text-slate-600" title="${summaryTooltip}">
-                    ${summaryDisplay}
-                    ${statsInfo}
-                </td>
-                <td class="py-3 pr-4 text-sm text-slate-600">${duration}</td>
-                <td class="py-3 pr-4">
-                    ${row.report ? 
-                        `<a class="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors" 
-                           href="${row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/')}" target="_blank">
-                            HTML
-                        </a>` : 
-                        '<span class="text-slate-400 text-xs">-</span>'
-                    }
-                </td>
-                <td class="py-3">
-                    <a class="inline-flex items-center px-2 py-1 text-xs font-medium text-slate-600 bg-slate-50 rounded-md hover:bg-slate-100 transition-colors log-link" 
-                       href="#" data-log-url="/logs/${row.stdout}">
-                        stdout
-                    </a>
-                </td>
-            </tr>
-        `);
-    });
+      }
+      
+      // Requests 정보
+      if (stats.requests && stats.requests.total > 0) {
+        const requestsPassed = stats.requests.total - (stats.requests.failed || 0);
+        if (stats.requests.failed > 0) {
+          parts.push(`<span class="text-red-600">Requests Failed ${stats.requests.failed}/${stats.requests.total}</span>`);
+          tooltipParts.push(`Requests: ${requestsPassed}/${stats.requests.total} succeeded`);
+        } else {
+          parts.push(`<span class="text-green-600">Requests ${requestsPassed}/${stats.requests.total} succeeded</span>`);
+          tooltipParts.push(`All ${stats.requests.total} requests succeeded`);
+        }
+      }
+      
+      // Tests 정보
+      if (stats.testScripts && stats.testScripts.total > 0) {
+        const testsPassed = stats.testScripts.total - (stats.testScripts.failed || 0);
+        if (stats.testScripts.failed > 0) {
+          parts.push(`<span class="text-red-600">Tests Failed ${stats.testScripts.failed}/${stats.testScripts.total}</span>`);
+          tooltipParts.push(`Tests: ${testsPassed}/${stats.testScripts.total} passed`);
+        } else {
+          parts.push(`<span class="text-green-600">Tests ${testsPassed}/${stats.testScripts.total} passed</span>`);
+          tooltipParts.push(`All ${stats.testScripts.total} tests passed`);
+        }
+      }
+      
+      // Success Rate 추가 (detailedStats가 있는 경우)
+      if (row.detailedStats && row.detailedStats.successRate !== undefined) {
+        const rate = row.detailedStats.successRate;
+        const rateColor = rate >= 95 ? 'text-green-600' : rate >= 80 ? 'text-yellow-600' : 'text-red-600';
+        parts.push(`<span class="${rateColor}">${rate}% Success</span>`);
+        tooltipParts.push(`Overall success rate: ${rate}%`);
+      }
+      
+      // Average Response Time 추가
+      if (row.detailedStats && row.detailedStats.avgResponseTime > 0) {
+        const avgTime = Math.round(row.detailedStats.avgResponseTime);
+        const timeColor = avgTime < 500 ? 'text-green-600' : avgTime < 1000 ? 'text-yellow-600' : 'text-red-600';
+        parts.push(`<span class="${timeColor}">${avgTime}ms avg</span>`);
+        tooltipParts.push(`Average response time: ${avgTime}ms`);
+      }
+      
+      summaryDisplay = parts.join(' • ');
+      summaryTooltip = tooltipParts.join(' | ');
+      
+    } else {
+      // Newman 통계가 없는 경우 기존 summary 사용
+      const rawSummary = row.summary || '';
+      if (rawSummary.length > 0) {
+        summaryDisplay = rawSummary.replace(/</g,'&lt;').substring(0, 80);
+        summaryTooltip = rawSummary.replace(/</g,'&lt;');
+        if (rawSummary.length > 80) {
+          summaryDisplay += '...';
+        }
+      } else {
+        summaryDisplay = ok ? '<span class="text-gray-500">No details</span>' : '<span class="text-red-500">Execution failed</span>';
+        summaryTooltip = ok ? 'No detailed statistics available' : `Process exited with code ${row.exitCode}`;
+      }
+    }
+    
+    // 실패한 경우 주요 실패 원인 추가 표시
+    if (!ok && row.detailedFailures && row.detailedFailures.length > 0) {
+      const firstFailure = row.detailedFailures[0];
+      const shortError = firstFailure.testName.length > 30 ? 
+        firstFailure.testName.substring(0, 30) + '...' : firstFailure.testName;
+      summaryDisplay += `<br><span class="text-xs text-red-500">→ ${shortError}</span>`;
+      summaryTooltip += ` | First failure: ${firstFailure.testName}`;
+    }
+    
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="${ok ? '' : 'bg-rose-50/40'}">
+        <td class="py-1 pr-4 text-xs">${row.timestamp || ''}</td>
+        <td class="py-1 pr-4 font-medium">${row.job || ''}</td>
+        <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">Success</span>' : '<span class="text-rose-700 text-sm">Failed</span>'}</td>
+        <td class="py-1 pr-4 text-xs" title="${summaryTooltip}">${summaryDisplay}</td>
+        <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
+        <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
+        <td class="py-1">
+          <a class="text-slate-700 underline text-xs log-link" href="#" data-log-url="/logs/${row.stdout}">📄 stdout</a>
+        </td>
+      </tr>`
+    );
+  });
 }
-
-        // 페이징 렌더링
+// 페이징 렌더링
 function renderPagination() {
-            const info = document.getElementById('paginationInfo');
-            const controls = document.getElementById('paginationControls');
-            
-            if (totalItems === 0) {
-                info.textContent = 'No data available';
-                controls.innerHTML = '';
-                return;
-            }
-            
-            const startItem = (currentPage - 1) * pageSize + 1;
-            const endItem = Math.min(currentPage * pageSize, totalItems);
-            info.textContent = `${startItem}-${endItem} / ${totalItems} items (Page ${currentPage}/${totalPages})`;
-            
-            controls.innerHTML = '';
-            
-            if (currentPage > 1) {
-                const firstBtn = createPaginationButton('⏪', 'First page', () => {
-                    currentPage = 1;
-                    fetchHistory();
-                });
-                controls.appendChild(firstBtn);
-                
-                const prevBtn = createPaginationButton('◀ Previous', 'Previous page', () => {
-                    currentPage--;
-                    fetchHistory();
-                });
-                controls.appendChild(prevBtn);
-            }
-            
-            const maxVisible = 5;
-            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-            
-            if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-            }
-            
-            if (startPage > 1) {
-                const pageBtn1 = createPaginationButton('1', 'First page', () => {
-                    currentPage = 1;
-                    fetchHistory();
-                });
-                controls.appendChild(pageBtn1);
-                
-                if (startPage > 2) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.className = 'px-2 py-1 text-slate-500 text-sm';
-                    controls.appendChild(ellipsis);
-                }
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
-                const pageBtn = createPaginationButton(
-                    i.toString(), 
-                    `Page ${i}`, 
-                    () => {
-                        currentPage = i;
-                        fetchHistory();
-                    },
-                    i === currentPage
-                );
-                controls.appendChild(pageBtn);
-            }
-            
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.className = 'px-2 py-1 text-slate-500 text-sm';
-                    controls.appendChild(ellipsis);
-                }
-                
-                const lastBtn = createPaginationButton(totalPages.toString(), 'Last page', () => {
-                    currentPage = totalPages;
-                    fetchHistory();
-                });
-                controls.appendChild(lastBtn);
-            }
-            
-            if (currentPage < totalPages) {
-                const nextBtn = createPaginationButton('Next ▶', 'Next page', () => {
-                    currentPage++;
-                    fetchHistory();
-                });
-                controls.appendChild(nextBtn);
-                
-                const lastBtn = createPaginationButton('⏩', 'Last page', () => {
-                    currentPage = totalPages;
-                    fetchHistory();
-                });
-                controls.appendChild(lastBtn);
-            }
-        }
-        function normalizeHistoryData(historyData) {
-    if (!historyData) return [];
+  const info = document.getElementById('paginationInfo');
+  const controls = document.getElementById('paginationControls');
+  
+  if (totalItems === 0) {
+    info.textContent = '데이터가 없습니다';
+    controls.innerHTML = '';
+    return;
+  }
+  
+  // 정보 표시
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+  info.textContent = `${startItem}-${endItem} / ${totalItems}건 (${currentPage}/${totalPages} 페이지)`;
+  
+  // 페이징 컨트롤
+  controls.innerHTML = '';
+  
+  // 맨 처음 버튼
+  if (currentPage > 1) {
+    const firstBtn = document.createElement('button');
+    firstBtn.innerHTML = '&laquo;&laquo;';
+    firstBtn.title = '맨 처음';
+    firstBtn.className = 'px-2 py-1 border rounded hover:bg-gray-50 text-sm';
+    firstBtn.onclick = () => {
+      currentPage = 1;
+      fetchHistory();
+    };
+    controls.appendChild(firstBtn);
+  }
+  
+  // 이전 페이지
+  if (currentPage > 1) {
+    const prevBtn = document.createElement('button');
+    prevBtn.innerHTML = '&laquo; 이전';
+    prevBtn.className = 'px-3 py-1 border rounded hover:bg-gray-50 text-sm';
+    prevBtn.onclick = () => {
+      currentPage--;
+      fetchHistory();
+    };
+    controls.appendChild(prevBtn);
+  }
+  
+  // 페이지 번호들
+  const maxVisible = 5; // 최대 표시할 페이지 번호 개수
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  
+  // 끝에서 시작점 조정
+  if (endPage - startPage + 1 < maxVisible) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+  
+  // 첫 페이지가 시작점보다 멀면 생략 표시
+  if (startPage > 1) {
+    const pageBtn1 = document.createElement('button');
+    pageBtn1.textContent = '1';
+    pageBtn1.className = 'px-3 py-1 border rounded hover:bg-gray-50 text-sm';
+    pageBtn1.onclick = () => {
+      currentPage = 1;
+      fetchHistory();
+    };
+    controls.appendChild(pageBtn1);
     
-    return historyData.map(item => {
-        // 파일명만 추출하는 헬퍼 함수
-        const getBasename = (filePath) => {
-            if (!filePath) return null;
-            if (typeof filePath !== 'string') return null;
-            
-            // 경로에서 파일명만 추출
-            const parts = filePath.replace(/\\/g, '/').split('/');
-            return parts[parts.length - 1];
-        };
-        
-        // 기존 형식과 새 형식 모두 지원
-        const normalized = {
-            id: item.id || item.timestamp || `${Date.now()}-${Math.random()}`,
-            jobName: item.jobName || item.job || 'Unknown Job',
-            job: item.job || item.jobName || 'Unknown Job',
-            startTime: item.startTime || item.timestamp,
-            endTime: item.endTime || item.timestamp,
-            timestamp: item.timestamp || item.startTime,
-            status: item.status || (item.exitCode === 0 ? 'success' : 'failed'),
-            exitCode: item.exitCode || 0,
-            duration: item.duration || 0,
-            summary: item.summary || 'No summary available',
-            htmlReport: item.htmlReport || (item.report ? getBasename(item.report) : null),
-            junitReport: item.junitReport || null,
-            jsonReport: item.jsonReport || null,
-            stats: item.stats || item.detailedStats || null
-        };
-        
-        return normalized;
+    if (startPage > 2) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.className = 'px-2 py-1 text-gray-500 text-sm';
+      controls.appendChild(ellipsis);
+    }
+  }
+  
+  // 페이지 번호 버튼들
+  for (let i = startPage; i <= endPage; i++) {
+    const pageBtn = document.createElement('button');
+    pageBtn.textContent = i;
+    pageBtn.className = i === currentPage 
+      ? 'px-3 py-1 border rounded bg-indigo-600 text-white text-sm font-medium'
+      : 'px-3 py-1 border rounded hover:bg-gray-50 text-sm';
+    pageBtn.onclick = () => {
+      currentPage = i;
+      fetchHistory();
+    };
+    controls.appendChild(pageBtn);
+  }
+  
+  // 마지막 페이지가 끝점보다 멀면 생략 표시
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.className = 'px-2 py-1 text-gray-500 text-sm';
+      controls.appendChild(ellipsis);
+    }
+    
+    const lastPageBtn = document.createElement('button');
+    lastPageBtn.textContent = totalPages;
+    lastPageBtn.className = 'px-3 py-1 border rounded hover:bg-gray-50 text-sm';
+    lastPageBtn.onclick = () => {
+      currentPage = totalPages;
+      fetchHistory();
+    };
+    controls.appendChild(lastPageBtn);
+  }
+  
+  // 다음 페이지
+  if (currentPage < totalPages) {
+    const nextBtn = document.createElement('button');
+    nextBtn.innerHTML = '다음 &raquo;';
+    nextBtn.className = 'px-3 py-1 border rounded hover:bg-gray-50 text-sm';
+    nextBtn.onclick = () => {
+      currentPage++;
+      fetchHistory();
+    };
+    controls.appendChild(nextBtn);
+  }
+  
+  // 맨 마지막 버튼
+  if (currentPage < totalPages) {
+    const lastBtn = document.createElement('button');
+    lastBtn.innerHTML = '&raquo;&raquo;';
+    lastBtn.title = '맨 마지막';
+    lastBtn.className = 'px-2 py-1 border rounded hover:bg-gray-50 text-sm';
+    lastBtn.onclick = () => {
+      currentPage = totalPages;
+      fetchHistory();
+    };
+    controls.appendChild(lastBtn);
+  }
+}
+// 로그 자동 스크롤
+function openLogWithAutoScroll(logUrl) {
+  const logWindow = window.open(logUrl, '_blank');
+  if (logWindow) {
+    logWindow.addEventListener('load', () => {
+      setTimeout(() => logWindow.scrollTo(0, logWindow.document.body.scrollHeight), 100);
     });
+  }
 }
-        // 페이징 버튼 생성 헬퍼
-        function createPaginationButton(text, title, onClick, isActive = false) {
-            const btn = document.createElement('button');
-            btn.textContent = text;
-            btn.title = title;
-            btn.onclick = onClick;
-            
-            if (isActive) {
-                btn.className = 'px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg text-sm font-medium shadow-md';
-            } else {
-                btn.className = 'px-3 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-sm font-medium transition-all duration-200 hover:shadow-md';
-            }
-            
-            return btn;
-        }
 
-        // SSE 연결
-        function connectSSE() {
-    if (stateSource) stateSource.close();
-    stateSource = new EventSource('/api/stream/state');
+// 필터링
+function applyFilters() {
+  currentPage = 1; // 필터 적용 시 첫 페이지로
+  fetchHistory(); // 서버에서 필터링
+}
+
+function resetFilters() {
+  ['filterJob', 'range', 'searchText'].forEach(id => document.getElementById(id).value = '');
+  currentPage = 1;
+  fetchHistory(); // 서버에서 데이터 가져오기
+}
+
+// 알람 상태
+async function checkAlertStatus() {
+  try {
+    const response = await fetch('/api/alert/config');
+    const config = await response.json();
+    const indicator = document.getElementById('alertIndicator');
     
-    stateSource.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data);
-            running = data.running;
-            setStatusChip();
-            
-            // 🔸 서버 상태와 클라이언트 상태 동기화
-            if (!running) {
-                // 서버에서 실행 중인 작업이 없으면 클라이언트도 정리
-                if (runningJobs.size > 0) {
-                    console.log('[CLIENT SYNC] 서버 상태에 맞춰 runningJobs 정리');
-                    runningJobs.clear();
-                }
-            }
-            
-            if (data.last) {
-                fetchHistory();
-            }
-        } catch (error) {
-            console.error('State stream parsing error:', error);
+    if (config.run_event_alert && config.webhook_url === '설정됨') {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
+      indicator.textContent = 'Active';
+    } else if (config.run_event_alert && config.webhook_url === '미설정') {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800';
+      indicator.textContent = 'URL Not Set';
+    } else {
+      indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
+      indicator.textContent = 'Inactive';
+    }
+  } catch (error) {
+    const indicator = document.getElementById('alertIndicator');
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
+    indicator.textContent = '오류';
+  }
+}
+
+// 스케줄 관리
+async function loadSchedules() {
+  try {
+    const response = await fetch('/api/schedule');
+    schedules = await response.json();
+    updateScheduleStatus();
+    renderModalScheduleList();
+  } catch (error) {
+    document.getElementById('scheduleIndicator').textContent = '오류';
+    document.getElementById('scheduleIndicator').className = 'px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800';
+  }
+}
+
+function updateScheduleStatus() {
+  const indicator = document.getElementById('scheduleIndicator');
+  const list = document.getElementById('scheduleList');
+  
+  if (schedules.length === 0) {
+    indicator.textContent = '스케줄 없음';
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600';
+    list.innerHTML = '<div class="text-xs text-gray-500">등록된 스케줄이 없습니다</div>';
+  } else {
+    indicator.textContent = `${schedules.length}개 활성`;
+    indicator.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800';
+    list.innerHTML = schedules.map(s => `
+      <div class="flex items-center justify-between py-1 px-2 bg-white rounded border">
+        <div>
+          <div class="font-medium text-xs">${s.name}</div>
+          <div class="text-xs text-gray-500">${s.cronExpr}</div>
+        </div>
+        <button onclick="deleteSchedule('${s.name}')" class="text-red-600 hover:text-red-800 text-xs">🗑️</button>
+      </div>
+    `).join('');
+  }
+}
+
+function renderModalScheduleList() {
+  const container = document.getElementById('modalScheduleList');
+  if (schedules.length === 0) {
+    container.innerHTML = '<div class="text-center text-gray-500 py-4">등록된 스케줄이 없습니다</div>';
+    return;
+  }
+  container.innerHTML = schedules.map(s => `
+    <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+      <div class="flex-1">
+        <div class="font-medium">${s.name}</div>
+        <div class="text-sm text-gray-600 font-mono">${s.cronExpr}</div>
+      </div>
+      <button onclick="deleteSchedule('${s.name}')" class="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">삭제</button>
+    </div>
+  `).join('');
+}
+
+function setCronExpression(expression) {
+  document.getElementById('cronExpr').value = expression;
+}
+
+async function addSchedule(jobName, cronExpr) {
+  try {
+    const response = await fetch('/api/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: jobName, cronExpr })
+    });
+    
+    if (!response.ok) throw new Error(`서버 오류 (${response.status})`);
+    
+    showNotification('스케줄이 추가되었습니다', 'success');
+    await loadSchedules();
+    document.getElementById('scheduleForm').reset();
+  } catch (error) {
+    showNotification(`스케줄 추가 실패: ${error.message}`, 'error');
+  }
+}
+
+async function deleteSchedule(name) {
+  if (!confirm(`"${name}" 스케줄을 삭제하시겠습니까?`)) return;
+  
+  try {
+    const response = await fetch(`/api/schedule/${name}`, { method: 'DELETE' });
+    if (response.ok) {
+      showNotification('스케줄이 삭제되었습니다', 'success');
+      await loadSchedules();
+    } else {
+      throw new Error('삭제 실패');
+    }
+  } catch (error) {
+    showNotification('스케줄 삭제에 실패했습니다', 'error');
+  }
+}
+
+// 로그 관리
+function addLogToConsoles(line) {
+  const htmlLine = ansiUp.ansi_to_html(line);
+  const mainConsole = document.getElementById('console');
+  if (mainConsole) {
+    mainConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+    mainConsole.scrollTop = mainConsole.scrollHeight;
+  }
+  
+  if (isModalOpen) {
+    const modalConsole = document.getElementById('modalConsole');
+    if (modalConsole) {
+      modalConsole.insertAdjacentHTML('beforeend', htmlLine + '<br/>');
+      requestAnimationFrame(() => modalConsole.scrollTop = modalConsole.scrollHeight);
+    }
+  }
+}
+
+function openLogModal() {
+  const modal = document.getElementById('logModal');
+  const modalConsole = document.getElementById('modalConsole');
+  const mainConsole = document.getElementById('console');
+  
+  if (!modal || !modalConsole || !mainConsole) return;
+  
+  modalConsole.innerHTML = mainConsole.innerHTML;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  isModalOpen = true;
+  document.body.style.overflow = 'hidden';
+  
+  setTimeout(() => modalConsole.scrollTop = modalConsole.scrollHeight, 100);
+}
+
+function closeLogModal() {
+  const modal = document.getElementById('logModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    isModalOpen = false;
+    document.body.style.overflow = '';
+  }
+}
+
+function clearAllConsoles() {
+  const mainConsole = document.getElementById('console');
+  const modalConsole = document.getElementById('modalConsole');
+  if (mainConsole) mainConsole.innerHTML = '';
+  if (modalConsole) modalConsole.innerHTML = '';
+}
+
+// SSE
+// 개선된 SSE 연결 관리
+function startSSE() {
+  let stateReconnectAttempts = 0;
+  let logReconnectAttempts = 0;
+  const maxReconnectAttempts = 10;
+  const baseReconnectDelay = 1000; // 1초
+  
+  function connectStateSSE() {
+    console.log('[SSE] Connecting to state stream...');
+    const esState = new EventSource('/api/stream/state');
+    
+    esState.addEventListener('open', () => {
+      console.log('[SSE] State connection opened');
+      stateReconnectAttempts = 0;
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+      document.getElementById('stateIndicator').title = 'State: Connected';
+    });
+    
+    esState.addEventListener('connected', (e) => {
+      console.log('[SSE] State connection confirmed:', e.data);
+    });
+    
+    esState.addEventListener('state', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const was = !!running;
+        running = payload.running || null;
+        setStatusChip();
+        
+        if (was && !running) {
+          fetchHistory();
+          setTimeout(checkAlertStatus, 1000);
         }
-    };
+        document.getElementById('runBtn').disabled = !!running;
+      } catch (error) {
+        console.error('[SSE] State parse error:', error);
+      }
+    });
     
-    stateSource.onerror = function(error) {
-        console.error('State stream error:', error);
-        setTimeout(connectSSE, 5000);
-    };
+    esState.addEventListener('heartbeat', (e) => {
+      // 연결 상태 확인용 (로그는 생략)
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+    });
     
-    if (logSource) logSource.close();
-    logSource = new EventSource('/api/stream/logs');
+    esState.addEventListener('ping', (e) => {
+      // 연결 유지용 핑 (조용히 처리)
+    });
     
-    logSource.onmessage = function(event) {
-        try {
-            const data = JSON.parse(event.data);
-            addLogLine(data.line);
-        } catch (error) {
-            console.error('Log stream parsing error:', error);
-        }
-    };
-    
-    logSource.onerror = function(error) {
-        console.error('Log stream error:', error);
+    esState.addEventListener('error', (e) => {
+      console.warn('[SSE] State connection error');
+      document.getElementById('stateIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+      document.getElementById('stateIndicator').title = 'State: Disconnected';
+      
+      esState.close();
+      
+      // 재연결 시도
+      if (stateReconnectAttempts < maxReconnectAttempts) {
+        stateReconnectAttempts++;
+        const delay = baseReconnectDelay * Math.pow(2, Math.min(stateReconnectAttempts, 5));
+        console.log(`[SSE] Reconnecting state in ${delay}ms (attempt ${stateReconnectAttempts})`);
+        
         setTimeout(() => {
-            logSource = new EventSource('/api/stream/logs');
-        }, 5000);
-    };
-}
-function clearRunningJobs() {
-    console.log('[CLIENT] runningJobs 강제 초기화');
-    runningJobs.clear();
-    showNotification('Client running jobs cleared', 'info');
-}
-        // 로그 추가
-        function appendLog(line) {
-            const console1 = document.getElementById('console');
-            const console2 = document.getElementById('modalConsole');
-            
-            const logEntry = `<div class="hover:bg-slate-800 px-2 py-1 rounded transition-colors">${escapeHtml(line)}</div>`;
-            
-            console1.insertAdjacentHTML('beforeend', logEntry);
-            console2.insertAdjacentHTML('beforeend', logEntry);
-            
-            console1.scrollTop = console1.scrollHeight;
-            console2.scrollTop = console2.scrollHeight;
-            
-            limitLogLines(console1);
-            limitLogLines(console2);
-        }
-
-        // 로그 라인 수 제한
-        function limitLogLines(element, maxLines = 1000) {
-            const lines = element.children;
-            if (lines.length > maxLines) {
-                for (let i = 0; i < lines.length - maxLines; i++) {
-                    element.removeChild(lines[0]);
-                }
-            }
-        }
-
-        // 콘솔 동기화
-        function syncConsoles() {
-            const console1 = document.getElementById('console');
-            const console2 = document.getElementById('modalConsole');
-            console2.innerHTML = console1.innerHTML;
-            console2.scrollTop = console2.scrollHeight;
-        }
-
-        // 로그 파일 보기
-        async function showLogFile(logUrl) {
-            try {
-                const response = await fetch(logUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const content = await response.text();
-                document.getElementById('fileModalTitle').textContent = `Log File: ${logUrl}`;
-                document.getElementById('fileContent').textContent = content;
-                document.getElementById('fileModal').classList.remove('hidden');
-                
-            } catch (error) {
-                console.error('Log file load failed:', error);
-                showNotification('Unable to load log file.', 'error');
-            }
-        }
-
-        // 통계 업데이트
-        // 통계 업데이트 함수 개선 (평균 응답시간을 유용한 데이터로)
-function updateStats() {
-    // 실제 HTML에 있는 ID들 확인
-    const totalSuccessEl = document.getElementById('totalSuccess');
-    const avgResponseEl = document.getElementById('avgResponse');
-    const activeJobsEl = document.getElementById('activeJobs');
-    const todayRunsEl = document.getElementById('todayRuns');
+          if (document.visibilityState === 'visible') { // 탭이 활성화된 경우만
+            connectStateSSE();
+          }
+        }, delay);
+      } else {
+        console.error('[SSE] State max reconnection attempts reached');
+        document.getElementById('stateIndicator').className = 'w-2 h-2 bg-gray-400 rounded-full';
+        document.getElementById('stateIndicator').title = 'State: Connection failed';
+      }
+    });
     
-    // DOM 요소 존재 확인 후 안전하게 업데이트
-    if (totalSuccessEl) {
-        if (!historyRaw || historyRaw.length === 0) {
-            totalSuccessEl.textContent = '-%';
-        } else {
-            const successCount = historyRaw.filter(h => h.exitCode === 0).length;
-            const successRate = Math.round((successCount / historyRaw.length) * 100);
-            totalSuccessEl.textContent = `${successRate}%`;
-        }
+    return esState;
+  }
+  
+  function connectLogSSE() {
+    console.log('[SSE] Connecting to log stream...');
+    const esLog = new EventSource('/api/stream/logs');
+    
+    esLog.addEventListener('open', () => {
+      console.log('[SSE] Log connection opened');
+      logReconnectAttempts = 0;
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+      document.getElementById('logIndicator').title = 'Logs: Connected';
+    });
+    
+    esLog.addEventListener('log', (e) => {
+      try {
+        const { line } = JSON.parse(e.data);
+        addLogToConsoles(line);
+      } catch (error) {
+        console.error('[SSE] Log parse error:', error);
+      }
+    });
+    
+    esLog.addEventListener('heartbeat', (e) => {
+      // 연결 상태 확인용
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-green-400 rounded-full animate-pulse';
+    });
+    
+    esLog.addEventListener('ping', (e) => {
+      // 연결 유지용 핑
+    });
+    
+    esLog.addEventListener('error', (e) => {
+      console.warn('[SSE] Log connection error');
+      document.getElementById('logIndicator').className = 'w-2 h-2 bg-red-400 rounded-full';
+      document.getElementById('logIndicator').title = 'Logs: Disconnected';
+      
+      esLog.close();
+      
+      // 재연결 시도
+      if (logReconnectAttempts < maxReconnectAttempts) {
+        logReconnectAttempts++;
+        const delay = baseReconnectDelay * Math.pow(2, Math.min(logReconnectAttempts, 5));
+        console.log(`[SSE] Reconnecting logs in ${delay}ms (attempt ${logReconnectAttempts})`);
+        
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            connectLogSSE();
+          }
+        }, delay);
+      } else {
+        console.error('[SSE] Log max reconnection attempts reached');
+        document.getElementById('logIndicator').className = 'w-2 h-2 bg-gray-400 rounded-full';
+        document.getElementById('logIndicator').title = 'Logs: Connection failed';
+      }
+    });
+    
+    return esLog;
+  }
+  
+  // 초기 연결
+  let stateES = connectStateSSE();
+  let logES = connectLogSSE();
+  
+  // 탭 활성화/비활성화 처리
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('[SSE] Tab became visible, checking connections...');
+      
+      // 연결이 끊어진 경우 재연결
+      if (stateES.readyState === EventSource.CLOSED) {
+        stateReconnectAttempts = 0;
+        stateES = connectStateSSE();
+      }
+      
+      if (logES.readyState === EventSource.CLOSED) {
+        logReconnectAttempts = 0;
+        logES = connectLogSSE();
+      }
+    } else {
+      console.log('[SSE] Tab became hidden');
     }
-
-    if (avgResponseEl) {
-        if (!historyRaw || historyRaw.length === 0) {
-            avgResponseEl.textContent = '-ms';
-            avgResponseEl.className = 'text-xl font-bold text-blue-700';
-        } else {
-            // 최근 성공한 실행들의 평균 응답시간 계산
-            const recentSuccessful = historyRaw
-                .filter(h => h.exitCode === 0 && h.stats && h.stats.avgResponseTime > 0)
-                .slice(0, 20);
-            
-            if (recentSuccessful.length > 0) {
-                const avgResponseTime = Math.round(
-                    recentSuccessful.reduce((sum, h) => sum + h.stats.avgResponseTime, 0) / recentSuccessful.length
-                );
-                avgResponseEl.textContent = `${avgResponseTime}ms`;
-                
-                // 응답시간에 따른 색상 변경
-                if (avgResponseTime < 1000) {
-                    avgResponseEl.className = 'text-xl font-bold text-green-700';
-                } else if (avgResponseTime < 3000) {
-                    avgResponseEl.className = 'text-xl font-bold text-yellow-700';
-                } else {
-                    avgResponseEl.className = 'text-xl font-bold text-red-700';
-                }
-            } else {
-                // 통계에서 랜덤 응답시간 사용 (기존 로직 유지)
-                const avgResponseTime = Math.round(Math.random() * 500 + 200);
-                avgResponseEl.textContent = `${avgResponseTime}ms`;
-                avgResponseEl.className = 'text-xl font-bold text-blue-700';
-            }
-        }
-    }
-
-    if (activeJobsEl) {
-        activeJobsEl.textContent = jobs ? jobs.length.toString() : '0';
-    }
-
-    if (todayRunsEl) {
-        if (!historyRaw || historyRaw.length === 0) {
-            todayRunsEl.textContent = '-';
-        } else {
-            // 오늘 실행된 작업 수 계산
-            const today = new Date().toDateString();
-            const todayCount = historyRaw.filter(h => {
-                if (!h.timestamp) return false;
-                const histDate = new Date(h.timestamp).toDateString();
-                return histDate === today;
-            }).length;
-            todayRunsEl.textContent = todayCount.toString();
-        }
-    }
+  });
+  
+  // 페이지 언로드 시 연결 정리
+  window.addEventListener('beforeunload', () => {
+    stateES.close();
+    logES.close();
+  });
+  
+  // 연결 상태 표시 추가 (HTML에 추가 필요)
+  const statusContainer = document.querySelector('.flex.items-center.space-x-2');
+  if (statusContainer) {
+    statusContainer.insertAdjacentHTML('beforeend', `
+      <div class="flex items-center space-x-1 text-xs">
+        <span class="text-slate-500">State:</span>
+        <div id="stateIndicator" class="w-2 h-2 bg-gray-400 rounded-full" title="State: Connecting..."></div>
+        <span class="text-slate-500">Logs:</span>
+        <div id="logIndicator" class="w-2 h-2 bg-gray-400 rounded-full" title="Logs: Connecting..."></div>
+      </div>
+    `);
+  }
 }
 
-        // 알림 표시
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
-            
-            const colors = {
-                success: 'bg-emerald-500 text-white',
-                error: 'bg-red-500 text-white',
-                warning: 'bg-amber-500 text-white',
-                info: 'bg-blue-500 text-white'
-            };
-            
-            notification.className += ` ${colors[type] || colors.info}`;
-            notification.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
-                        ✕
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.remove('translate-x-full');
-            }, 100);
-            
-            setTimeout(() => {
-                notification.classList.add('translate-x-full');
-                setTimeout(() => notification.remove(), 300);
-            }, 5000);
-        }
+// 네트워크 상태 확인
+function checkNetworkStatus() {
+  const isOnline = navigator.onLine;
+  console.log(`[NETWORK] Status: ${isOnline ? 'Online' : 'Offline'}`);
+  
+  if (!isOnline) {
+    document.getElementById('stateIndicator')?.classList.add('bg-yellow-400');
+    document.getElementById('logIndicator')?.classList.add('bg-yellow-400');
+  }
+}
 
-        // HTML 이스케이프
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+// 네트워크 상태 이벤트 리스너
+window.addEventListener('online', () => {
+  console.log('[NETWORK] Back online, reinitializing SSE...');
+  setTimeout(startSSE, 1000); // 1초 후 재연결
+});
 
-        // 페이지 언로드 시 정리
-        window.addEventListener('beforeunload', () => {
-            if (stateSource) stateSource.close();
-            if (logSource) logSource.close();
-        });
-    initializeWhenReady();
-    </script>
+window.addEventListener('offline', () => {
+  console.log('[NETWORK] Gone offline');
+  checkNetworkStatus();
+});
+
+// 초기 네트워크 상태 확인
+checkNetworkStatus();
+
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+    type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+  }`;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  setTimeout(() => notification.remove(), 3000);
+}
+
+// 이벤트 리스너 설정
+document.getElementById('jobSelect').onchange = updateJobSummary;
+
+document.getElementById('runBtn').onclick = async () => {
+  const name = document.getElementById('jobSelect').value;
+  clearAllConsoles();
+  if (!name) { 
+    alert('잡이 없습니다. jobs/*.json을 확인하세요.'); 
+    return; 
+  }
+  
+  try {
+    const response = await fetch('/api/run/' + name, { method: 'POST' });
+    if (!response.ok) {
+      const error = await response.json();
+      alert(`실행 실패: ${error.reason || '알 수 없는 오류'}`);
+    }
+  } catch (error) {
+    alert(`요청 실패: ${error.message}`);
+  }
+};
+
+document.getElementById('clearConsole').onclick = clearAllConsoles;
+document.getElementById('expandLogModal').onclick = openLogModal;
+document.getElementById('closeLogModal').onclick = closeLogModal;
+
+document.getElementById('scheduleToggle').onclick = () => {
+  document.getElementById('scheduleModal').classList.remove('hidden');
+  document.getElementById('scheduleModal').classList.add('flex');
+};
+
+document.getElementById('closeScheduleModal').onclick = () => {
+  document.getElementById('scheduleModal').classList.add('hidden');
+  document.getElementById('scheduleModal').classList.remove('flex');
+};
+
+document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const jobName = document.getElementById('modalJobSelect').value;
+  const cronExpr = document.getElementById('cronExpr').value.trim();
+  if (!jobName || !cronExpr) {
+    showNotification('모든 필드를 입력해주세요', 'error');
+    return;
+  }
+  await addSchedule(jobName, cronExpr);
+});
+
+document.getElementById('applyFilter').onclick = applyFilters;
+document.getElementById('resetFilter').onclick = resetFilters;
+document.getElementById('pageSize').onchange = () => {
+   pageSize = parseInt(document.getElementById('pageSize').value);
+  currentPage = 1; // 페이지 크기 변경 시 첫 페이지로
+  fetchHistory();
+};
+document.getElementById('searchText').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') applyFilters();
+});
+
+// 이벤트 위임 - 로그 링크와 모달 지우기 버튼
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('log-link')) {
+    e.preventDefault();
+    const logUrl = e.target.getAttribute('data-log-url');
+    if (logUrl) openLogWithAutoScroll(logUrl);
+  }
+  
+  if (e.target.id === 'clearModalConsole') {
+    clearAllConsoles();
+  }
+});
+
+// ESC 키로 모달 닫기
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (isModalOpen) {
+      closeLogModal();
+    } else if (!document.getElementById('scheduleModal').classList.contains('hidden')) {
+      document.getElementById('closeScheduleModal').click();
+    }
+  }
+});
+
+// 초기화 실행
+init();
+</script>
 </body>
 </html>
