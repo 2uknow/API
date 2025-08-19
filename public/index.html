@@ -241,6 +241,7 @@
   </div>
 
 <script>
+  
 const ansiUp = new AnsiUp();
 let jobs=[], running=null, pageSize=20, historyRaw=[], historyView=[];
 let currentPage = 1, totalPages = 1, totalItems = 0;
@@ -438,9 +439,9 @@ function renderHistory() {
         <td class="py-1 pr-4">${ok ? '<span class="text-emerald-700 text-sm">Success</span>' : '<span class="text-rose-700 text-sm">Failed</span>'}</td>
         <td class="py-1 pr-4 text-xs" title="${summaryTooltip}">${summaryDisplay}</td>
         <td class="py-1 pr-4 text-xs text-slate-600">${duration}</td>
-        <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">📊 HTML</a>') : ''}</td>
+        <td class="py-1 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-xs" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">HTML</a>') : ''}</td>
         <td class="py-1">
-          <a class="text-slate-700 underline text-xs log-link" href="#" data-log-url="/logs/${row.stdout}">📄 stdout</a>
+          <a class="text-slate-700 underline text-xs log-link" href="#" data-log-url="/logs/${row.stdout}">stdout</a>
         </td>
       </tr>`
     );
@@ -1064,4 +1065,176 @@ document.addEventListener('keydown', (e) => {
 init();
 </script>
 </body>
+
+
+  <footer class="bg-white border-t border-slate-200 mt-8">
+    <div class="max-w-full mx-auto px-6 py-6">
+
+      <!-- 성능 지표만 유지 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- 성공률 -->
+        <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-3 border border-blue-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-blue-600 font-medium">성공률</p>
+              <p id="successRate" class="text-lg font-bold text-blue-700">-</p>
+            </div>
+            <div class="text-blue-500">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 평균 응답시간 -->
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-green-600 font-medium">평균 응답시간</p>
+              <p id="avgResponseTime" class="text-lg font-bold text-green-700">-</p>
+            </div>
+            <div class="text-green-500">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 활성 잡 -->
+        <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 border border-purple-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-purple-600 font-medium">활성 잡</p>
+              <p id="activeJobs" class="text-lg font-bold text-purple-700">-</p>
+            </div>
+            <div class="text-purple-500">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오늘 실행 -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-3 border border-amber-100">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-amber-600 font-medium">오늘 실행</p>
+              <p id="todayRuns" class="text-lg font-bold text-amber-700">-</p>
+            </div>
+            <div class="text-amber-500">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 최하단: 시스템 정보 및 저작권 -->
+      <div class="border-t border-slate-200 pt-4">
+        <div class="flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 space-y-3 md:space-y-0">
+          <div class="flex flex-col md:flex-row items-center space-y-1 md:space-y-0 md:space-x-4">
+            <span class="font-medium">© 2025 Danal API Monitor</span>
+          </div>
+          
+          <!-- 개발자 정보 -->
+          <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
+            <div class="flex items-center space-x-3">
+              <span class="text-slate-400">Developed by</span>
+              <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-100">
+                  <div class="w-5 h-5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                  </div>
+                  <span class="text-blue-700 font-medium text-xs">2uknow</span>
+                </div>
+                <span class="text-slate-300">&</span>
+                <div class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-emerald-50 to-green-50 rounded-full border border-emerald-100">
+                  <div class="w-5 h-5 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                  </div>
+                  <span class="text-emerald-700 font-medium text-xs">hnkim</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex items-center space-x-2 text-slate-400">
+              <span>•</span>
+              <span id="currentTime" class="font-mono">-</span>
+            </div>
+          </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Footer 관련 JavaScript 함수들
+    
+    // 페이지 로드 시 footer 정보 업데이트
+    function updateFooterInfo() {
+      // 현재 시간 업데이트
+      const now = new Date();
+      document.getElementById('currentTime').textContent = now.toLocaleString('ko-KR');
+      
+      // 성능 지표 업데이트
+      updatePerformanceMetrics();
+    }
+    
+    // 성능 지표 업데이트
+    async function updatePerformanceMetrics() {
+      try {
+        // 최근 히스토리에서 성능 지표 계산
+        const response = await fetch('/api/history?size=50');
+        const data = await response.json();
+        const items = data.items || [];
+        
+        if (items.length > 0) {
+          // 성공률 계산
+          const successCount = items.filter(item => item.exitCode === 0).length;
+          const successRate = Math.round((successCount / items.length) * 100);
+          document.getElementById('successRate').textContent = successRate + '%';
+          
+          // 평균 응답시간 계산
+          const durations = items.filter(item => item.duration).map(item => item.duration);
+          if (durations.length > 0) {
+            const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+            document.getElementById('avgResponseTime').textContent = avgDuration.toFixed(1) + 's';
+          }
+          
+          // 오늘 실행 횟수
+          const today = new Date().toISOString().split('T')[0];
+          const todayItems = items.filter(item => item.timestamp && item.timestamp.startsWith(today));
+          document.getElementById('todayRuns').textContent = todayItems.length;
+        }
+        
+        // 활성 잡 수 (jobs에서 가져오기)
+        const jobsResponse = await fetch('/api/jobs');
+        const jobsData = await jobsResponse.json();
+        document.getElementById('activeJobs').textContent = jobsData.length || 0;
+        
+      } catch (error) {
+        console.error('성능 지표 업데이트 실패:', error);
+      }
+    }
+    
+    // 페이지 로드 시 실행 및 주기적 업데이트
+    document.addEventListener('DOMContentLoaded', function() {
+      updateFooterInfo();
+      
+      // 1분마다 시간 업데이트
+      setInterval(() => {
+        document.getElementById('currentTime').textContent = new Date().toLocaleString('ko-KR');
+      }, 60000);
+      
+      // 5분마다 성능 지표 업데이트
+      setInterval(updatePerformanceMetrics, 5 * 60 * 1000);
+    });
+  </script>
 </html>
