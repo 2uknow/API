@@ -1,0 +1,44 @@
+# SClient 간단한 테스트 시나리오 (YAML)
+name: "SClient 기본 연결 테스트"
+description: "SClient 바이너리를 사용한 기본 연결 및 응답 테스트"
+version: "1.0.0"
+
+# 변수 정의
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+
+# 시나리오 단계
+steps:
+  - name: "ITEMSEND2 - 기본 연결 테스트"
+    description: "SClient를 통한 기본 결제 서버 연결 테스트"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"      
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result=([0-9]+)"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo=([A-Fa-f0-9]+)"
+        variable: "SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "ERROR_MESSAGE"
+    
+    # 테스트 검증
+    test:
+      - "result exists"
+      - "result == 0"  # 결과 존재 확인
+      - "serverInfo exists"  # 서버 정보 존재 확인
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 15000
+  retryCount: 0

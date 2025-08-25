@@ -1,0 +1,162 @@
+# SClient 에러 케이스 테스트 시나리오
+name: "에러 상황 처리 테스트"
+description: "잘못된 인증, 잘못된 파라미터 등 다양한 에러 상황 테스트"
+version: "1.0.0"
+
+# 테스트용 변수 (의도적으로 잘못된 값 포함)
+variables:
+  VALID_MERCHANT_ID: "A010002002"
+  INVALID_MERCHANT_ID: "INVALID_ID"
+  
+  VALID_PWD: "bbbbb"
+  INVALID_PWD: "wrong_password"
+  
+  SERVICE_NAME: "TELEDIT"
+  TEST_EMAIL: "test@danal.co.kr"
+
+# 에러 테스트 단계
+steps:
+  # 1단계: 잘못된 상점ID 테스트
+  - name: "잘못된 상점ID 테스트"
+    description: "존재하지 않는 상점ID로 인증 시도"
+    command: "AUTH"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{INVALID_MERCHANT_ID}}"
+      PWD: "{{VALID_PWD}}"
+      AUTHTYPE: "MERCHANT"
+    
+    extract:
+      - name: "invalid_id_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "INVALID_ID_RESULT"
+      - name: "invalid_id_error"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "INVALID_ID_ERROR"
+    
+    test:
+      - "invalid_id_result exists"
+      - "INVALID_ID_RESULT == -1"  # 실패 예상
+      - "INVALID_ID_ERROR contains 'ID'"  # ID 관련 오류 메시지
+
+  # 2단계: 잘못된 비밀번호 테스트
+  - name: "잘못된 비밀번호 테스트"
+    description: "올바른 ID에 잘못된 비밀번호로 인증 시도"
+    command: "AUTH"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{VALID_MERCHANT_ID}}"
+      PWD: "{{INVALID_PWD}}"
+      AUTHTYPE: "MERCHANT"
+    
+    extract:
+      - name: "invalid_pwd_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "INVALID_PWD_RESULT"
+      - name: "invalid_pwd_error"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "INVALID_PWD_ERROR"
+    
+    test:
+      - "invalid_pwd_result exists"
+      - "INVALID_PWD_RESULT == -1"  # 실패 예상
+      - "INVALID_PWD_ERROR contains 'PWD'"  # 비밀번호 관련 오류
+
+  # 3단계: 필수 파라미터 누락 테스트
+  - name: "필수 파라미터 누락 테스트"
+    description: "필수 파라미터 없이 ITEMSEND2 실행"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{VALID_MERCHANT_ID}}"
+      PWD: "{{VALID_PWD}}"
+      # ItemInfo 파라미터 의도적으로 누락
+      ItemType: "Amount"
+      ItemCount: "1"
+    
+    extract:
+      - name: "missing_param_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "MISSING_PARAM_RESULT"
+      - name: "missing_param_error"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "MISSING_PARAM_ERROR"
+    
+    test:
+      - "missing_param_result exists"
+      - "MISSING_PARAM_RESULT == -1"  # 실패 예상
+      - "MISSING_PARAM_ERROR contains 'ItemInfo'"  # 파라미터 관련 오류
+
+  # 4단계: 잘못된 금액 형식 테스트
+  - name: "잘못된 금액 형식 테스트"
+    description: "문자열 금액으로 결제 요청"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{VALID_MERCHANT_ID}}"
+      PWD: "{{VALID_PWD}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      ItemInfo: "2|INVALID_AMOUNT|1|22S0HZ0100|테스트상품"  # 잘못된 금액
+      EMAIL: "{{TEST_EMAIL}}"
+    
+    extract:
+      - name: "invalid_amount_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "INVALID_AMOUNT_RESULT"
+      - name: "invalid_amount_error"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "INVALID_AMOUNT_ERROR"
+    
+    test:
+      - "invalid_amount_result exists"
+      - "INVALID_AMOUNT_RESULT == -1"  # 실패 예상
+      - "INVALID_AMOUNT_ERROR contains 'Amount'"  # 금액 관련 오류
+
+  # 5단계: 타임아웃 테스트
+  - name: "네트워크 타임아웃 테스트"
+    description: "매우 짧은 타임아웃으로 연결 시도"
+    command: "CONNECT"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{VALID_MERCHANT_ID}}"
+      PWD: "{{VALID_PWD}}"
+      TIMEOUT: "1"  # 1ms 타임아웃 (의도적으로 매우 짧게)
+    
+    extract:
+      - name: "timeout_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "TIMEOUT_RESULT"
+      - name: "timeout_error"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "TIMEOUT_ERROR"
+    
+    test:
+      - "timeout_result exists"
+      - "TIMEOUT_RESULT == -1"  # 실패 예상
+      - "TIMEOUT_ERROR contains 'timeout'"  # 타임아웃 관련 오류
+
+  # 6단계: 정상 케이스 (비교용)
+  - name: "정상 케이스 확인"
+    description: "올바른 파라미터로 정상 동작 확인"
+    command: "AUTH"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{VALID_MERCHANT_ID}}"
+      PWD: "{{VALID_PWD}}"
+      AUTHTYPE: "MERCHANT"
+    
+    extract:
+      - name: "normal_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "NORMAL_RESULT"
+    
+    test:
+      - "normal_result exists"
+      - "NORMAL_RESULT == 0"  # 성공 예상
+
+# 시나리오 옵션
+options:
+  stopOnError: false    # 에러 테스트이므로 계속 진행
+  timeout: 20000       # 20초 타임아웃
+  retryCount: 0        # 재시도 없음 (에러 상황 정확히 테스트)
