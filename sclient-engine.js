@@ -36,17 +36,61 @@ export class SClientScenarioEngine {
     }
   }
 
-  // 변수 치환 처리
+  // 변수 치환 처리 (JavaScript 표현식 지원)
   replaceVariables(text) {
     if (typeof text !== 'string') return text;
     
     return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+      // JavaScript 표현식 처리
+      if (varName.startsWith('js:')) {
+        try {
+          const jsCode = varName.substring(3).trim();
+          // 안전한 컨텍스트 제공
+          const context = {
+            Date, Math, parseInt, parseFloat, String, Number, Array, Object,
+            timestamp: Date.now(),
+            randomInt: Math.floor(Math.random() * 10000),
+            date: new Date().toISOString().substring(0, 10).replace(/-/g, ''),
+            time: new Date().toTimeString().substring(0, 8).replace(/:/g, ''),
+            env: process.env,
+            variables: Object.fromEntries(this.variables)
+          };
+          
+          // Function constructor를 사용하여 안전한 실행
+          const func = new Function(...Object.keys(context), `return (${jsCode})`);
+          const result = func(...Object.values(context));
+          return result !== undefined ? result.toString() : match;
+        } catch (error) {
+          this.log(`[JS ERROR] Failed to evaluate: ${varName} - ${error.message}`);
+          return match;
+        }
+      }
+      
       // 동적 변수 처리
       if (varName === '$timestamp') {
         return Date.now().toString();
       }
       if (varName === '$randomInt') {
         return Math.floor(Math.random() * 10000).toString();
+      }
+      if (varName === '$randomId') {
+        return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+      }
+      if (varName === '$dateTime') {
+        return new Date().toISOString().replace(/[-:T]/g, '').substring(0, 14);
+      }
+      if (varName === '$date') {
+        return new Date().toISOString().substring(0, 10).replace(/-/g, '');
+      }
+      if (varName === '$time') {
+        return new Date().toTimeString().substring(0, 8).replace(/:/g, '');
+      }
+      if (varName === '$uuid') {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
       }
       
       // 일반 변수 처리
@@ -59,22 +103,29 @@ export class SClientScenarioEngine {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
       
-      // 명령어 인수 생성
-      const cmdArgs = [];
+      // 명령어 인수 생성 - SClient는 세미콜론으로 구분된 하나의 문자열을 받음
+      const cmdPairs = [];
+      
+      // YAML args를 순서대로 그대로 처리 (특별한 변환 없이)
       Object.entries(args).forEach(([key, value]) => {
         const processedValue = this.replaceVariables(value);
-        cmdArgs.push(`${key}=${processedValue}`);
+        cmdPairs.push(`${key}=${processedValue}`);
       });
+      
+      // 세미콜론으로 구분된 하나의 문자열로 조합
+      const cmdString = cmdPairs.join(';');
+      const cmdArgs = [cmdString];
 
       this.emit('step-start', {
         name: requestName,
         command,
-        arguments: cmdArgs,
+        arguments: cmdPairs,
+        cmdString,
         timestamp: new Date().toISOString()
       });
 
       this.log(`[STEP START] ${requestName} - Command: ${command}`);
-      this.log(`[ARGUMENTS] ${cmdArgs.join(';')}`);
+      this.log(`[COMMAND STRING] ${cmdString}`);
 
       const proc = spawn(this.binaryPath, cmdArgs, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -122,7 +173,8 @@ export class SClientScenarioEngine {
         const result = {
           name: requestName,
           command,
-          arguments: cmdArgs,
+          arguments: cmdPairs,
+          cmdString,
           exitCode: code,
           stdout,
           stderr,
@@ -170,14 +222,35 @@ export class SClientScenarioEngine {
       const { name, pattern, variable } = extractor;
       
       try {
-        const regex = new RegExp(pattern);
-        const match = response.stdout.match(regex);
+        let value = null;
         
-        if (match && match[1]) {
-          const value = match[1];
+        // 간단한 키워드 기반 추출 (예: "Result" → response.parsed.result)
+        if (!pattern.includes('\\') && !pattern.includes('(') && !pattern.includes('[')) {
+          // 단순 키워드인 경우 parsed 객체에서 직접 가져오기 (대소문자 무관)
+          const key = pattern.toLowerCase();
+          if (response.parsed && response.parsed[key] !== undefined) {
+            value = response.parsed[key];
+            this.log(`[EXTRACT SIMPLE] ${name}: Found ${key} = ${value}`);
+          } else {
+            // 디버깅을 위해 사용 가능한 키들 출력
+            const availableKeys = Object.keys(response.parsed || {});
+            this.log(`[EXTRACT DEBUG] ${name}: Pattern '${pattern}' (key: '${key}') not found. Available keys: ${availableKeys.join(', ')}`);
+          }
+        } else {
+          // 정규표현식 패턴인 경우 기존 방식 사용
+          const regex = new RegExp(pattern);
+          const match = response.stdout.match(regex);
+          
+          if (match && match[1]) {
+            value = match[1];
+            this.log(`[EXTRACT REGEX] ${name}: Pattern matched = ${value}`);
+          }
+        }
+        
+        if (value !== null) {
           this.variables.set(variable, value);
           extracted[variable] = value;
-          this.log(`[EXTRACT] ${name}: ${variable} = ${value}`);
+          this.log(`[EXTRACT SUCCESS] ${name}: ${variable} = ${value}`);
         } else {
           this.log(`[EXTRACT FAILED] ${name}: Pattern "${pattern}" not found`);
         }
@@ -190,7 +263,7 @@ export class SClientScenarioEngine {
   }
 
   // 테스트 실행 (tests 처리)
-  runTests(response, tests = []) {
+  runTests(response, tests = [], extracted = {}) {
     const testResults = [];
     
     tests.forEach(test => {
@@ -207,6 +280,8 @@ export class SClientScenarioEngine {
             } catch (err) {
               testResults.push({ name: testName, passed: false, error: err.message });
               this.log(`[TEST FAIL] ${testName}: ${err.message}`);
+              this.log(`[DEBUG] PM Response: ${JSON.stringify(pm.response, null, 2)}`);
+              this.log(`[DEBUG] Extracted variables: ${JSON.stringify(extracted, null, 2)}`);
             }
           },
           expect: (actual) => ({
@@ -216,7 +291,17 @@ export class SClientScenarioEngine {
                   throw new Error(`Expected "${expected}" but got "${actual}"`);
                 }
               },
+              exist: () => {
+                if (actual === undefined || actual === null) {
+                  throw new Error(`Expected value to exist but got "${actual}"`);
+                }
+              },
               not: {
+                equal: (expected) => {
+                  if (String(actual) === String(expected)) {
+                    throw new Error(`Expected "${actual}" to not equal "${expected}"`);
+                  }
+                },
                 be: {
                   empty: () => {
                     if (!actual || actual.length === 0) {
@@ -232,7 +317,42 @@ export class SClientScenarioEngine {
               }
             }
           }),
-          response: response.parsed
+          // JavaScript 조건부 테스트 지원
+          satisfyCondition: (condition) => {
+            try {
+              // 응답 데이터를 컨텍스트로 제공
+              const context = {
+                result: response.parsed.result,
+                serverinfo: response.parsed.serverinfo,
+                errmsg: response.parsed.errmsg,
+                response: response.parsed,
+                actual: actual,
+                Date, Math, parseInt, parseFloat, String, Number
+              };
+              
+              const func = new Function(...Object.keys(context), `return (${condition})`);
+              const conditionResult = func(...Object.values(context));
+              
+              if (!conditionResult) {
+                throw new Error(`Condition failed: ${condition} (actual: ${actual})`);
+              }
+            } catch (error) {
+              throw new Error(`Condition error: ${condition} - ${error.message}`);
+            }
+          },
+          variables: {
+            get: (key) => this.variables.get(key)
+          },
+          response: {
+            // SClient 응답 필드를 PM 형식으로 매핑
+            result: response.parsed.result,
+            serverinfo: response.parsed.serverinfo,
+            errmsg: response.parsed.errmsg,
+            // 전체 파싱된 응답도 접근 가능하게
+            ...response.parsed,
+            // 추출된 변수들도 포함
+            ...extracted
+          }
         };
 
         // 스크립트 실행
@@ -298,8 +418,8 @@ export class SClientScenarioEngine {
         // 변수 추출
         const extracted = this.extractVariables(response, request.extractors);
 
-        // 테스트 실행
-        const testResults = this.runTests(response, request.tests);
+        // 테스트 실행 (추출된 변수들도 전달)
+        const testResults = this.runTests(response, request.tests, extracted);
 
         const stepResult = {
           step: stepNumber,

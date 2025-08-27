@@ -222,7 +222,7 @@ export class SimpleYAMLParser {
           step.test.forEach((test, testIndex) => {
             request.tests.push({
               name: `Test ${testIndex + 1}`,
-              script: this.convertTestExpression(test)
+              script: this.convertTestExpression(test, request.extractors)
             });
           });
         }
@@ -237,40 +237,118 @@ export class SimpleYAMLParser {
   /**
    * 간단한 테스트 표현식을 PM 스크립트로 변환
    */
-  static convertTestExpression(expression) {
+  static convertTestExpression(expression, extractors = []) {
     // 간단한 표현식을 PM 테스트로 변환
     if (typeof expression !== 'string') {
       return `pm.test('Custom test', function() { /* ${JSON.stringify(expression)} */ });`;
     }
 
-    // result == 0
-    if (expression.match(/^result\s*==\s*(.+)$/)) {
-      const expectedValue = RegExp.$1.trim();
-      return `pm.test('Result should be ${expectedValue}', function() { pm.expect(pm.response.result).to.equal('${expectedValue}'); });`;
-    }
+    // 변수명을 한국어로 매핑
+    const getVariableDisplayName = (variable) => {
+      const nameMap = {
+        'RESULT_CODE': '응답 코드',
+        'SERVER_INFO': '서버 정보', 
+        'ERROR_MESSAGE': '오류 메시지',
+        'RESPONSE_TIME': '응답 시간',
+        'ITEM_COUNT': '아이템 개수',
+        'TOTAL_AMOUNT': '총 금액',
+        'MULTI_RESULT': '다중 결과',
+        'FAIL_RESULT': '테스트 결과'
+      };
+      return nameMap[variable] || variable;
+    };
 
-    // serverInfo exists
+    // 추출기에서 변수에 대응하는 응답 필드명 찾기
+    const getResponseField = (variable) => {
+      const extractor = extractors.find(ext => ext.variable === variable);
+      return extractor ? extractor.name : variable.toLowerCase();
+    };
+
+    // 변수 존재 여부 체크: VARIABLE_NAME exists
     if (expression.match(/^(\w+)\s+exists$/)) {
-      const fieldName = RegExp.$1;
-      return `pm.test('${fieldName} should exist', function() { pm.expect(pm.response.${fieldName.toLowerCase()}).to.not.be.undefined; });`;
+      const variable = RegExp.$1;
+      const friendlyName = getVariableDisplayName(variable);
+      const responseField = getResponseField(variable);
+      
+      return `pm.test('${friendlyName} 필드 존재 검증', function() {
+        console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+        const value = pm.response.${responseField};
+        console.log('실제 ${responseField} 값:', value);
+        pm.expect(value, '${friendlyName} 필드가 정의되지 않음').to.not.be.undefined;
+        pm.expect(value, '${friendlyName} 필드가 null 값임').to.not.be.null;
+      });`;
     }
 
-    // errMsg not contains '오류'
-    if (expression.match(/^(\w+)\s+not\s+contains\s+['"](.+)['"]$/)) {
-      const fieldName = RegExp.$1;
-      const text = RegExp.$2;
-      return `pm.test('${fieldName} should not contain "${text}"', function() { pm.expect(pm.response.${fieldName.toLowerCase()}).to.not.contain('${text}'); });`;
-    }
-
-    // authResult == 1
+    // 변수 값 비교: VARIABLE_NAME == value
     if (expression.match(/^(\w+)\s*==\s*(.+)$/)) {
-      const fieldName = RegExp.$1;
+      const variable = RegExp.$1;
       const expectedValue = RegExp.$2.trim();
-      return `pm.test('${fieldName} should be ${expectedValue}', function() { pm.expect(pm.response.${fieldName.toLowerCase()}).to.equal('${expectedValue}'); });`;
+      const friendlyName = getVariableDisplayName(variable);
+      const responseField = getResponseField(variable);
+      
+      return `pm.test('${friendlyName}이(가) ${expectedValue}이어야 함', function() {
+        console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+        const actualValue = pm.response.${responseField};
+        console.log('기대값:', ${expectedValue});
+        console.log('실제값:', actualValue);
+        pm.expect(actualValue, '${friendlyName} 값이 다름 - 기대: ${expectedValue}, 실제: ' + actualValue).to.equal(${expectedValue});
+      });`;
+    }
+
+    // 변수 값 불일치: VARIABLE_NAME != value
+    if (expression.match(/^(\w+)\s*!=\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const notExpectedValue = RegExp.$2.trim();
+      const friendlyName = getVariableDisplayName(variable);
+      const responseField = getResponseField(variable);
+      
+      return `pm.test('${friendlyName}이(가) ${notExpectedValue}이 아니어야 함', function() {
+        console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+        const actualValue = pm.response.${responseField};
+        console.log('예상하지 않은 값:', ${notExpectedValue});
+        console.log('실제값:', actualValue);
+        pm.expect(actualValue, '${friendlyName}이(가) ${notExpectedValue}과 같음').to.not.equal(${notExpectedValue});
+      });`;
+    }
+
+    // 문자열 포함 검사: VARIABLE_NAME contains "text"
+    if (expression.match(/^(\w+)\s+contains\s+['"](.+)['"]$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2;
+      const friendlyName = getVariableDisplayName(variable);
+      const responseField = getResponseField(variable);
+      
+      return `pm.test('${friendlyName} 텍스트 포함 검증: "${text}"', function() {
+        console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+        const actualValue = pm.response.${responseField};
+        console.log('찾는 텍스트:', '${text}');
+        console.log('실제값:', actualValue);
+        pm.expect(actualValue, '${friendlyName}에서 "${text}"을 찾을 수 없음').to.contain('${text}');
+      });`;
+    }
+
+    // 문자열 미포함 검사: VARIABLE_NAME not contains "text"
+    if (expression.match(/^(\w+)\s+not\s+contains\s+['"](.+)['"]$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2;
+      const friendlyName = getVariableDisplayName(variable);
+      const responseField = getResponseField(variable);
+      
+      return `pm.test('${friendlyName} 텍스트 미포함 검증: "${text}"', function() {
+        console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+        const actualValue = pm.response.${responseField};
+        console.log('포함하지 말아야 할 텍스트:', '${text}');
+        console.log('실제값:', actualValue);
+        pm.expect(actualValue, '${friendlyName}에서 "${text}"가 발견됨').to.not.contain('${text}');
+      });`;
     }
 
     // 기본 테스트
-    return `pm.test('${expression}', function() { /* ${expression} */ });`;
+    return `pm.test('${expression}', function() { 
+      console.log('테스트 요청 인자:', JSON.stringify(pm.request.data || pm.request.body || {}, null, 2));
+      console.log('테스트 표현식:', '${expression}');
+      /* ${expression} */ 
+    });`;
   }
 
   /**

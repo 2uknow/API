@@ -1,5 +1,12 @@
 # 📋 SClient YAML 시나리오 완전 가이드
 
+> **🆕 최신 업데이트 (2025-08-27)**  
+> - 간단한 키워드 추출 방식 도입 (정규식 불필요)
+> - 변수 매핑 시스템 간소화 (복잡한 테이블 제거)
+> - PM 객체 매핑 문제 해결
+> - CAP 필드 대소문자 문제 해결
+> - HTML 리포트에 변수명 영어 표시 개선
+
 ## 📖 목차
 1. [기본 구조](#기본-구조)
 2. [Variables 섹션](#variables-섹션)
@@ -177,68 +184,103 @@ extract:
 
 ### 주요 추출 패턴들
 
-#### 1. 결과 코드 추출
+#### 1. 간단한 키워드 추출 (권장)
 ```yaml
 extract:
-  - name: "result_code"
-    pattern: "Result=([0-9-]+)"
-    variable: "RESULT"
+  # ✅ 새로운 간단한 방식 (2025-08-27 업데이트)
+  - name: "result"
+    pattern: "Result"              # 키워드만으로 추출
+    variable: "RESULT_CODE"
+  
+  - name: "serverInfo"
+    pattern: "ServerInfo"          # 키워드만으로 추출
+    variable: "SERVER_INFO"
+  
+  - name: "errMsg"
+    pattern: "ErrMsg"              # 키워드만으로 추출
+    variable: "ERROR_MESSAGE"
   
   # 사용 예시:
-  # 응답: "Result=0"
-  # 결과: RESULT = "0"
+  # 응답: "Result=0\r\nServerInfo=abcd1234\r\nErrMsg=Invalid Password\r\n"
+  # 결과: 
+  # - RESULT_CODE = "0"
+  # - SERVER_INFO = "abcd1234" 
+  # - ERROR_MESSAGE = "Invalid Password"
 ```
 
-#### 2. 문자열 데이터 추출
+#### 2. 복잡한 정규식 방식 (기존 호환)
 ```yaml
 extract:
+  # ❌ 복잡한 기존 방식 (호환성을 위해 지원)
+  - name: "result_code"
+    pattern: "Result\\s*=\\s*([0-9-]+)"
+    variable: "RESULT"
+  
   - name: "auth_key"
     pattern: "AuthKey=([A-Za-z0-9]+)"
     variable: "AUTH_KEY"
   
-  # 사용 예시:
-  # 응답: "AuthKey=DN200324085309B01EA8"
-  # 결과: AUTH_KEY = "DN200324085309B01EA8"
-```
-
-#### 3. 에러 메시지 추출
-```yaml
-extract:
-  - name: "error_message"
-    pattern: "ErrMsg=(.+?)[\r\n]"
+  - name: "error_message"  
+    pattern: "ErrMsg=(.+?)[\\r\\n]"
     variable: "ERROR_MSG"
-  
-  # 사용 예시:
-  # 응답: "ErrMsg=Invalid Password\r\n"
-  # 결과: ERROR_MSG = "Invalid Password"
 ```
 
-#### 4. 숫자 데이터 추출
+#### 3. 추출 방식 선택 가이드
 ```yaml
+# ✅ 권장: 간단한 키워드 방식
+# - 읽기 쉽고 실수 위험이 적음
+# - 대소문자 구분 없이 자동 매칭
+# - 정규식 지식 불필요
+
 extract:
-  - name: "amount"
-    pattern: "Amount=([0-9]+)"
-    variable: "FINAL_AMOUNT"
-  
-  - name: "transaction_id"
-    pattern: "TID=([A-Za-z0-9]+)"
-    variable: "TID"
+  - name: "result"
+    pattern: "Result"              # 간단!
+    variable: "RESULT_CODE"
+
+# ❌ 비권장: 복잡한 정규식
+# - 정규식 문법 실수 위험
+# - 대소문자 민감
+# - 유지보수 어려움
+
+extract:  
+  - name: "result"
+    pattern: "Result\\s*=\\s*([0-9-]+)"  # 복잡하고 실수하기 쉬움
+    variable: "RESULT_CODE"
 ```
 
-#### 5. 복합 데이터 추출
+#### 4. 자주 사용하는 키워드들
 ```yaml
 extract:
-  - name: "server_info"
-    pattern: "ServerInfo=([A-Fa-f0-9]+)"
+  # 기본 응답 필드들
+  - name: "result"
+    pattern: "Result"
+    variable: "RESULT_CODE"
+  
+  - name: "serverInfo"  
+    pattern: "ServerInfo"
     variable: "SERVER_INFO"
+    
+  - name: "errMsg"
+    pattern: "ErrMsg" 
+    variable: "ERROR_MESSAGE"
   
-  - name: "response_time"
-    pattern: "ResponseTime=([0-9]+)ms"
-    variable: "RESPONSE_TIME"
+  # 인증 관련
+  - name: "authKey"
+    pattern: "AuthKey"
+    variable: "AUTH_KEY"
+    
+  - name: "tid"
+    pattern: "TID"
+    variable: "TRANSACTION_ID"
   
-  - name: "status"
-    pattern: "Status=([A-Z_]+)"
-    variable: "STATUS"
+  # 추가 필드들
+  - name: "cap"
+    pattern: "CAP"                 # 대소문자 무관하게 자동 매칭
+    variable: "CAP_CODE"
+    
+  - name: "ansimmember"
+    pattern: "ANSIMMEMBER"
+    variable: "ANSIM_MEMBER"
 ```
 
 ### 정규표현식 패턴 가이드
@@ -362,7 +404,591 @@ test:
   - "date matches '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'"
 ```
 
-### 6. 복합 조건 테스트
+### 6. JavaScript 조건부 테스트 (고급)
+
+JavaScript 표현식을 사용하여 복잡한 조건 로직을 구현할 수 있습니다.
+
+#### 기본 JavaScript 테스트 문법
+```yaml
+test:
+  - "js: JavaScript_조건식"
+```
+
+#### 사용 가능한 변수들
+테스트에서 사용할 수 있는 JavaScript 변수들:
+
+```yaml
+test:
+  # extract 섹션에서 추출된 변수들을 JavaScript에서 사용
+  - "js: result == '0'"          # RESULT_CODE -> result
+  - "js: serverinfo.length > 0"  # SERVER_INFO -> serverinfo  
+  - "js: errmsg.includes('ERROR')" # ERROR_MESSAGE -> errmsg
+  - "js: authkey.startsWith('DN')" # AUTH_KEY -> authkey
+```
+
+**변수 매핑 규칙 (2025-08-27 간소화):**
+- 추출된 변수명을 소문자로 변환: `RESULT_CODE` → `result`
+- 언더스코어 제거: `SERVER_INFO` → `serverinfo`
+- `ERROR_MESSAGE` → `errmsg` (단순 소문자 변환)
+- 복잡한 매핑 테이블 제거, 대소문자 변환만 수행
+
+#### JavaScript 조건부 테스트 예제
+
+##### 1. 기본 조건문
+```yaml
+test:
+  # 성공(0) 또는 테스트 환경 에러(3)만 허용
+  - "js: result == '0' || result == '3'"
+  
+  # 실패시에만 에러메시지 필수
+  - "js: result == '0' || (result != '0' && errmsg && errmsg.length > 0)"
+  
+  # 성공이면 serverinfo 필드가 존재해야 하고, 실패시에는 errmsg 필드가 존재해야 함
+  - "js: (result == '0' && serverinfo) || (result != '0' && errmsg)"
+```
+
+##### 2. 조건부 검증 로직
+```yaml
+test:
+  # result가 0이면 serverinfo 체크 안함, 0이 아니면 serverinfo 필수
+  - "js: result == '0' || (result != '0' && serverinfo && serverinfo.length > 0)"
+  
+  # 삼항 연산자 사용
+  - "js: result == '0' ? true : (serverinfo && serverinfo.length > 0)"
+  
+  # 특정 에러코드들만 허용
+  - "js: ['0', '3', '1001', '1002'].includes(result)"
+```
+
+##### 3. 문자열 검증
+```yaml
+test:
+  # 정규식 매칭
+  - "js: /^DN[A-Z0-9]{16}$/.test(authkey)"
+  
+  # 문자열 포함 검사
+  - "js: result == '0' || errmsg.includes('TEST')"
+  
+  # 대소문자 무시하고 포함 검사
+  - "js: errmsg.toLowerCase().includes('invalid')"
+  
+  # 여러 키워드 중 하나라도 포함
+  - "js: ['timeout', 'network', 'connection'].some(keyword => errmsg.toLowerCase().includes(keyword))"
+```
+
+##### 4. 시간 기반 조건
+```yaml
+test:
+  # 업무시간(9-18시)에만 엄격한 체크
+  - "js: new Date().getHours() < 9 || new Date().getHours() > 18 || result == '0'"
+  
+  # 주말에는 테스트 에러(3) 허용
+  - "js: result == '0' || ([0, 6].includes(new Date().getDay()) && result == '3')"
+  
+  # 오전에는 다른 조건, 오후에는 다른 조건
+  - "js: new Date().getHours() < 12 ? result == '0' : (result == '0' || result == '3')"
+```
+
+##### 5. 복합 조건 검증
+```yaml
+test:
+  # 성공 케이스: result=0이고 authkey 필드가 존재해야 함
+  # 실패 케이스: result!=0이고 errmsg 필드가 존재해야 함
+  - "js: (result == '0' && authkey && authkey.length > 10) || (result != '0' && errmsg && errmsg.length > 0)"
+  
+  # 금액별 다른 검증 로직 (변수 사용)
+  - "js: amount <= 1000 ? result == '0' : (result == '0' && serverinfo)"
+  
+  # 여러 필드 조합 검증
+  - "js: result == '0' && authkey && tid && (!errmsg || errmsg.length == 0)"
+```
+
+##### 6. 실전 활용 예제
+
+**ITEMSEND2 단계에서의 JavaScript 테스트:**
+```yaml
+steps:
+  - name: "ITEMSEND2 - 결제 요청"
+    command: "ITEMSEND2"
+    args:
+      # ... 기본 설정
+    
+    extract:
+      - name: "result"
+        pattern: "Result\\s*=\\s*([0-9-]+)"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo=([A-Fa-f0-9]+)"
+        variable: "SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg=(.+?)[\\r\\n]"
+        variable: "ERROR_MESSAGE"
+      - name: "authKey"
+        pattern: "AuthKey=([A-Za-z0-9]+)"
+        variable: "AUTH_KEY"
+    
+    test:
+      # 기본 존재 확인
+      - "RESULT_CODE exists"
+      
+      # JavaScript 조건부 테스트들
+      # 성공시 serverinfo와 authkey 필수, 실패시 errmsg 필수
+      - "js: (result == '0' && serverinfo && authkey) || (result != '0' && errmsg)"
+      
+      # 성공(0) 또는 테스트 환경 에러(3)만 허용
+      - "js: result == '0' || result == '3'"
+      
+      # authkey 형식 검증 (성공시에만)
+      - "js: result != '0' || (authkey && authkey.startsWith('DN') && authkey.length >= 16)"
+      
+      # 업무시간에만 엄격한 검증
+      - "js: new Date().getHours() < 9 || new Date().getHours() > 17 || result == '0'"
+```
+
+#### JavaScript에서 사용 가능한 Built-in 객체들
+
+##### Date 객체
+```yaml
+test:
+  # 현재 시간 정보
+  - "js: new Date().getHours() >= 9"      # 현재 시간(시)
+  - "js: new Date().getDay() != 0"        # 일요일 아님 (0=일요일)
+  - "js: new Date().getMonth() == 7"      # 8월 (0부터 시작)
+  - "js: new Date().getFullYear() >= 2024" # 2024년 이후
+```
+
+##### Math 객체  
+```yaml
+test:
+  # 숫자 계산
+  - "js: Math.abs(Number(amount) - 1000) < 100"  # 오차 범위 내
+  - "js: Math.floor(Number(result)) >= 0"        # 정수 부분이 0 이상
+  - "js: Math.random() > 0.5 || result == '0'"   # 50% 확률로 관대한 검증
+```
+
+##### Array 메서드
+```yaml
+test:
+  # 배열 검사
+  - "js: ['0', '3', '1001'].includes(result)"
+  - "js: ['DN', 'KT', 'LG'].some(prefix => authkey.startsWith(prefix))"
+  - "js: ['ERROR', 'FAIL', 'TIMEOUT'].every(keyword => !errmsg.includes(keyword))"
+```
+
+##### String 메서드
+```yaml
+test:
+  # 문자열 처리
+  - "js: authkey.toUpperCase().startsWith('DN')"
+  - "js: errmsg.trim().length > 0"
+  - "js: serverinfo.slice(0, 4) == 'abcd'"
+  - "js: result.padStart(3, '0') == '000'"
+```
+
+#### JavaScript 테스트 모범 사례
+
+##### ✅ 좋은 JavaScript 테스트 예제
+```yaml
+test:
+  # 1. 기본 존재 확인 먼저
+  - "result exists"
+  - "serverinfo exists"
+  
+  # 2. JavaScript 조건부 검증
+  - "js: result == '0' || (result == '3' && errmsg && errmsg.includes('TEST'))"
+  
+  # 3. 구체적인 조건
+  - "js: result == '0' ? authkey && authkey.length > 10 : errmsg && errmsg.length > 5"
+  
+  # 4. 성능 고려 (단순한 조건부터)
+  - "js: result == '0' || new Date().getHours() < 9"
+```
+
+##### ❌ 피해야 할 JavaScript 테스트
+```yaml
+test:
+  # 존재 확인 없이 바로 JavaScript 사용 (에러 위험)
+  - "js: result == '0' && serverinfo.length > 0"
+  
+  # 너무 복잡한 로직 (가독성 저하)
+  - "js: (result == '0' && serverinfo && authkey && tid && amount > 0 && new Date().getHours() > 8) || (result != '0' && errmsg && errmsg.includes('ERROR') && !errmsg.includes('TIMEOUT'))"
+  
+  # 하드코딩된 값들
+  - "js: result == '0' || result == '1001' || result == '2003' || result == '5007'"
+```
+
+#### 디버깅 팁
+
+##### JavaScript 테스트 디버깅
+```yaml
+test:
+  # 디버깅용: 모든 변수 값 출력
+  - "js: console.log('DEBUG:', {result, serverinfo, errmsg, authkey}) || true"
+  
+  # 조건별 디버깅
+  - "js: result == '0' || (console.log('Failed result:', result) && false)"
+  
+  # 단계적 조건 확인
+  - "js: result == '0'"  # 첫 번째 조건만
+  - "js: result == '0' || result == '3'"  # 두 번째 조건 추가
+  - "js: result == '0' || (result == '3' && errmsg)"  # 세 번째 조건 추가
+```
+
+##### 실제 프로덕션에서 사용하는 패턴들
+```yaml
+# 현재 사용중인 패턴 (collections/simple_api_test.yaml에서)
+test:
+  # 성공시 serverinfo 필수, 실패시 errmsg 필수
+  - "js: (result == '0' && serverinfo && serverinfo.length > 0) || (result != '0' && errmsg && errmsg.length > 0)"
+  
+  # 성공(0) 또는 테스트환경 에러(3)만 허용  
+  - "js: result == '0' || result == '3'"
+```
+
+## 🎯 JavaScript 테스트 초보자 가이드
+
+### 단계별 JavaScript 테스트 작성법
+
+#### Step 1: 기본 변수 확인부터 시작
+
+먼저 어떤 변수들이 추출되었는지 확인해보세요:
+
+```yaml
+# extract 섹션에서 이런 변수들을 추출했다면
+extract:
+  - name: "result"
+    pattern: "Result\\s*=\\s*([0-9-]+)"
+    variable: "RESULT_CODE"           # 이것이 JavaScript에서는 'result'가 됩니다
+  - name: "serverInfo"
+    pattern: "ServerInfo=([A-Fa-f0-9]+)"
+    variable: "SERVER_INFO"           # 이것이 JavaScript에서는 'serverinfo'가 됩니다
+  - name: "errMsg"
+    pattern: "ErrMsg=(.+?)[\\r\\n]"
+    variable: "ERROR_MESSAGE"         # 이것이 JavaScript에서는 'errmsg'가 됩니다
+
+# 기본 존재 확인 (이것부터 먼저 하세요!)
+test:
+  - "RESULT_CODE exists"      # 변수가 존재하는지 확인
+  - "SERVER_INFO exists"      # 변수가 존재하는지 확인
+  - "ERROR_MESSAGE exists"    # 변수가 존재하는지 확인
+```
+
+#### Step 2: 간단한 JavaScript 조건부터 시작
+
+```yaml
+test:
+  # 먼저 기본 존재 확인
+  - "RESULT_CODE exists"
+  
+  # 1️⃣ 가장 간단한 JavaScript 테스트: 성공 여부만 확인
+  - "js: result == '0'"
+  
+  # 위 코드의 의미:
+  # - result 변수의 값이 '0'(성공)인지 확인
+  # - 주의: 숫자가 아니라 문자열 '0'으로 비교!
+```
+
+#### Step 3: OR 조건 추가하기
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  
+  # 2️⃣ 성공(0) 또는 다른 허용 코드(3) 체크
+  - "js: result == '0' || result == '3'"
+  
+  # 위 코드의 의미:
+  # - result가 '0'이면 통과 OR result가 '3'이면 통과
+  # - ||는 OR 의미 (둘 중 하나라도 참이면 통과)
+```
+
+#### Step 4: 조건부 검증 (IF-THEN 로직)
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  - "SERVER_INFO exists"
+  
+  # 3️⃣ IF-THEN 로직: 성공시 serverinfo 필드 존재 검증
+  - "js: result == '0' ? serverinfo.length > 0 : true"
+  
+  # 위 코드를 풀어서 설명하면:
+  # IF (result == '0')    → 성공이면
+  # THEN serverinfo.length > 0  → serverinfo 필드가 1글자 이상의 값을 포함해야 함
+  # ELSE true             → 실패면 이 조건은 통과
+  
+  # 삼항 연산자: 조건 ? 참일때값 : 거짓일때값
+```
+
+#### Step 5: AND 조건 사용하기
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  - "SERVER_INFO exists"
+  - "ERROR_MESSAGE exists"
+  
+  # 4️⃣ AND 조건: 모든 조건이 다 맞아야 함
+  - "js: result == '0' && serverinfo && serverinfo.length > 0"
+  
+  # 위 코드의 의미:
+  # - result가 '0'이어야 하고 (&&)
+  # - serverinfo가 존재해야 하고 (&&)  
+  # - serverinfo 필드가 1글자 이상의 값을 포함해야 함
+  # - 세 조건이 모두 참이어야 통과
+```
+
+#### Step 6: 복합 조건 (OR + AND 조합)
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  - "SERVER_INFO exists"
+  - "ERROR_MESSAGE exists"
+  
+  # 5️⃣ 복합 조건: 성공이면 serverinfo 필수, 실패면 errmsg 필수
+  - "js: (result == '0' && serverinfo) || (result != '0' && errmsg)"
+  
+  # 위 코드를 풀어서 설명하면:
+  # (result == '0' && serverinfo)     → 성공이고 serverinfo가 있으면 통과
+  #           OR
+  # (result != '0' && errmsg)         → 실패이고 errmsg가 있으면 통과
+  # 
+  # 괄호()는 우선순위를 정합니다!
+```
+
+### 🔍 실전 예제로 배우기
+
+#### 예제 1: 단순한 성공/실패 체크
+
+```yaml
+# 상황: ITEMSEND2 결제 요청 후 결과만 확인하고 싶음
+steps:
+  - name: "결제 요청"
+    command: "ITEMSEND2"
+    args:
+      # ... 기본 설정
+    
+    extract:
+      - name: "result"
+        pattern: "Result\\s*=\\s*([0-9-]+)"
+        variable: "RESULT_CODE"
+    
+    test:
+      - "RESULT_CODE exists"        # 기본 확인
+      - "js: result == '0'"         # 성공만 허용
+```
+
+#### 예제 2: 여러 성공 코드 허용
+
+```yaml
+# 상황: 성공(0)과 테스트 환경 에러(3) 둘 다 허용하고 싶음
+test:
+  - "RESULT_CODE exists"
+  - "js: result == '0' || result == '3'"
+  
+# 더 많은 코드를 허용하려면:
+test:
+  - "RESULT_CODE exists"  
+  - "js: result == '0' || result == '3' || result == '1001'"
+  
+# 또는 배열을 사용해서 깔끔하게:
+test:
+  - "RESULT_CODE exists"
+  - "js: ['0', '3', '1001'].includes(result)"
+```
+
+#### 예제 3: 조건부 필드 검증
+
+```yaml
+# 상황: 성공시 authkey 필드가 존재해야 하고, 실패시 errmsg 필드가 존재해야 함
+extract:
+  - name: "result"
+    pattern: "Result\\s*=\\s*([0-9-]+)"
+    variable: "RESULT_CODE"
+  - name: "authKey"
+    pattern: "AuthKey=([A-Za-z0-9]+)"
+    variable: "AUTH_KEY"
+  - name: "errMsg"
+    pattern: "ErrMsg=(.+?)[\\r\\n]"
+    variable: "ERROR_MESSAGE"
+
+test:
+  - "RESULT_CODE exists"
+  
+  # 방법 1: 삼항 연산자 사용
+  - "js: result == '0' ? authkey && authkey.length > 0 : errmsg && errmsg.length > 0"
+  
+  # 방법 2: OR + AND 조합 (위와 같은 의미)
+  - "js: (result == '0' && authkey && authkey.length > 0) || (result != '0' && errmsg && errmsg.length > 0)"
+```
+
+#### 예제 4: 문자열 포함 검사
+
+```yaml
+# 상황: 에러 메시지에 특정 단어가 포함되어야 함
+extract:
+  - name: "result"
+    pattern: "Result\\s*=\\s*([0-9-]+)"
+    variable: "RESULT_CODE"
+  - name: "errMsg"
+    pattern: "ErrMsg=(.+?)[\\r\\n]"
+    variable: "ERROR_MESSAGE"
+
+test:
+  - "RESULT_CODE exists"
+  - "ERROR_MESSAGE exists"
+  
+  # 에러 메시지에 'Invalid'가 포함되어야 함
+  - "js: errmsg.includes('Invalid')"
+  
+  # 대소문자 상관없이 포함 검사
+  - "js: errmsg.toLowerCase().includes('invalid')"
+  
+  # 여러 단어 중 하나라도 포함되면 통과
+  - "js: errmsg.includes('Invalid') || errmsg.includes('Error') || errmsg.includes('Failed')"
+```
+
+#### 예제 5: 시간 기반 조건
+
+```yaml
+# 상황: 업무시간(9시-18시)에만 엄격하게 검증하고 싶음
+test:
+  - "RESULT_CODE exists"
+  
+  # 현재 시간이 9시 이전이거나 18시 이후면 관대하게, 아니면 엄격하게
+  - "js: new Date().getHours() < 9 || new Date().getHours() >= 18 || result == '0'"
+  
+  # 설명:
+  # - new Date().getHours() → 현재 시간(0~23)
+  # - 9시 이전이면 통과 OR 18시 이후면 통과 OR 성공이면 통과
+```
+
+#### 예제 6: 숫자 범위 검사
+
+```yaml
+# 상황: 응답 시간이 적절한 범위인지 확인하고 싶음
+extract:
+  - name: "responseTime"
+    pattern: "ResponseTime=([0-9]+)"
+    variable: "RESPONSE_TIME"
+
+test:
+  - "RESPONSE_TIME exists"
+  
+  # 응답시간이 0초 초과 30초 미만의 범위에 위치해야 함
+  - "js: Number(responsetime) > 0 && Number(responsetime) < 30000"
+  
+  # 설명:
+  # - Number(responsetime) → 문자열을 숫자로 변환
+  # - > 0 → 0보다 크고
+  # - < 30000 → 30000(30초)보다 작아야 함
+```
+
+### 🚨 자주하는 실수들과 해결법
+
+#### 실수 1: 존재 확인 없이 바로 JavaScript 사용
+```yaml
+# ❌ 잘못된 예
+test:
+  - "js: result == '0'"  # result가 없으면 에러!
+
+# ✅ 올바른 예  
+test:
+  - "RESULT_CODE exists"  # 먼저 존재 확인
+  - "js: result == '0'"   # 그 다음 JavaScript
+```
+
+#### 실수 2: 숫자와 문자열 비교 실수
+```yaml
+# ❌ 잘못된 예
+test:
+  - "js: result == 0"     # 숫자 0으로 비교 (안됨!)
+
+# ✅ 올바른 예
+test:
+  - "js: result == '0'"   # 문자열 '0'으로 비교
+```
+
+#### 실수 3: 변수명 대소문자 실수
+```yaml
+# extract에서 이렇게 정의했다면:
+extract:
+  - variable: "RESULT_CODE"      # 대문자
+  - variable: "SERVER_INFO"      # 대문자
+
+# JavaScript에서는 이렇게 사용:
+test:
+  - "js: result == '0'"          # 소문자!
+  - "js: serverinfo.length > 0"  # 소문자이고 언더스코어 없음!
+```
+
+#### 실수 4: 괄호 잘못 사용
+```yaml
+# ❌ 잘못된 예
+test:
+  - "js: result == '0' && serverinfo || result != '0' && errmsg"
+  # 이렇게 쓰면 의도와 다르게 동작할 수 있음!
+
+# ✅ 올바른 예
+test:
+  - "js: (result == '0' && serverinfo) || (result != '0' && errmsg)"
+  # 괄호로 우선순위를 명확하게!
+```
+
+### 📝 JavaScript 테스트 작성 체크리스트
+
+#### 1단계: 기본 준비
+- [ ] extract 섹션에서 필요한 변수들을 추출했는가?
+- [ ] 각 변수의 JavaScript 이름을 확인했는가? (대문자→소문자, 언더스코어 제거)
+
+#### 2단계: 기본 테스트 작성
+- [ ] 기본 존재 확인 테스트를 먼저 작성했는가?
+- [ ] 간단한 JavaScript 조건부터 시작했는가?
+
+#### 3단계: 조건 확장
+- [ ] OR 조건이 필요하면 `||` 사용
+- [ ] AND 조건이 필요하면 `&&` 사용  
+- [ ] 복잡한 조건은 괄호 `()` 사용
+
+#### 4단계: 테스트
+- [ ] 실제로 테스트해보고 의도대로 동작하는가?
+- [ ] 에러 메시지를 보고 문제점 파악했는가?
+
+### 🎓 연습 문제
+
+아래 상황들을 JavaScript로 어떻게 테스트할지 생각해보세요:
+
+#### 연습 1
+"result가 0이면 성공, 아니면 errmsg에 'timeout'이 포함되어야 함"
+
+<details>
+<summary>정답 보기</summary>
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  - "ERROR_MESSAGE exists"
+  - "js: result == '0' || errmsg.toLowerCase().includes('timeout')"
+```
+</details>
+
+#### 연습 2  
+"업무시간(9-17시)에는 result가 0이어야 하고, 그 외 시간에는 0이나 3 허용"
+
+<details>
+<summary>정답 보기</summary>
+
+```yaml
+test:
+  - "RESULT_CODE exists"
+  - "js: (new Date().getHours() >= 9 && new Date().getHours() < 17) ? result == '0' : (result == '0' || result == '3')"
+```
+</details>
+
+이제 JavaScript 조건부 테스트를 자신있게 작성할 수 있을 거예요! 🚀
+
+### 7. 복합 조건 테스트 (기본)
 ```yaml
 test:
   # 성공 케이스 전체 확인
@@ -706,21 +1332,22 @@ steps:
       IFVERSION: "V1.1.8"
     
     extract:
-      - name: "payment_result"
-        pattern: "Result=([0-9-]+)"
+      # ✅ 새로운 간단한 방식 (2025-08-27)
+      - name: "result"
+        pattern: "Result"
         variable: "PAY_RESULT"
-      - name: "auth_key"
-        pattern: "AuthKey=([A-Za-z0-9]+)"
+      - name: "authKey"
+        pattern: "AuthKey"
         variable: "AUTH_KEY"
-      - name: "transaction_id"
-        pattern: "TID=([A-Za-z0-9]+)"
-        variable: "TID"
+      - name: "tid"
+        pattern: "TID"
+        variable: "TRANSACTION_ID"
     
     test:
-      - "payment_result exists"
+      - "PAY_RESULT exists"
       - "PAY_RESULT == 0"
-      - "auth_key exists"
-      - "transaction_id exists"
+      - "AUTH_KEY exists"
+      - "TRANSACTION_ID exists"
 
   # 2단계: 결제 승인
   - name: "결제 승인 처리"
@@ -857,6 +1484,42 @@ options:
 ---
 
 ## 🐛 디버깅 가이드
+
+### 최근 해결된 문제들 (2025-08-27)
+
+#### 1. 변수 추출 실패 문제
+```yaml
+# 🚨 문제: 변수가 추출되었는데 테스트에서 실패
+# 원인: PM 객체에 추출된 변수가 누락됨
+
+# ✅ 해결: sclient-engine.js에서 PM 객체 매핑 개선
+# 더이상 복잡한 변수 매핑 불필요, 단순 소문자 변환
+```
+
+#### 2. CAP 필드 추출 실패
+```yaml
+# 🚨 문제: CAP 필드가 있는데 추출 안됨  
+extract:
+  - name: "cap"
+    pattern: "CAP"              # 대문자로 검색
+    variable: "CAP_CODE"
+
+# ✅ 해결: 대소문자 무관 검색으로 개선
+# 이제 CAP/cap 모두 자동 인식
+```
+
+#### 3. 복잡한 정규식 실수
+```yaml
+# 🚨 문제: 정규식 작성 실수로 추출 실패
+extract:
+  - name: "result"
+    pattern: "Result\\s*=\\s*([0-9-]+)"  # 복잡하고 실수하기 쉬움
+
+# ✅ 해결: 간단한 키워드 방식 도입
+extract:
+  - name: "result"  
+    pattern: "Result"            # 간단하고 안전함!
+```
 
 ### 일반적인 오류와 해결책
 

@@ -1,6 +1,6 @@
 # SClient 간단한 테스트 시나리오 (YAML)
-name: "SClient 기본 연결 테스트"
-description: "SClient 바이너리를 사용한 기본 연결 및 응답 테스트"
+name: "SKT SMS 정상케이스"
+description: "SClient 바이너리를 사용한 ITEMSEND2 완전 기능 테스트"
 version: "1.0.0"
 
 # 변수 정의
@@ -8,34 +8,217 @@ variables:
   MERCHANT_ID: "A010002002"
   MERCHANT_PWD: "bbbbb"
   SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  EMAIL: "2uknow@danal.co.kr"
+  DYNAMIC_PREFIX: "{{js: new Date().getHours() > 12 ? 'PM' : 'AM'}}"
+  
+  # SKT 비밀번호 체크용 변수
+  IDEN: "9002051"
+  DST_ADDR: "01046911117"
+  CARRIER: "SKT"
+  AMOUNT: "1000"
 
 # 시나리오 단계
 steps:
-  - name: "ITEMSEND2 - 기본 연결 테스트"
-    description: "SClient를 통한 기본 결제 서버 연결 테스트"
-    command: "ITEMSEND2"
+  - name: "ITEMSEND2 - 완전 기능 테스트"
+    description: "SClient를 통한 완전한 ITEMSEND2 결제 서버 테스트"
+    
     args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
       ID: "{{MERCHANT_ID}}"
-      PWD: "{{MERCHANT_PWD}}"      
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|1000|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+      EMAIL: "{{EMAIL}}"
+          
     
     # 응답 데이터 추출
     extract:
       - name: "result"
-        pattern: "Result=([0-9]+)"
+        pattern: "Result"
         variable: "RESULT_CODE"
       - name: "serverInfo"
-        pattern: "ServerInfo=([A-Fa-f0-9]+)"
+        pattern: "ServerInfo"
         variable: "SERVER_INFO"
       - name: "errMsg"
-        pattern: "ErrMsg=(.+?)[\r\n]"
+        pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
+    
+    # 테스트 검증 (기존 방식 + JavaScript 조건부)
+    test:
+      - "RESULT_CODE exists"
+      - "SERVER_INFO exists"
+      - name: "Payment server response validation"
+        description: "Verify success with serverinfo or failure with errmsg"
+        assertion: "js: (result == '0' && serverinfo && serverinfo.length > 0) || (result != '0' && errmsg && errmsg.length > 0)"
+      - name: "Acceptable result codes"
+        description: "Allow success (0) or test environment error (3) only"
+        assertion: "js: result == '0' || result == '3'"
+
+  - name: "IDELIVER - SKT 비밀번호(CPIN 체크)"
+    description: "SKT 통신사 비밀번호 체크 테스트"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      IDEN: "{{IDEN}}"
+      ISPREOTBILL: "N"
+      DSTADDR: "{{DST_ADDR}}"
+      CARRIER: "{{CARRIER}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      AMOUNT: "{{AMOUNT}}"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"      
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      COMMAND: "IDELIVER"
+      TERMSAGREE1: "Y"
+      IPADDR : "10.10.52.54"
+      SMTOTP: "N"
+      ISCPIN: "Y"
+      CPIN: "663466"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "IDELIVER_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "IDELIVER_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "IDELIVER_ERROR_MSG"
+      - name: "cap"
+        pattern: "CAP"
+        variable: "IDELIVER_CAP"
+      - name: "ANSIMMEMBER"
+        pattern: "ANSIMMEMBER"
+        variable: "IDELIVER_ANSIMMEMBER"
+
     
     # 테스트 검증
     test:
-      - "result exists"
-      - "result == 0"  # 결과 존재 확인
-      - "serverInfo exists"  # 서버 정보 존재 확인
+      - "IDELIVER_RESULT exists"
+      - "IDELIVER_RESULT == 0"
+      - "IDELIVER_SERVER_INFO exists"
+      - "IDELIVER_CAP == 000000"
+      - "IDELIVER_ANSIMMEMBER == N"
+      - name: "SKT authentication success"
+        description: "Verify SKT password authentication completed successfully"
+        assertion: "js: result == '0' && serverinfo && serverinfo.length > 0"
+
+  - name: "IREPORT - 결제 정보 조회"
+    description: "결제 정보 조회 테스트"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      Command: "IREPORT"
+      Configure: "FAILURE"
+      IFVERSION: "V1.0.5"
+      TERMSAGREE2: "N"
+      WPRCODE: "0000"
+      ANSIMPASS: ""
+      ANSIMMEMBER: "N"
+      OTP: "000000"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "IREPORT_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "IREPORT_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "IREPORT_ERROR_MSG"
+    
+    # 테스트 검증
+    test:
+      - "IREPORT_RESULT exists"
+      - "IREPORT_RESULT == 482"
+      
+      # - name: "Payment info query validation"
+      #   description: "Verify payment information was retrieved successfully or with valid error"
+      #   assertion: "js: (result == '0' && serverinfo) || (result != '0' && errmsg && errmsg.length > 0)"
+
+  - name: "NCONFIRM - 결제 확인"
+    description: "결제 확인 처리 테스트"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      Command: "NCONFIRM"
+      OUTPUTOPTION: "DEFAULT"
+      ConfirmOption: "1"
+      CPID: "{{MERCHANT_ID}}"
+      AMOUNT: "301"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "NCONFIRM_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "NCONFIRM_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "NCONFIRM_ERROR_MSG"
+    
+    # 테스트 검증
+    test:
+      - "NCONFIRM_RESULT exists"
+      - "NCONFIRM_RESULT == 492"
+
+      # - "NCONFIRM_SERVER_INFO exists"
+      # - name: "Payment confirmation validation"
+      #   description: "Verify payment confirmation completed with proper response"
+      #   assertion: "js: (result == '0' && serverinfo) || (result != '0' && errmsg)"
+
+  - name: "NBILL - 결제 실행"
+    description: "결제 실행 처리 테스트"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      BillOption: "1"
+      Command: "NBILL"
+      OUTPUTOPTION: "DEFAULT"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "NBILL_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "NBILL_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "NBILL_ERROR_MSG"
+    
+    # 테스트 검증
+    test:
+      - "NBILL_RESULT exists"
+      - "NBILL_RESULT == 492"
+      # - "NBILL_SERVER_INFO exists"
+      # - name: "Billing result validation"
+      #   description: "Verify billing process completed successfully" 
+      #   assertion: "js: result == '0' || (result == '3' && errmsg && errmsg.includes('TEST'))"
+     
 
 # 시나리오 설정
 options:

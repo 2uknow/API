@@ -95,6 +95,16 @@ function nowInTZString(d = new Date()){
   return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 
+function kstTimestamp(d = new Date()) {
+  const { timezone = 'Asia/Seoul' } = readCfg();
+  const parts = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+  }).formatToParts(d);
+  const get = t => (parts.find(p=>p.type===t)?.value||'').padStart(2,'0');
+  return `${get('year')}-${get('month')}-${get('day')}_${get('hour')}_${get('minute')}_${get('second')}`;
+}
+
 // dirs
 const reportsDir = path.join(root, 'reports');
 const logsDir    = path.join(root, 'logs');
@@ -1505,7 +1515,7 @@ async function runJob(jobName){
   const collection  = path.resolve(root, job.collection);
   const environment = job.environment ? path.resolve(root, job.environment) : undefined;
   const reporters   = job.reporters?.length ? job.reporters : ['cli','htmlextra','junit','json'];
-  const stamp = new Date().toISOString().replace(/[:T]/g,'_').replace(/\..+/,'');
+  const stamp = kstTimestamp();
 
   const htmlReport = path.join(reportsDir, `${jobName}_${stamp}.html`);
   const junitReport= path.join(reportsDir, `${jobName}_${stamp}.xml`);
@@ -2078,7 +2088,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 async function runBinaryJob(jobName, job) {
   console.log(`[BINARY] Starting binary job: ${jobName}`);
   
-  const stamp = new Date().toISOString().replace(/[:T]/g,'_').replace(/\..+/,'');
+  const stamp = kstTimestamp();
   const stdoutPath = path.join(logsDir, `stdout_${jobName}_${stamp}.log`);
   const stderrPath = path.join(logsDir, `stderr_${jobName}_${stamp}.log`);
   const txtReport = path.join(reportsDir, `${jobName}_${stamp}.txt`);
@@ -3121,7 +3131,7 @@ app.get('/', (req, res) => {
 
 // SClient 시나리오 실행 함수
 async function runSClientScenarioJob(jobName, job) {
-  const stamp = new Date().toISOString().replace(/[:T]/g,'_').replace(/\..+/,'');
+  const stamp = kstTimestamp();
   const logPath = path.join(logsDir, `scenario_${jobName}_${stamp}.log`);
   const reportPath = path.join(reportsDir, `scenario_${jobName}_${stamp}.json`);
   const htmlReportPath = path.join(reportsDir, `scenario_${jobName}_${stamp}.html`);

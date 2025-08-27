@@ -1,0 +1,25 @@
+{
+  "name": "TDB_SKT",
+  "type": "binary",
+  "description": "Simple YAML-based SClient test for system validation with HTML report",
+  "collection": "collections/simple_api_test.yaml",
+  "environment": "Production",
+  "platforms": {
+    "win32": {
+      "executable": "SClient.exe",
+      "path": "binaries/windows"
+    }
+  },
+  "timeout": 15000,
+  "encoding": "cp949",
+  "parseOutput": {
+    "successPattern": "Result=0|SUCCESS",
+    "failurePattern": "Result=[^0]|ERROR|ErrMsg=",
+    "statsPattern": "Result=([0-9]+)"
+  },
+  "generateHtmlReport": true,
+  "reportOptions": {
+    "title": "Simple YAML Test Execution Report",
+    "browserTitle": "Simple YAML Test Report"
+  }
+}
