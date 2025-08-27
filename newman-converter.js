@@ -253,7 +253,6 @@ export class SClientToNewmanConverter {
    * Newman HTMLExtra 스타일 HTML 생성
    */
   generateNewmanStyleHTML(collection, run) {
-    console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
     const { stats, executions, timings, failures } = run;
     const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
     const duration = timings.completed - timings.started;
@@ -830,8 +829,7 @@ export class SClientToNewmanConverter {
                                     const tooltipClass = hasDescription ? 'tooltip' : '';
                                     const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
                                     
-                                    // DEBUG: Log tooltip generation
-                                    console.log(`[TOOLTIP DEBUG] Test: "${assertion.assertion}", Description: "${assertion.description}", HasTooltip: ${hasDescription}`);
+                                    // Tooltip generation for test descriptions
                                     
                                     return `
                                     <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'} ${tooltipClass}" ${tooltipAttr}>
