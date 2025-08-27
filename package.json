@@ -31,7 +31,10 @@
     "docker:build": "docker build -t danal-api-monitor .",
     "docker:run": "node scripts/docker-run.js",
     "install-reporters": "npm install newman newman-reporter-htmlextra",
-    "update-newman": "npm install newman@latest newman-reporter-htmlextra@latest"
+    "update-newman": "npm install newman@latest newman-reporter-htmlextra@latest",
+    "yaml:test": "node run-yaml.js",
+    "yaml:simple": "node run-yaml.js collections/simple_api_test.yaml",
+    "yaml:enhanced": "node run-yaml.js collections/enhanced_chai_test.yaml"
   },
   "keywords": [
     "danal",
@@ -44,13 +47,18 @@
     "webhook",
     "alerts",
     "scheduler",
-    "cron"
+    "cron",
+    "yaml",
+    "testing",
+    "sclient",
+    "binary-testing"
   ],
   "author": "Danal R&D Team",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.3.1",
     "express": "^4.21.2",
+    "iconv-lite": "^0.6.3",
     "js-yaml": "^4.1.0",
     "morgan": "^1.10.1",
     "newman": "^6.2.1",

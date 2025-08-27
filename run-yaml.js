@@ -72,6 +72,12 @@ function displayResults(scenarioResult) {
                 console.log(`\n실행 명령어: ./SClient "${step.commandString}"`);
             }
             
+            // SClient 응답값 표시
+            if (step.response && step.response.stdout) {
+                console.log('응답값:');
+                console.log(`  ${step.response.stdout.trim()}`);
+            }
+            
             // 추출된 변수 표시
             if (step.extracted && Object.keys(step.extracted).length > 0) {
                 console.log('추출된 변수:');
