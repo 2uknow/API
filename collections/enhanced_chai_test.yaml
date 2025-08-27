@@ -1,0 +1,178 @@
+# SClient Enhanced Chai.js Test - Newman Report Demo
+name: "SClient Enhanced Chai.js Style Tests"
+description: "SClient 테스트에서 다양한 Chai.js 스타일 assertion 결과를 Newman HTML 리포트로 확인"
+version: "1.0.0"
+
+# 변수 정의
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  EXPECTED_RESULT: "0"
+
+# 시나리오 단계
+steps:
+  - name: "Basic Connection Test with Enhanced Assertions"
+    description: "기본 연결 테스트 + 다양한 Chai.js 스타일 assertion"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"      
+      ItemType: "Amount"
+      ItemCount: "1"
+      ItemInfo: "2|500|1|22S0HZ0100|테스트상품"
+      OUTPUTOPTION: "DEFAULT"
+      EMAIL: "test@danal.co.kr"
+      IFVERSION: "V1.1.8"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result=([0-9-]+)"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo=([A-Fa-f0-9]+)"
+        variable: "SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "ERROR_MESSAGE"
+      - name: "responseTime"
+        pattern: "ResponseTime=([0-9]+)"
+        variable: "RESPONSE_TIME"
+    
+    # 다양한 Chai.js 스타일 테스트 (tooltip 기능 포함)
+    test:
+      # === 기본 Equal 테스트 ===
+      - name: "Result code success validation"
+        description: "Verify that the result code is 0 indicating successful operation"
+        assertion: "RESULT_CODE == 0"
+      - name: "Alternative success check"
+        description: "Alternative way to verify successful operation result"  
+        assertion: "RESULT_CODE == 0"
+      - name: "Result code error avoidance"
+        description: "Ensure result code is not -1 which indicates system error"
+        assertion: "RESULT_CODE != -1"
+      - name: "Error code prevention"
+        description: "Make sure we avoid critical system error codes"
+        assertion: "RESULT_CODE != -1"
+      
+      # === 존재 여부 테스트 ===
+      - name: "Result code field existence"
+        description: "Verify that RESULT_CODE field is present in the response"
+        assertion: "RESULT_CODE exists"
+      - name: "Result code presence check"
+        description: "Ensure result code field is returned in the response"
+        assertion: "RESULT_CODE exists"
+      - name: "Server info field existence"
+        description: "Verify that SERVER_INFO field is present for next step processing"
+        assertion: "SERVER_INFO exists"  
+      - name: "Server info availability"
+        description: "Check that server info is available for next transaction step"
+        assertion: "SERVER_INFO exists"
+      - "UNDEFINED_VAR not exists"
+      - "expect(UNDEFINED_VAR).to.not.exist"
+      
+      # === 문자열 포함 테스트 ===
+      - "ERROR_MESSAGE not contains 'FATAL'"
+      - "expect(ERROR_MESSAGE).to.not.contain('FATAL')"
+      - "ERROR_MESSAGE not contains '심각한오류'"
+      - "expect(ERROR_MESSAGE).to.not.contain('심각한오류')"
+      
+      # === 숫자 비교 테스트 ===
+      - "RESULT_CODE >= 0"
+      - "expect(RESULT_CODE).to.be.at.least(0)"
+      - "RESPONSE_TIME > 0"
+      - "expect(RESPONSE_TIME).to.be.above(0)"
+      - "RESPONSE_TIME < 10000"
+      - "expect(RESPONSE_TIME).to.be.below(10000)"
+      
+      # === 타입 검사 ===
+      - "RESULT_CODE is number"
+      - "expect(RESULT_CODE).to.be.a('number')"
+      - "SERVER_INFO is string" 
+      - "expect(SERVER_INFO).to.be.a('string')"
+      
+      # === 길이 및 패턴 테스트 ===
+      - "SERVER_INFO.length > 5"
+      - "expect(SERVER_INFO).to.have.lengthOf.above(5)"
+      - "SERVER_INFO matches /^[A-Fa-f0-9]+$/"
+      - "expect(SERVER_INFO).to.match(/^[A-Fa-f0-9]+$/)"
+
+  - name: "Advanced Assertions with Multiple Conditions"
+    description: "고급 assertion과 복합 조건 테스트"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemType: "Amount"
+      ItemCount: "3"
+      ItemInfo: "2|1000|1|TEST001|상품1|2|1500|1|TEST002|상품2|2|2000|1|TEST003|상품3"
+      OUTPUTOPTION: "EXTENDED"
+    
+    extract:
+      - name: "result"
+        pattern: "Result=([0-9-]+)"
+        variable: "MULTI_RESULT"
+      - name: "itemCount"
+        pattern: "ItemCount=([0-9]+)"
+        variable: "ITEM_COUNT"
+      - name: "totalAmount"
+        pattern: "TotalAmount=([0-9]+)"
+        variable: "TOTAL_AMOUNT"
+    
+    test:
+      # === 다중 조건 테스트 ===
+      - "MULTI_RESULT == 0"
+      - "expect(MULTI_RESULT).to.equal(0)"
+      - "ITEM_COUNT == 3"
+      - "expect(ITEM_COUNT).to.equal(3)"
+      - "TOTAL_AMOUNT == 4500"
+      - "expect(TOTAL_AMOUNT).to.equal(4500)"
+      
+      # === 범위 테스트 ===
+      - "ITEM_COUNT > 0"
+      - "expect(ITEM_COUNT).to.be.above(0)"
+      - "ITEM_COUNT <= 10"
+      - "expect(ITEM_COUNT).to.be.at.most(10)"
+      - "TOTAL_AMOUNT >= 1000"
+      - "expect(TOTAL_AMOUNT).to.be.at.least(1000)"
+
+  # 의도적으로 실패하는 테스트 (리포트에서 실패 케이스 확인)
+  - name: "Intentional Failure Tests for Report Demo"
+    description: "리포트에서 실패 케이스가 어떻게 보이는지 확인"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      ItemInfo: "2|100|1|FAIL_TEST|실패테스트"
+    
+    extract:
+      - name: "result"
+        pattern: "Result=([0-9-]+)"
+        variable: "FAIL_RESULT"
+    
+    test:
+      # 성공하는 테스트들
+      - "FAIL_RESULT exists"
+      - "expect(FAIL_RESULT).to.exist"
+      
+      # 의도적으로 실패하는 테스트들 (리포트 데모용)
+      - "FAIL_RESULT == -999"  # 이건 실패할 것
+      - "expect(FAIL_RESULT).to.equal(-999)"  # 이것도 실패
+      - "FAIL_RESULT > 100"  # 이것도 실패할 가능성
+      - "expect(FAIL_RESULT).to.be.above(100)"  # 실패 케이스
+      - "NONEXISTENT_VAR exists"  # 분명히 실패
+      - "expect(NONEXISTENT_VAR).to.exist"  # 실패
+
+# 시나리오 설정
+options:
+  stopOnError: false  # 실패해도 계속 진행
+  timeout: 30000
+  retryCount: 0
+  assertionEngine: "enhanced-chai"
+  detailedReports: true

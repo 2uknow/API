@@ -15,6 +15,7 @@ import {
 } from './alert.js';
 import iconv from 'iconv-lite';
 import { SClientScenarioEngine, SClientReportGenerator } from './sclient-engine.js';
+import { validateTestsWithYamlData } from './sclient-test-validator.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const root       = __dirname;
@@ -2584,6 +2585,20 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       console.log(`[YAML] Promise.race started, waiting for completion...`);
       const scenarioResult = await Promise.race([scenarioPromise, timeoutPromise]);
       console.log(`[YAML] Scenario execution completed, success: ${scenarioResult.success}`);
+      
+      // 공통 테스트 검증 모듈 적용 - run-yaml.js와 동일한 검증 로직 사용
+      try {
+        const yamlContent = fs.readFileSync(collectionPath, 'utf8');
+        const { load } = await import('js-yaml');
+        const yamlData = load(yamlContent);
+        const validatedResult = validateTestsWithYamlData(scenarioResult, yamlData);
+        console.log(`[YAML] Test validation completed - Updated success: ${validatedResult.success}`);
+        
+        // 검증 결과로 시나리오 결과 업데이트
+        Object.assign(scenarioResult, validatedResult);
+      } catch (validateError) {
+        console.log(`[YAML] Test validation failed, using original results: ${validateError.message}`);
+      }
       
       const endTime = nowInTZString();
       const duration = Math.round((Date.now() - startTs) / 1000);
