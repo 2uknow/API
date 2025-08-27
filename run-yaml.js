@@ -11,6 +11,118 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { SClientYAMLParser } from './simple-yaml-parser.js';
 import { SClientScenarioEngine } from './sclient-engine.js';
+import { validateTestsWithYamlData } from './sclient-test-validator.js';
+
+/**
+ * JavaScript 조건식을 분석하여 각 조건의 평가 결과를 반환
+ * @param {string} expression JavaScript 표현식
+ * @param {Object} variables 사용 가능한 변수들
+ * @returns {Array} 조건별 분석 결과
+ */
+function analyzeJavaScriptConditions(expression, variables = {}) {
+    try {
+        const results = [];
+        
+        // && 또는 || 연산자로 분리된 조건들 찾기
+        const conditions = parseConditions(expression);
+        
+        if (conditions.length <= 1) {
+            // 단일 조건인 경우 전체 표현식 평가
+            const result = evaluateExpression(expression, variables);
+            const details = getVariableDetails(expression, variables);
+            return [{
+                expression: expression,
+                result: result,
+                details: details
+            }];
+        }
+        
+        // 각 조건별로 평가
+        for (const condition of conditions) {
+            const result = evaluateExpression(condition.expression, variables);
+            const details = getVariableDetails(condition.expression, variables);
+            
+            results.push({
+                expression: condition.expression,
+                result: result,
+                details: details,
+                operator: condition.operator
+            });
+        }
+        
+        return results;
+        
+    } catch (error) {
+        console.log(`      ❌ Analysis Error: ${error.message}`);
+        return [];
+    }
+}
+
+/**
+ * JavaScript 표현식을 && 또는 || 연산자로 분리
+ */
+function parseConditions(expression) {
+    const conditions = [];
+    const operators = ['&&', '||'];
+    
+    // 간단한 파싱 - 괄호를 고려하지 않은 기본 분리
+    let current = expression;
+    let lastOperator = null;
+    
+    for (const op of operators) {
+        const parts = current.split(` ${op} `);
+        if (parts.length > 1) {
+            conditions.length = 0; // 기존 결과 클리어
+            for (let i = 0; i < parts.length; i++) {
+                conditions.push({
+                    expression: parts[i].trim(),
+                    operator: i > 0 ? op : null
+                });
+            }
+            break;
+        }
+    }
+    
+    return conditions.length > 0 ? conditions : [{ expression: expression.trim(), operator: null }];
+}
+
+/**
+ * JavaScript 표현식을 안전하게 평가
+ */
+function evaluateExpression(expression, variables) {
+    try {
+        // 사용 가능한 변수들을 함수 컨텍스트에 추가
+        const context = { ...variables };
+        
+        // Function constructor를 사용하여 안전하게 평가
+        const func = new Function(...Object.keys(context), `return (${expression})`);
+        return func(...Object.values(context));
+        
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * 표현식에서 사용된 변수들의 상세 정보 생성
+ */
+function getVariableDetails(expression, variables) {
+    const details = [];
+    
+    // 변수명 추출 (간단한 패턴 매칭)
+    const varMatches = expression.match(/[A-Z_][A-Z0-9_]*/g) || [];
+    const uniqueVars = [...new Set(varMatches)];
+    
+    for (const varName of uniqueVars) {
+        if (variables.hasOwnProperty(varName)) {
+            const value = variables[varName];
+            const type = typeof value;
+            details.push(`(${varName} = "${value}")`);
+        }
+    }
+    
+    return details.length > 0 ? details.join(' ') : '';
+}
 
 async function runYamlTest(yamlFilePath) {
     try {
@@ -48,8 +160,8 @@ async function runYamlTest(yamlFilePath) {
             console.log(`임시 파일 정리 실패: ${error.message}`);
         }
         
-        // 4. 우리가 직접 테스트 검증 수행 (기존 엔진의 버그 우회)
-        const validatedResults = validateTestsManually(results, yamlData);
+        // 4. 공통 테스트 검증 모듈 사용
+        const validatedResults = validateTestsWithYamlData(results, yamlData);
         
         // 5. 결과 출력
         displayResults(validatedResults);
@@ -70,12 +182,6 @@ function displayResults(scenarioResult) {
             // SClient 명령어 표시
             if (step.commandString) {
                 console.log(`\n실행 명령어: ./SClient "${step.commandString}"`);
-            }
-            
-            // SClient 응답값 표시
-            if (step.response && step.response.stdout) {
-                console.log('응답값:');
-                console.log(`  ${step.response.stdout.trim()}`);
             }
             
             // 추출된 변수 표시
@@ -105,9 +211,42 @@ function displayResults(scenarioResult) {
                             console.log(`    Error: ${test.error}`);
                         }
                         
-                        // JavaScript 표현식 실패시에만 표현식 표시
-                        if (test.assertion && test.assertion.startsWith('js:')) {
-                            console.log(`    JavaScript Expression: ${test.assertion.substring(3).trim()}`);
+                        // JavaScript 표현식 실패 시 상세 디버깅 정보
+                        if (test.assertion && test.assertion.startsWith('js:') && test.debugInfo) {
+                            console.log(`    ━━━ JavaScript Debug Info ━━━`);
+                            console.log(`    Expression: ${test.debugInfo.expression}`);
+                            console.log(`    Result: ${test.debugInfo.result} (${test.debugInfo.resultType})`);
+                            
+                            if (test.debugInfo.variables && Object.keys(test.debugInfo.variables).length > 0) {
+                                console.log(`    Variables:`);
+                                Object.entries(test.debugInfo.variables).forEach(([name, info]) => {
+                                    console.log(`      ${name} = "${info.value}" (${info.type}, exists: ${info.exists})`);
+                                });
+                            }
+                            
+                            if (test.debugInfo.evaluation && test.debugInfo.evaluation.steps) {
+                                console.log(`    Steps:`);
+                                test.debugInfo.evaluation.steps.forEach((step, index) => {
+                                    const result = step.error ? `ERROR: ${step.error}` : `${step.result}`;
+                                    console.log(`      ${index + 1}. ${step.expression} → ${result}`);
+                                });
+                            }
+                        }
+                        // JavaScript 조건별 상세 분석 (debugInfo 없을 때)
+                        else if (test.assertion && test.assertion.startsWith('js:')) {
+                            const jsExpression = test.assertion.substring(3).trim();
+                            console.log(`    JavaScript Expression: ${jsExpression}`);
+                            
+                            // 조건별 분석 수행
+                            const conditionAnalysis = analyzeJavaScriptConditions(jsExpression, step.extracted || {});
+                            if (conditionAnalysis && conditionAnalysis.length > 0) {
+                                console.log(`    Condition Analysis:`);
+                                conditionAnalysis.forEach(condition => {
+                                    const status = condition.result ? '✅' : '❌';
+                                    console.log(`      ${status} ${condition.expression} → ${condition.result} ${condition.details ? condition.details : ''}`);
+                                });
+                                console.log(`    Overall Result: ${test.actual || 'false'}`);
+                            }
                         }
                         
                     } else {
@@ -130,155 +269,5 @@ if (!yamlFile) {
 
 runYamlTest(yamlFile);
 
-// 범용 Assertion 평가 엔진
-function evaluateAssertion(assertion, extractedVars) {
-    try {
-        // 1. exists 체크 패턴
-        const existsMatch = assertion.match(/^(\w+)\s+exists$/i);
-        if (existsMatch) {
-            const varName = existsMatch[1];
-            const exists = extractedVars[varName] !== undefined;
-            return {
-                passed: exists,
-                expected: 'exists',
-                actual: exists ? 'exists' : 'undefined'
-            };
-        }
-        
-        // 2. 등호 비교 패턴 (==, !=, >, <, >=, <=)
-        const comparisonMatch = assertion.match(/^(\w+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
-        if (comparisonMatch) {
-            const varName = comparisonMatch[1];
-            const operator = comparisonMatch[2];
-            let expectedValue = comparisonMatch[3];
-            
-            // 따옴표 제거
-            if ((expectedValue.startsWith('"') && expectedValue.endsWith('"')) ||
-                (expectedValue.startsWith("'") && expectedValue.endsWith("'"))) {
-                expectedValue = expectedValue.slice(1, -1);
-            }
-            
-            const actualValue = extractedVars[varName];
-            
-            let passed = false;
-            switch (operator) {
-                case '==':
-                    passed = actualValue == expectedValue;
-                    break;
-                case '!=':
-                    passed = actualValue != expectedValue;
-                    break;
-                case '>':
-                    passed = parseFloat(actualValue) > parseFloat(expectedValue);
-                    break;
-                case '<':
-                    passed = parseFloat(actualValue) < parseFloat(expectedValue);
-                    break;
-                case '>=':
-                    passed = parseFloat(actualValue) >= parseFloat(expectedValue);
-                    break;
-                case '<=':
-                    passed = parseFloat(actualValue) <= parseFloat(expectedValue);
-                    break;
-            }
-            
-            return {
-                passed: passed,
-                expected: expectedValue,
-                actual: actualValue,
-                operator: operator
-            };
-        }
-        
-        // 3. JavaScript 표현식 패턴 - 완전 범용
-        if (assertion.startsWith('js:')) {
-            const jsCode = assertion.substring(3).trim();
-            
-            // 모든 추출된 변수를 그대로 컨텍스트에 추가
-            const evalContext = { ...extractedVars };
-            
-            // 소문자 버전도 추가 (호환성)
-            Object.keys(extractedVars).forEach(key => {
-                evalContext[key.toLowerCase()] = extractedVars[key];
-            });
-            
-            // JavaScript 코드 실행
-            let result, error = null;
-            try {
-                result = new Function(...Object.keys(evalContext), `return ${jsCode}`)(...Object.values(evalContext));
-            } catch (e) {
-                result = false;
-                error = e.message;
-            }
-            
-            return {
-                passed: !!result,
-                expected: 'truthy',
-                actual: `${result} (${typeof result})`,
-                jsExpression: jsCode,
-                error: error
-            };
-        }
-        
-        // 4. 인식할 수 없는 패턴은 문자열로 처리 (기존 호환성)
-        return {
-            passed: true,
-            expected: 'unknown pattern',
-            actual: 'skipped',
-            warning: `Unrecognized assertion pattern: ${assertion}`
-        };
-        
-    } catch (error) {
-        return {
-            passed: false,
-            expected: 'no error',
-            actual: error.message,
-            error: `Evaluation failed: ${error.message}`
-        };
-    }
-}
-
-// 테스트 검증 함수 (기존 엔진의 버그 우회용)
-function validateTestsManually(scenarioResult, yamlData) {
-    // 모든 스텝에 대해 테스트 검증 수행
-    scenarioResult.steps.forEach((step, stepIndex) => {
-        const yamlStep = yamlData.steps && yamlData.steps[stepIndex];
-        if (yamlStep && yamlStep.test && Array.isArray(yamlStep.test)) {
-            const validatedTests = yamlStep.test.map(yamlTest => {
-                const testName = yamlTest.name || yamlTest;
-                const assertion = yamlTest.assertion || yamlTest;
-                
-                // 범용 assertion 평가
-                const evalResult = evaluateAssertion(assertion, step.extracted || {});
-                
-                return {
-                    name: testName,
-                    assertion: assertion,
-                    passed: evalResult.passed,
-                    expected: evalResult.expected,
-                    actual: evalResult.actual,
-                    error: evalResult.passed ? null : `Expected: ${evalResult.expected}, Actual: ${evalResult.actual}`
-                };
-            });
-            
-            // 스텝의 테스트 결과 교체
-            step.tests = validatedTests;
-            
-            // 스텝 통과 여부 재계산
-            step.passed = validatedTests.every(test => test.passed);
-        }
-    });
-    
-    // 전체 성공 여부 재계산
-    scenarioResult.success = scenarioResult.steps.every(step => step.passed);
-    
-    // 요약 정보 업데이트
-    if (scenarioResult.summary) {
-        scenarioResult.summary.passed = scenarioResult.steps.filter(step => step.passed).length;
-        scenarioResult.summary.failed = scenarioResult.steps.length - scenarioResult.summary.passed;
-    }
-    
-    return scenarioResult;
-}
 
 export { runYamlTest };
