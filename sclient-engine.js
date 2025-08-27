@@ -425,6 +425,7 @@ export class SClientScenarioEngine {
           step: stepNumber,
           name: request.name,
           command: request.command,
+          commandString: response.cmdString,
           response,
           extracted,
           tests: testResults,
