@@ -303,7 +303,7 @@ export class SClientYAMLParser {
                           \`  🔍 Check if condition matches the actual response data.\`);
         }
         
-        console.log(\`✓ JavaScript test passed: ${condition}\`);
+        // JavaScript test passed (no output for success)
         
     } catch (error) {
         if (error.message.includes('❌ Condition failed')) {
