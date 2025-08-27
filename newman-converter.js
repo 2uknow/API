@@ -863,6 +863,25 @@ export class SClientToNewmanConverter {
                             </div>
                         ` : ''}
                         
+                        ${execution.request.body && execution.request.body.raw ? `
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">${(() => {
+                                  try {
+                                    const requestData = JSON.parse(execution.request.body.raw);
+                                    if (requestData.cmdString) {
+                                      return requestData.cmdString.replace(/;/g, ';\\n').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                    } else {
+                                      return Object.entries(requestData.arguments || {}).map(([key, value]) => 
+                                        `${key}=${value}`).join(';\\n');
+                                    }
+                                  } catch (e) {
+                                    return execution.request.body.raw.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                  }
+                                })()}</div>
+                            </div>
+                        ` : ''}
+                        
                         ${responseData ? `
                             <div style="margin-top: 20px;">
                                 <div class="detail-label">Response Body</div>

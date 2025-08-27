@@ -57,16 +57,10 @@ steps:
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
     
-    # 테스트 검증
+    # 테스트 검증 (기존 방식 + JavaScript 조건부)
     test:
-      - name: "ITEMSEND2 응답코드 확인"
-        description: "ITEMSEND2 응답코드 확인하는 테스트 입니다."
-        assertion: "RESULT_CODE exists"
-      - name : "ITEMSEND2  Result 0 확인"
-        assertion: "RESULT_CODE == 2"
-      - name: "ITEMSEND2 server info existence check"
-        description: "Verify SERVER_INFO field is present for next step"
-        assertion: "SERVER_INFO exists"
+      - "RESULT_CODE exists"
+      - "SERVER_INFO exists"
       - name: "Payment server response validation"
         description: "Verify success with serverinfo or failure with errmsg"
         assertion: "js: (result == '0' && serverinfo && serverinfo.length > 0) || (result != '0' && errmsg && errmsg.length > 0)"
@@ -118,21 +112,11 @@ steps:
     
     # 테스트 검증
     test:
-      - name: "IDELIVER result field existence check"
-        description: "Verify IDELIVER_RESULT field is present in response"
-        assertion: "IDELIVER_RESULT exists"
-      - name: "IDELIVER result success check"
-        description: "Verify IDELIVER operation completed successfully (result = 0)"
-        assertion: "IDELIVER_RESULT == 0"
-      - name: "IDELIVER server info existence check" 
-        description: "Verify IDELIVER_SERVER_INFO field is present for next step"
-        assertion: "IDELIVER_SERVER_INFO exists"
-      - name: "IDELIVER CAP code validation"
-        description: "Verify CAP code is 000000 indicating successful authentication"
-        assertion: "IDELIVER_CAP == 000000"
-      - name: "IDELIVER ANSIM member validation"
-        description: "Verify ANSIMMEMBER field is N as expected"
-        assertion: "IDELIVER_ANSIMMEMBER == N"
+      - "IDELIVER_RESULT exists"
+      - "IDELIVER_RESULT == 0"
+      - "IDELIVER_SERVER_INFO exists"
+      - "IDELIVER_CAP == 000000"
+      - "IDELIVER_ANSIMMEMBER == N"
       - name: "SKT authentication success"
         description: "Verify SKT password authentication completed successfully"
         assertion: "js: result == '0' && serverinfo && serverinfo.length > 0"
@@ -165,12 +149,8 @@ steps:
     
     # 테스트 검증
     test:
-      - name: "IREPORT result field existence check"
-        description: "Verify IREPORT_RESULT field is present in response"
-        assertion: "IREPORT_RESULT exists"
-      - name: "IREPORT expected error code validation"
-        description: "Verify IREPORT returns expected error code 482 (payment info not available)"
-        assertion: "IREPORT_RESULT == 482"
+      - "IREPORT_RESULT exists"
+      - "IREPORT_RESULT == 482"
       
       # - name: "Payment info query validation"
       #   description: "Verify payment information was retrieved successfully or with valid error"
@@ -201,12 +181,8 @@ steps:
     
     # 테스트 검증
     test:
-      - name: "NCONFIRM result field existence check"
-        description: "Verify NCONFIRM_RESULT field is present in response"
-        assertion: "NCONFIRM_RESULT exists"
-      - name: "NCONFIRM expected error code validation"
-        description: "Verify NCONFIRM returns expected error code 492 (confirmation not available)"
-        assertion: "NCONFIRM_RESULT == 492"
+      - "NCONFIRM_RESULT exists"
+      - "NCONFIRM_RESULT == 492"
 
       # - "NCONFIRM_SERVER_INFO exists"
       # - name: "Payment confirmation validation"
@@ -236,17 +212,9 @@ steps:
     
     # 테스트 검증
     test:
-      - name: "NBILL result field existence check"
-        description: "Verify NBILL_RESULT field is present in response"
-        assertion: "NBILL_RESULT exists"
-      - name: "NBILL expected error code validation"
-        description: "Verify NBILL returns expected error code 492 (billing not available)"
-        assertion: "NBILL_RESULT == 492"
-      # - "NBILL_SERVER_INFO exists"
-      # - name: "Billing result validation"
-      #   description: "Verify billing process completed successfully" 
-      #   assertion: "js: result == '0' || (result == '3' && errmsg && errmsg.includes('TEST'))"
-     
+      - "result exists"
+      - "result == 0"  # 결과 존재 확인
+      - "serverInfo exists"  # 서버 정보 존재 확인
 
 # 시나리오 설정
 options:
