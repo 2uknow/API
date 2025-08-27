@@ -1,0 +1,25 @@
+{
+  "name": "enhanced_chai_test",
+  "type": "binary",
+  "description": "Enhanced Chai.js style assertions for SClient binary testing with detailed HTML report",
+  "collection": "collections/enhanced_chai_test.yaml",
+  "environment": "Production",
+  "platforms": {
+    "win32": {
+      "executable": "SClient.exe",
+      "path": "binaries/windows"
+    }
+  },
+  "timeout": 30000,
+  "encoding": "cp949",
+  "parseOutput": {
+    "successPattern": "Result=0|SUCCESS",
+    "failurePattern": "Result=[^0]|ERROR|ErrMsg=",
+    "statsPattern": "Result=([0-9]+)"
+  },
+  "generateHtmlReport": true,
+  "reportOptions": {
+    "title": "Enhanced Chai.js Style Assertions Test Report",
+    "browserTitle": "Enhanced Chai.js Test Report"
+  }
+}
