@@ -1,6 +1,7 @@
 // 간단한 YAML 파서 (SClient 시나리오 전용)
 // Last updated: 2025-08-25 13:52 - Uses fixed YAMLAssertEngine
 import fs from 'fs';
+import path from 'path';
 import { YAMLAssertEngine } from './yaml-assert-engine.js';
 
 /**
@@ -199,8 +200,8 @@ export class SClientYAMLParser {
                     script: testScript
                   });
                 } else {
-                  // 일반 테스트 처리
-                  const cleanTestScript = this.convertTestToCleanScript(assertion, currentStep.extractors, currentStep.arguments);
+                  // 일반 테스트 처리 - testName을 스크립트 생성에 전달
+                  const cleanTestScript = this.convertTestToCleanScript(assertion, currentStep.extractors, currentStep.arguments, testName);
                   currentStep.tests.push({
                     name: testName,
                     description: description,
@@ -386,7 +387,7 @@ export class SClientYAMLParser {
   /**
    * 깔끔한 개별 테스트 스크립트 생성
    */
-  static convertTestToCleanScript(expression, extractors, currentStepArgs = {}) {
+  static convertTestToCleanScript(expression, extractors, currentStepArgs = {}, customTestName = null) {
     // 변수 매핑
     const variableMap = {};
     extractors.forEach(extractor => {
@@ -404,7 +405,7 @@ export class SClientYAMLParser {
     });
 
     // 개별 테스트 스크립트 생성
-    return this.generateCleanTestScript(mappedExpression, currentStepArgs);
+    return this.generateCleanTestScript(mappedExpression, currentStepArgs, customTestName);
   }
 
   /**
@@ -448,25 +449,35 @@ export class SClientYAMLParser {
   /**
    * 깔끔한 개별 테스트 스크립트 생성
    */
-  static generateCleanTestScript(expression, currentStepArgs = {}) {
+  static generateCleanTestScript(expression, currentStepArgs = {}, customTestName = null) {
     // YAMLAssertEngine 사용하여 영어 테스트 이름 생성
     const engine = new YAMLAssertEngine();
     const testScript = engine.convertStringToPMTest(expression);
     
-    // 생성된 스크립트에서 테스트 이름 추출 (fallback용)
-    const testNameMatch = testScript.match(/pm\.test\('([^']+)'/);
-    const testName = testNameMatch ? testNameMatch[1] : this.getCleanTestName(expression.replace(/[A-Z_]+/g, match => {
-      // 대문자 변수를 다시 소문자로 매핑 (표시용)
-      const varMap = {
-        'RESULT_CODE': 'result',
-        'SERVER_INFO': 'serverInfo',
-        'ERROR_MESSAGE': 'errMsg'
-      };
-      return varMap[match] || match.toLowerCase();
-    }));
+    // 커스텀 테스트 이름이 있으면 그것을 사용, 없으면 생성된 이름 사용
+    let testName;
+    if (customTestName) {
+      testName = customTestName;
+    } else {
+      // 생성된 스크립트에서 테스트 이름 추출 (fallback용)
+      const testNameMatch = testScript.match(/pm\.test\('([^']+)'/);
+      testName = testNameMatch ? testNameMatch[1] : this.getCleanTestName(expression.replace(/[A-Z_]+/g, match => {
+        // 대문자 변수를 다시 소문자로 매핑 (표시용)
+        const varMap = {
+          'RESULT_CODE': 'result',
+          'SERVER_INFO': 'serverInfo',
+          'ERROR_MESSAGE': 'errMsg'
+        };
+        return varMap[match] || match.toLowerCase();
+      }));
+    }
     
-    // YAMLAssertEngine에서 생성된 스크립트가 있으면 그것을 사용
+    // YAMLAssertEngine에서 생성된 스크립트가 있으면 그것을 사용하되, 커스텀 테스트 이름이 있으면 교체
     if (testScript && testScript.includes('pm.test(')) {
+      if (customTestName) {
+        // 기존 테스트 이름을 커스텀 이름으로 교체
+        return testScript.replace(/pm\.test\('([^']+)'/, `pm.test('${testName}'`);
+      }
       return testScript;
     }
 
@@ -905,7 +916,13 @@ export class SClientYAMLParser {
    */
   static convertAndSave(yamlPath, jsonPath = null) {
     if (!jsonPath) {
-      jsonPath = yamlPath.replace(/\.ya?ml$/, '.json');
+      // YAML 파일인 경우에만 temp/ 폴더에 생성, 그 외에는 원래 위치
+      if (yamlPath.includes('.yaml') || yamlPath.includes('.yml')) {
+        const baseName = path.basename(yamlPath).replace(/\.ya?ml$/, '.json');
+        jsonPath = path.join('temp', baseName);
+      } else {
+        jsonPath = yamlPath.replace(/\.ya?ml$/, '.json');
+      }
     }
 
     const scenario = this.convertYamlToScenario(yamlPath);

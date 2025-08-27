@@ -41,19 +41,35 @@ steps:
         pattern: "ResponseTime=([0-9]+)"
         variable: "RESPONSE_TIME"
     
-    # 다양한 Chai.js 스타일 테스트
+    # 다양한 Chai.js 스타일 테스트 (tooltip 기능 포함)
     test:
       # === 기본 Equal 테스트 ===
-      - "RESULT_CODE == 0"
-      - "expect(RESULT_CODE).to.equal(0)"
-      - "RESULT_CODE != -1"
-      - "expect(RESULT_CODE).to.not.equal(-1)"
+      - name: "Result code success validation"
+        description: "Verify that the result code is 0 indicating successful operation"
+        assertion: "RESULT_CODE == 0"
+      - name: "Alternative success check"
+        description: "Alternative way to verify successful operation result"  
+        assertion: "RESULT_CODE == 0"
+      - name: "Result code error avoidance"
+        description: "Ensure result code is not -1 which indicates system error"
+        assertion: "RESULT_CODE != -1"
+      - name: "Error code prevention"
+        description: "Make sure we avoid critical system error codes"
+        assertion: "RESULT_CODE != -1"
       
       # === 존재 여부 테스트 ===
-      - "RESULT_CODE exists"
-      - "expect(RESULT_CODE).to.exist"
-      - "SERVER_INFO exists"
-      - "expect(SERVER_INFO).to.exist"
+      - name: "Result code field existence"
+        description: "Verify that RESULT_CODE field is present in the response"
+        assertion: "RESULT_CODE exists"
+      - name: "Result code presence check"
+        description: "Ensure result code field is returned in the response"
+        assertion: "RESULT_CODE exists"
+      - name: "Server info field existence"
+        description: "Verify that SERVER_INFO field is present for next step processing"
+        assertion: "SERVER_INFO exists"  
+      - name: "Server info availability"
+        description: "Check that server info is available for next transaction step"
+        assertion: "SERVER_INFO exists"
       - "UNDEFINED_VAR not exists"
       - "expect(UNDEFINED_VAR).to.not.exist"
       

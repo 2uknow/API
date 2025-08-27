@@ -49,6 +49,45 @@ npm run setup
 npm run install-reporters
 ```
 
+## ⚡ Quick YAML Testing
+
+**간단한 YAML 파일 실행으로 즉시 테스트 가능:**
+
+```bash
+# YAML 테스트 파일 직접 실행
+node run-yaml.js collections/simple_api_test.yaml
+
+# 상세한 디버깅 정보와 함께 결과 출력:
+# ✅ Request/Response 데이터
+# ✅ 추출된 변수들 (타입, 길이 포함)
+# ✅ 테스트 결과 및 실패 상세 분석
+# ✅ JavaScript 표현식 단계별 평가
+```
+
+### 범용 Assertion 엔진
+
+**어떤 변수명이든 하드코딩 없이 테스트 가능:**
+
+```yaml
+# 존재 여부 체크
+- "FIELD_NAME exists"
+
+# 비교 연산
+- "RESULT_CODE == 0"
+- "AMOUNT > 1000" 
+- "STATUS != 'FAILED'"
+
+# JavaScript 표현식
+- "js: FIELD1 == 'ok' && FIELD2.length > 5"
+- "js: CUSTOM_VAR > 0 || ERROR_MSG == ''"
+```
+
+**특징:**
+- 🚀 **완전 범용적**: 새로운 변수명 추가시 코드 수정 불필요
+- 🔍 **상세한 디버깅**: 실패 원인 정확한 분석 (변수값, 타입, 길이)
+- ⚡ **즉시 실행**: YAML 파일만 작성하고 바로 테스트
+- 🧪 **JavaScript 지원**: 복잡한 조건도 JavaScript로 표현 가능
+
 ### 3. 기본 설정
 
 프로젝트 실행 시 `config/settings.json`이 자동 생성됩니다:

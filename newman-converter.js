@@ -116,6 +116,7 @@ export class SClientToNewmanConverter {
         },
         assertions: (step.tests || []).map(test => ({
           assertion: test.name,
+          description: test.description || null,
           skipped: false,
           error: test.passed ? null : {
             name: 'AssertionError',
@@ -252,6 +253,7 @@ export class SClientToNewmanConverter {
    * Newman HTMLExtra 스타일 HTML 생성
    */
   generateNewmanStyleHTML(collection, run) {
+    console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
     const { stats, executions, timings, failures } = run;
     const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
     const duration = timings.completed - timings.started;
@@ -666,6 +668,69 @@ export class SClientToNewmanConverter {
             color: var(--border-hover);
         }
         
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+        
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: pre-line;
+            max-width: 300px;
+            min-width: 150px;
+            text-align: left;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-primary);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::before,
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Ensure tooltip doesn't get cut off on the right side */
+        .assertion.tooltip:last-child::before {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        
+        .assertion.tooltip:last-child::after {
+            left: auto;
+            right: 15px;
+            transform: none;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -760,13 +825,22 @@ export class SClientToNewmanConverter {
                         ${execution.assertions.length > 0 ? `
                             <div class="assertions">
                                 <div class="detail-label">Test Results</div>
-                                ${execution.assertions.map(assertion => `
-                                    <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'}">
+                                ${execution.assertions.map(assertion => {
+                                    const hasDescription = assertion.description && assertion.description.trim();
+                                    const tooltipClass = hasDescription ? 'tooltip' : '';
+                                    const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
+                                    
+                                    // DEBUG: Log tooltip generation
+                                    console.log(`[TOOLTIP DEBUG] Test: "${assertion.assertion}", Description: "${assertion.description}", HasTooltip: ${hasDescription}`);
+                                    
+                                    return `
+                                    <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'} ${tooltipClass}" ${tooltipAttr}>
                                         <span class="assertion-icon">${assertion.error ? '✗' : '✓'}</span>
                                         ${assertion.assertion}
                                         ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
                                     </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </div>
                         ` : ''}
                         
