@@ -117,6 +117,7 @@ export class SClientToNewmanConverter {
         assertions: (step.tests || []).map(test => ({
           assertion: test.name,
           description: test.description || null,
+          originalAssertion: test.assertion || null,  // 원래 assertion 저장
           skipped: false,
           error: test.passed ? null : {
             name: 'AssertionError',
@@ -130,7 +131,9 @@ export class SClientToNewmanConverter {
           id: this.generateId(),
           type: 'text/javascript',
           exec: step.tests.map(test => test.script || `pm.test("${test.name}", function () { /* test logic */ });`)
-        } : undefined
+        } : undefined,
+        // 원래 step의 extracted 변수 데이터 보존
+        extracted: step.extracted || {}
       };
 
       return execution;
@@ -253,6 +256,7 @@ export class SClientToNewmanConverter {
    * Newman HTMLExtra 스타일 HTML 생성
    */
   generateNewmanStyleHTML(collection, run) {
+    console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
     const { stats, executions, timings, failures } = run;
     const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
     const duration = timings.completed - timings.started;
@@ -730,6 +734,49 @@ export class SClientToNewmanConverter {
             transform: none;
         }
         
+        /* Expandable Values */
+        .expandable-value {
+            color: var(--info-color);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: rgba(88, 166, 255, 0.1);
+            transition: all 0.3s ease;
+            display: inline-block;
+            position: relative;
+            max-width: 100%;
+            word-break: break-all;
+        }
+        
+        .expandable-value:hover {
+            background: rgba(88, 166, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .expandable-value.expanded {
+            background: rgba(88, 166, 255, 0.15);
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+        
+        .expandable-value::after {
+            content: '🔍';
+            position: absolute;
+            right: -2px;
+            top: -2px;
+            font-size: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        
+        .expandable-value:hover::after {
+            opacity: 1;
+        }
+        
+        .expandable-value.expanded::after {
+            content: '🔄';
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -829,13 +876,33 @@ export class SClientToNewmanConverter {
                                     const tooltipClass = hasDescription ? 'tooltip' : '';
                                     const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
                                     
-                                    // Tooltip generation for test descriptions
+                                    // DEBUG: Log tooltip generation
+                                    console.log(`[TOOLTIP DEBUG] Test: "${assertion.assertion}", Description: "${assertion.description}", HasTooltip: ${hasDescription}`);
                                     
                                     return `
                                     <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'} ${tooltipClass}" ${tooltipAttr}>
                                         <span class="assertion-icon">${assertion.error ? '✗' : '✓'}</span>
                                         ${assertion.assertion}
                                         ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
+                                        ${assertion.error && assertion.originalAssertion && assertion.originalAssertion.startsWith('js:') ? `
+                                        <div style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.1); border-left: 3px solid #dc3545; font-size: 12px;">
+                                            <strong>JavaScript Condition Analysis:</strong><br>
+                                            <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">${assertion.originalAssertion.substring(3).trim()}</code><br>
+                                            ${(() => {
+                                                const jsExpression = assertion.originalAssertion.substring(3).trim();
+                                                const stepData = executions.find(e => e.assertions.includes(assertion));
+                                                const extractedVars = stepData ? stepData.extracted || {} : {};
+                                                const conditionAnalysis = SClientToNewmanConverter.analyzeJavaScriptConditions(jsExpression, extractedVars);
+                                                if (conditionAnalysis && conditionAnalysis.length > 0) {
+                                                    return conditionAnalysis.map(condition => {
+                                                        const status = condition.result ? '✅' : '❌';
+                                                        return `&nbsp;&nbsp;${status} <code>${condition.expression}</code> → ${condition.result} ${condition.details ? condition.details : ''}`;
+                                                    }).join('<br>') + `<br><strong>Overall Result:</strong> false`;
+                                                }
+                                                return '';
+                                            })()}
+                                        </div>
+                                        ` : ''}
                                     </div>
                                     `;
                                 }).join('')}
@@ -937,6 +1004,27 @@ export class SClientToNewmanConverter {
             }
         }
         
+        // Toggle expandable value expansion
+        function toggleValueExpansion(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const isExpanded = element.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Collapse: show shortened value
+                const fullValue = element.getAttribute('data-full-value');
+                const shortValue = fullValue.substring(0, 20);
+                element.textContent = shortValue + '...';
+                element.classList.remove('expanded');
+            } else {
+                // Expand: show full value
+                const fullValue = element.getAttribute('data-full-value');
+                element.textContent = fullValue;
+                element.classList.add('expanded');
+            }
+        }
+        
         // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', initTheme);
     </script>
@@ -991,6 +1079,49 @@ export class SClientToNewmanConverter {
         .assertion-fail { background: #f8d7da; color: #721c24; }
         .response-data { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 0.9em; }
         .footer { text-align: center; margin-top: 40px; color: #666; font-size: 0.9em; }
+        
+        /* Expandable Values */
+        .expandable-value {
+            color: #007bff;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: rgba(0, 123, 255, 0.1);
+            transition: all 0.3s ease;
+            display: inline-block;
+            position: relative;
+            max-width: 100%;
+            word-break: break-all;
+        }
+        
+        .expandable-value:hover {
+            background: rgba(0, 123, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .expandable-value.expanded {
+            background: rgba(0, 123, 255, 0.15);
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+        
+        .expandable-value::after {
+            content: '🔍';
+            position: absolute;
+            right: -2px;
+            top: -2px;
+            font-size: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        
+        .expandable-value:hover::after {
+            opacity: 1;
+        }
+        
+        .expandable-value.expanded::after {
+            content: '🔄';
+        }
     </style>
 </head>
 <body>
@@ -1047,6 +1178,25 @@ export class SClientToNewmanConverter {
                                 <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'}">
                                     ${assertion.error ? '✗' : '✓'} ${assertion.assertion}
                                     ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
+                                    ${assertion.error && assertion.originalAssertion && assertion.originalAssertion.startsWith('js:') ? `
+                                    <div style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.1); border-left: 3px solid #dc3545; font-size: 12px;">
+                                        <strong>JavaScript Condition Analysis:</strong><br>
+                                        <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">${assertion.originalAssertion.substring(3).trim()}</code><br>
+                                        ${(() => {
+                                            const jsExpression = assertion.originalAssertion.substring(3).trim();
+                                            // 현재 execution에서 extracted 변수 찾기
+                                            const extractedVars = execution.extracted || {};
+                                            const conditionAnalysis = SClientToNewmanConverter.analyzeJavaScriptConditions(jsExpression, extractedVars);
+                                            if (conditionAnalysis && conditionAnalysis.length > 0) {
+                                                return conditionAnalysis.map(condition => {
+                                                    const status = condition.result ? '✅' : '❌';
+                                                    return `&nbsp;&nbsp;${status} <code>${condition.expression}</code> → ${condition.result} ${condition.details ? condition.details : ''}`;
+                                                }).join('<br>') + `<br><strong>Overall Result:</strong> false`;
+                                            }
+                                            return '';
+                                        })()}
+                                    </div>
+                                    ` : ''}
                                 </div>
                             `).join('')}
                         </div>
@@ -1086,6 +1236,29 @@ export class SClientToNewmanConverter {
             <p>Powered by Newman HTMLExtra styling</p>
         </div>
     </div>
+    
+    <script>
+        // Toggle expandable value expansion
+        function toggleValueExpansion(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const isExpanded = element.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Collapse: show shortened value
+                const fullValue = element.getAttribute('data-full-value');
+                const shortValue = fullValue.substring(0, 20);
+                element.textContent = shortValue + '...';
+                element.classList.remove('expanded');
+            } else {
+                // Expand: show full value
+                const fullValue = element.getAttribute('data-full-value');
+                element.textContent = fullValue;
+                element.classList.add('expanded');
+            }
+        }
+    </script>
 </body>
 </html>
     `.trim();
@@ -1160,6 +1333,122 @@ export class SClientToNewmanConverter {
   countFailedTests(steps) {
     return steps.reduce((total, step) => 
       total + (step.tests ? step.tests.filter(t => !t.passed).length : 0), 0);
+  }
+
+  /**
+   * JavaScript 조건식을 분석하여 각 조건의 평가 결과를 반환 (Newman HTML용)
+   * @param {string} expression JavaScript 표현식
+   * @param {Object} variables 사용 가능한 변수들
+   * @returns {Array} 조건별 분석 결과
+   */
+  static analyzeJavaScriptConditions(expression, variables = {}) {
+    try {
+      const results = [];
+      
+      // && 또는 || 연산자로 분리된 조건들 찾기
+      const conditions = this.parseConditions(expression);
+      
+      if (conditions.length <= 1) {
+        // 단일 조건인 경우 전체 표현식 평가
+        const result = this.evaluateExpression(expression, variables);
+        const details = this.getVariableDetails(expression, variables);
+        return [{
+          expression: expression,
+          result: result,
+          details: details
+        }];
+      }
+      
+      // 각 조건별로 평가
+      for (const condition of conditions) {
+        const result = this.evaluateExpression(condition.expression, variables);
+        const details = this.getVariableDetails(condition.expression, variables);
+        
+        results.push({
+          expression: condition.expression,
+          result: result,
+          details: details,
+          operator: condition.operator
+        });
+      }
+      
+      return results;
+      
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * JavaScript 표현식을 && 또는 || 연산자로 분리
+   */
+  static parseConditions(expression) {
+    const conditions = [];
+    const operators = ['&&', '||'];
+    
+    // 간단한 파싱 - 괄호를 고려하지 않은 기본 분리
+    let current = expression;
+    
+    for (const op of operators) {
+      const parts = current.split(` ${op} `);
+      if (parts.length > 1) {
+        conditions.length = 0; // 기존 결과 클리어
+        for (let i = 0; i < parts.length; i++) {
+          conditions.push({
+            expression: parts[i].trim(),
+            operator: i > 0 ? op : null
+          });
+        }
+        break;
+      }
+    }
+    
+    return conditions.length > 0 ? conditions : [{ expression: expression.trim(), operator: null }];
+  }
+
+  /**
+   * JavaScript 표현식을 안전하게 평가
+   */
+  static evaluateExpression(expression, variables) {
+    try {
+      // 사용 가능한 변수들을 함수 컨텍스트에 추가
+      const context = { ...variables };
+      
+      // Function constructor를 사용하여 안전하게 평가
+      const func = new Function(...Object.keys(context), `return (${expression})`);
+      return func(...Object.values(context));
+      
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * 표현식에서 사용된 변수들의 상세 정보 생성 (HTML with expandable values)
+   */
+  static getVariableDetails(expression, variables) {
+    const details = [];
+    
+    // 변수명 추출 (간단한 패턴 매칭)
+    const varMatches = expression.match(/[A-Z_][A-Z0-9_]*/g) || [];
+    const uniqueVars = [...new Set(varMatches)];
+    
+    for (const varName of uniqueVars) {
+      if (variables.hasOwnProperty(varName)) {
+        const value = variables[varName];
+        if (typeof value === 'string' && value.length > 20) {
+          const shortValue = value.substring(0, 20);
+          const expandId = `expand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          details.push(`(${varName} = "<span class="expandable-value" data-full-value="${value.replace(/"/g, '&quot;')}" onclick="toggleValueExpansion('${expandId}')" id="${expandId}">${shortValue}...</span>")`);
+        } else {
+          details.push(`(${varName} = "${value}")`);
+        }
+      } else {
+        details.push(`(${varName} = undefined)`);
+      }
+    }
+    
+    return details.length > 0 ? details.join(' ') : '';
   }
 
   calculateAverageResponseTime(executions) {
