@@ -267,7 +267,7 @@ export class SClientScenarioEngine {
     const testResults = [];
     
     tests.forEach(test => {
-      const { name, script } = test;
+      const { name, script, description } = test;
       
       try {
         // 간단한 테스트 스크립트 실행 환경 생성
@@ -275,10 +275,10 @@ export class SClientScenarioEngine {
           test: (testName, testFn) => {
             try {
               testFn();
-              testResults.push({ name: testName, passed: true });
+              testResults.push({ name: testName, description: description, passed: true });
               this.log(`[TEST PASS] ${testName}`);
             } catch (err) {
-              testResults.push({ name: testName, passed: false, error: err.message });
+              testResults.push({ name: testName, description: description, passed: false, error: err.message });
               this.log(`[TEST FAIL] ${testName}: ${err.message}`);
               this.log(`[DEBUG] PM Response: ${JSON.stringify(pm.response, null, 2)}`);
               this.log(`[DEBUG] Extracted variables: ${JSON.stringify(extracted, null, 2)}`);
@@ -358,7 +358,7 @@ export class SClientScenarioEngine {
         // 스크립트 실행
         eval(script);
       } catch (err) {
-        testResults.push({ name, passed: false, error: err.message });
+        testResults.push({ name, description, passed: false, error: err.message });
         this.log(`[TEST ERROR] ${name}: ${err.message}`);
       }
     });
@@ -615,6 +615,7 @@ export class SClientReportGenerator {
   }
 
   static generateHTMLReport(scenarioResult) {
+    console.log('[HTML DEBUG] SClientReportGenerator.generateHTMLReport called');
     const { info, steps, summary, startTime, endTime } = scenarioResult;
     const successRate = ((summary.passed / summary.total) * 100).toFixed(1);
 
@@ -663,6 +664,55 @@ export class SClientReportGenerator {
         .test-item { padding: 5px 0; }
         .extracted-vars { background: #f8f9fa; padding: 10px; margin-top: 10px; border-radius: 3px; }
         .code { background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+        
+        /* 툴팁 스타일 추가 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+        
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            white-space: normal;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #333;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::before,
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body>
@@ -716,13 +766,19 @@ export class SClientReportGenerator {
                 ${step.tests && step.tests.length > 0 ? `
                     <h5>Test Results:</h5>
                     <div class="test-results">
-                        ${step.tests.map(test => `
+                        ${step.tests.map(test => {
+                            const hasDescription = test.description && test.description.trim();
+                            const tooltipClass = hasDescription ? 'tooltip' : '';
+                            const tooltipAttr = hasDescription ? `data-tooltip="${test.description.replace(/"/g, '&quot;')}"` : '';
+                            
+                            return `
                             <div class="test-item">
                                 <span class="status-${test.passed ? 'pass' : 'fail'}">${test.passed ? '✓' : '✗'}</span>
-                                ${test.name}
+                                <span class="${tooltipClass}" ${tooltipAttr}>${test.name}</span>
                                 ${!test.passed && test.error ? `<br><small style="color: #dc3545; margin-left: 20px;">${test.error}</small>` : ''}
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 ` : ''}
                 
