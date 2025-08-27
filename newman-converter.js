@@ -40,7 +40,8 @@ export class SClientToNewmanConverter {
             mode: 'raw',
             raw: JSON.stringify({
               command: step.command,
-              arguments: step.arguments || step.response?.arguments || {}
+              arguments: step.arguments || step.response?.arguments || {},
+              cmdString: step.response?.cmdString || ''
             })
           },
           url: {
@@ -99,7 +100,8 @@ export class SClientToNewmanConverter {
             mode: 'raw',
             raw: JSON.stringify({
               command: step.command,
-              arguments: step.arguments || step.response?.arguments || {}
+              arguments: step.arguments || step.response?.arguments || {},
+              cmdString: step.response?.cmdString || ''
             })
           }
         },
@@ -114,6 +116,7 @@ export class SClientToNewmanConverter {
         },
         assertions: (step.tests || []).map(test => ({
           assertion: test.name,
+          description: test.description || null,
           skipped: false,
           error: test.passed ? null : {
             name: 'AssertionError',
@@ -250,6 +253,7 @@ export class SClientToNewmanConverter {
    * Newman HTMLExtra 스타일 HTML 생성
    */
   generateNewmanStyleHTML(collection, run) {
+    console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
     const { stats, executions, timings, failures } = run;
     const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
     const duration = timings.completed - timings.started;
@@ -262,6 +266,8 @@ export class SClientToNewmanConverter {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${collection.info.name} - Newman Report</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -662,6 +668,69 @@ export class SClientToNewmanConverter {
             color: var(--border-hover);
         }
         
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+        
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: pre-line;
+            max-width: 300px;
+            min-width: 150px;
+            text-align: left;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-primary);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::before,
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Ensure tooltip doesn't get cut off on the right side */
+        .assertion.tooltip:last-child::before {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        
+        .assertion.tooltip:last-child::after {
+            left: auto;
+            right: 15px;
+            transform: none;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 15px; }
@@ -756,13 +825,41 @@ export class SClientToNewmanConverter {
                         ${execution.assertions.length > 0 ? `
                             <div class="assertions">
                                 <div class="detail-label">Test Results</div>
-                                ${execution.assertions.map(assertion => `
-                                    <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'}">
+                                ${execution.assertions.map(assertion => {
+                                    const hasDescription = assertion.description && assertion.description.trim();
+                                    const tooltipClass = hasDescription ? 'tooltip' : '';
+                                    const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
+                                    
+                                    // DEBUG: Log tooltip generation
+                                    console.log(`[TOOLTIP DEBUG] Test: "${assertion.assertion}", Description: "${assertion.description}", HasTooltip: ${hasDescription}`);
+                                    
+                                    return `
+                                    <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'} ${tooltipClass}" ${tooltipAttr}>
                                         <span class="assertion-icon">${assertion.error ? '✗' : '✓'}</span>
                                         ${assertion.assertion}
                                         ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
                                     </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${execution.request.body && execution.request.body.raw ? `
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">${(() => {
+                                  try {
+                                    const requestData = JSON.parse(execution.request.body.raw);
+                                    if (requestData.cmdString) {
+                                      return requestData.cmdString.replace(/;/g, ';\\n').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                    } else {
+                                      return Object.entries(requestData.arguments || {}).map(([key, value]) => 
+                                        `${key}=${value}`).join(';\\n');
+                                    }
+                                  } catch (e) {
+                                    return execution.request.body.raw.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                  }
+                                })()}</div>
                             </div>
                         ` : ''}
                         
@@ -865,6 +962,8 @@ export class SClientToNewmanConverter {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${collection.info.name} - SClient Test Report</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f9fa; }
@@ -952,6 +1051,25 @@ export class SClientToNewmanConverter {
                                     ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
                                 </div>
                             `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${execution.request.body && execution.request.body.raw ? `
+                        <div class="response-data">
+                            <strong>Request Command:</strong><br>
+                            ${(() => {
+                              try {
+                                const requestData = JSON.parse(execution.request.body.raw);
+                                if (requestData.cmdString) {
+                                  return requestData.cmdString.replace(/;/g, ';<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                } else {
+                                  return Object.entries(requestData.arguments || {}).map(([key, value]) => 
+                                    `${key}=${value}`).join(';<br>');
+                                }
+                              } catch (e) {
+                                return execution.request.body.raw.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                              }
+                            })()}
                         </div>
                     ` : ''}
                     

@@ -1,4 +1,5 @@
 // YAML에서 사용할 수 있는 Chai.js 스타일 검증 엔진
+// Last updated: 2025-08-25 13:52 - Fixed pm.globals to pm.response
 import fs from 'fs';
 
 /**
@@ -325,8 +326,8 @@ export class YAMLAssertEngine {
     return {
       success,
       message: success ? 
-        `✓ ${path} equals ${expectedValue}` : 
-        `✗ Expected ${path} to equal ${expectedValue}, but got ${actual}`,
+        `${path} equals ${expectedValue}` : 
+        `Expected ${path} to equal ${expectedValue}, but got ${actual}`,
       actual,
       expected: expectedValue
     };
@@ -340,8 +341,8 @@ export class YAMLAssertEngine {
     return {
       success,
       message: success ? 
-        `✓ ${path} does not equal ${expectedValue}` : 
-        `✗ Expected ${path} to not equal ${expectedValue}, but it does`,
+        `${path} does not equal ${expectedValue}` : 
+        `Expected ${path} to not equal ${expectedValue}, but it does`,
       actual,
       expected: expectedValue
     };
@@ -354,8 +355,8 @@ export class YAMLAssertEngine {
     return {
       success,
       message: success ? 
-        `✓ ${path} exists` : 
-        `✗ Expected ${path} to exist, but it is ${actual}`,
+        `${path} exists` : 
+        `Expected ${path} to exist, but it is ${actual}`,
       actual,
       expected: 'to exist'
     };
@@ -499,6 +500,60 @@ export class YAMLAssertEngine {
   // === 유틸리티 메서드들 ===
 
   /**
+   * 변수명을 사용자 친화적 이름으로 변환
+   */
+  getFriendlyVariableName(variable) {
+    const nameMap = {
+      'RESULT_CODE': 'Response Code',
+      'SERVER_INFO': 'Server Information', 
+      'ERROR_MESSAGE': 'Error Message',
+      'AUTH_RESULT': 'Authentication Result',
+      'AUTH_MSG': 'Authentication Message',
+      'RESPONSE_TIME': 'Response Time',
+      'SUCCESS_COUNT': 'Success Count',
+      'CONN_RESULT': 'Connection Result',
+      'SERVER_STATUS': 'Server Status',
+      'SESSION_ID': 'Session ID',
+      'ITEM_COUNT': 'Item Count',
+      'TOTAL_AMOUNT': 'Total Amount',
+      'SERVER_VERSION': 'Server Version',
+      'API_LIST': 'API List',
+      'MULTI_RESULT': 'Multi Process Result',
+      'FAIL_RESULT': 'Failure Test Result',
+      'IREPORT_RESULT': 'Payment Info Query Result',
+      'IREPORT_SERVER_INFO': 'Payment Query Server Info',
+      'IREPORT_ERROR_MSG': 'Payment Query Error Message',
+      'NCONFIRM_RESULT': 'Payment Confirmation Result',
+      'NCONFIRM_SERVER_INFO': 'Payment Confirmation Server Info',
+      'NCONFIRM_ERROR_MSG': 'Payment Confirmation Error Message',
+      'NBILL_RESULT': 'Payment Billing Result',
+      'NBILL_SERVER_INFO': 'Payment Billing Server Info',
+      'NBILL_ERROR_MSG': 'Payment Billing Error Message',
+      'ITEMSEND2_RESULT': 'Payment Request Result',
+      'ITEMSEND2_SERVER_INFO': 'Payment Request Server Info',
+      'ITEMSEND2_ERROR_MSG': 'Payment Request Error Message',
+      'IDELIVER_RESULT': 'Authentication Process Result',
+      'IDELIVER_SERVER_INFO': 'Authentication Process Server Info',
+      'IDELIVER_ERROR_MSG': 'Authentication Process Error Message'
+    };
+    
+    return nameMap[variable] || this.formatVariableName(variable);
+  }
+
+  /**
+   * 변수명을 자동으로 포맷팅하여 영어로 변환
+   */
+  formatVariableName(variable) {
+    if (!variable || typeof variable !== 'string') return variable;
+    
+    // 대문자_언더스코어 패턴을 Title Case로 변환
+    return variable
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
    * 경로를 통해 값 가져오기 (예: "response.result", "AUTH_RESULT")
    */
   getValue(path) {
@@ -572,31 +627,197 @@ export class YAMLAssertEngine {
   }
 
   /**
-   * 문자열 assertion을 PM 테스트로 변환
+   * 변수명을 응답 필드명으로 매핑
+   */
+  static getResponseFieldName(variable) {
+    // 추출된 변수들은 이미 PM 응답 객체에 포함되어 있으므로 직접 사용
+    // 단순히 변수명을 소문자로 변환해서 찾기
+    return variable.toLowerCase();
+  }
+
+  /**
+   * 문자열 assertion을 PM 테스트로 변환 (SClient용)
    */
   convertStringToPMTest(assertion) {
     const testName = assertion.replace(/['"]/g, '');
     
-    // 간단한 변환 규칙들
-    if (assertion.match(/^(\w+(?:\.\w+)*)\s*==\s*(.+)$/)) {
-      const field = RegExp.$1;
-      const expected = RegExp.$2;
-      return `pm.test('${testName}', function() {
-    pm.expect(pm.response.json().${field}).to.equal(${expected});
+    // SClient용 변환 규칙들 - 추출된 변수 사용
+    
+    // Variable == value 패턴 (예: RESULT_CODE == 0)
+    if (assertion.match(/^([A-Z_]+)\s*==\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const expected = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('Verify ${variable} equals ${expected}', function() {
+    // 추출된 변수는 이미 PM 응답 객체에 포함되어 있음
+    const actual = pm.response.${variable} || pm.response.${this.constructor.getResponseFieldName(variable)};
+    if (actual === undefined || actual === null) {
+        throw new Error('❌ ${variable} not found. Value was not extracted from SClient response.');
+    }
+    pm.expect(actual.toString()).to.equal('${expected}', 
+        '❌ ${variable} value mismatch.\\n  📋 Expected: ${expected}\\n  📄 Actual: ' + actual + '\\n  🔍 Please check SClient response.');
 });`;
     }
     
-    if (assertion.match(/^(\w+(?:\.\w+)*)\s+exists?$/)) {
-      const field = RegExp.$1;
+    // Variable != value 패턴
+    if (assertion.match(/^([A-Z_]+)\s*!=\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const expected = RegExp.$2.replace(/['"]/g, '');
       return `pm.test('${testName}', function() {
-    pm.expect(pm.response.json().${field}).to.not.be.undefined;
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)};
+    pm.expect(actual).to.not.equal('${expected}', 'Expected ${variable} to not be ${expected}');
+});`;
+    }
+    
+    // Variable exists 패턴
+    if (assertion.match(/^([A-Z_]+)\s+exists?$/)) {
+      const variable = RegExp.$1;
+      return `pm.test('Verify ${variable} field exists', function() {
+    // 추출된 변수는 이미 PM 응답 객체에 포함되어 있음
+    const actual = pm.response.${variable} || pm.response.${this.constructor.getResponseFieldName(variable)};
+    if (actual === undefined || actual === null || actual === '') {
+        throw new Error('❌ ${variable} not found.\\n  🔍 Value was not extracted from SClient response.\\n  📄 Actual value: ' + actual);
+    }
+    pm.expect(actual).to.not.be.undefined;
+    pm.expect(actual).to.not.be.null;
+    pm.expect(actual).to.not.equal('');
+});`;
+    }
+    
+    // Variable not exists 패턴
+    if (assertion.match(/^([A-Z_]+)\s+not\s+exists?$/)) {
+      const variable = RegExp.$1;
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)};
+    pm.expect(actual).to.be.undefined, 'Expected ${variable} to not exist but got ' + actual);
+});`;
+    }
+    
+    // Variable contains 'text' 패턴
+    if (assertion.match(/^([A-Z_]+)\s+contains?\s+(['"].+['"])$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)} || '';
+    pm.expect(actual).to.contain('${text}', 'Expected ${variable} to contain "${text}" but got "' + actual + '"');
+});`;
+    }
+    
+    // Variable not contains 'text' 패턴
+    if (assertion.match(/^([A-Z_]+)\s+not\s+contains?\s+(['"].+['"])$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)} || '';
+    pm.expect(actual).to.not.contain('${text}', 'Expected ${variable} to not contain "${text}" but got "' + actual + '"');
+});`;
+    }
+    
+    // Variable > number 패턴
+    if (assertion.match(/^([A-Z_]+)\s*>\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.above(${threshold}, 'Expected ${variable} (${actual}) to be greater than ${threshold}');
+});`;
+    }
+    
+    // Variable < number 패턴
+    if (assertion.match(/^([A-Z_]+)\s*<\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.below(${threshold}, 'Expected ${variable} (${actual}) to be less than ${threshold}');
+});`;
+    }
+    
+    // Variable >= number 패턴
+    if (assertion.match(/^([A-Z_]+)\s*>=\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.at.least(${threshold}, 'Expected ${variable} (${actual}) to be at least ${threshold}');
+});`;
+    }
+    
+    // Variable <= number 패턴
+    if (assertion.match(/^([A-Z_]+)\s*<=\s*(.+)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.at.most(${threshold}, 'Expected ${variable} (${actual}) to be at most ${threshold}');
+});`;
+    }
+    
+    // expect() 스타일도 변수 기반으로 변환
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.equal\((.+)\)$/)) {
+      const variable = RegExp.$1;
+      const expected = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)};
+    pm.expect(actual).to.equal('${expected}', 'Expected ${variable} to equal ${expected} but got ' + actual);
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.exist$/)) {
+      const variable = RegExp.$1;
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)};
+    pm.expect(actual).to.exist, 'Expected ${variable} to exist but got ' + actual);
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.not\.exist$/)) {
+      const variable = RegExp.$1;
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)};
+    pm.expect(actual).to.not.exist, 'Expected ${variable} to not exist but got ' + actual);
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.be\.above\((.+)\)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.above(${threshold}, 'Expected ${variable} (${actual}) to be above ${threshold}');
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.be\.below\((.+)\)$/)) {
+      const variable = RegExp.$1;
+      const threshold = RegExp.$2;
+      return `pm.test('${testName}', function() {
+    const actual = parseInt(pm.response.${this.constructor.getResponseFieldName(variable)}) || 0;
+    pm.expect(actual).to.be.below(${threshold}, 'Expected ${variable} (${actual}) to be below ${threshold}');
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.contain\((.+)\)$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)} || '';
+    pm.expect(actual).to.contain('${text}', 'Expected ${variable} to contain "${text}" but got "' + actual + '"');
+});`;
+    }
+    
+    if (assertion.match(/^expect\(([A-Z_]+)\)\.to\.not\.contain\((.+)\)$/)) {
+      const variable = RegExp.$1;
+      const text = RegExp.$2.replace(/['"]/g, '');
+      return `pm.test('${testName}', function() {
+    const actual = pm.response.${this.constructor.getResponseFieldName(variable)} || '';
+    pm.expect(actual).to.not.contain('${text}', 'Expected ${variable} to not contain "${text}" but got "' + actual + '"');
 });`;
     }
     
     // 기본 템플릿
     return `pm.test('${testName}', function() {
     // ${assertion}
-    // TODO: Implement this test
+    // TODO: Implement SClient variable-based test
 });`;
   }
 
