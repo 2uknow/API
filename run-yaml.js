@@ -176,76 +176,113 @@ function displayResults(scenarioResult) {
     let totalTests = 0;
     let passedTests = 0;
     
-    // 각 스텝 결과 출력 (SClient 명령어 + 추출된 변수 + 테스트 결과)
+    // 각 스텝 결과 출력 (SClient 명령어 + stdout 응답 + 추출된 변수 + 테스트 결과)
     if (scenarioResult.steps && Array.isArray(scenarioResult.steps)) {
         scenarioResult.steps.forEach((step, index) => {
-            // SClient 명령어 표시
+            console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            console.log(`Step ${index + 1}: ${step.name || 'Unnamed Step'}`);
+            console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+            
+            // SClient 명령어 표시 (더 명확하게)
             if (step.commandString) {
-                console.log(`\n실행 명령어: ./SClient "${step.commandString}"`);
+                console.log(`실행 커맨드:`);
+                console.log(`   ./SClient "${step.commandString}"`);
             }
             
-            // 추출된 변수 표시
+            // SClient stdout 응답 표시 (새로 추가)
+            if (step.response && step.response.stdout) {
+                console.log(`SClient 응답 (stdout):`);
+                const stdout = step.response.stdout.trim();
+                if (stdout) {
+                    // stdout을 줄별로 나누어 들여쓰기로 표시
+                    stdout.split('\n').forEach(line => {
+                        if (line.trim()) {
+                            console.log(`   ${line.trim()}`);
+                        }
+                    });
+                } else {
+                    console.log(`   (응답 없음)`);
+                }
+            }
+            
+            // stderr가 있으면 표시
+            if (step.response && step.response.stderr && step.response.stderr.trim()) {
+                console.log(`SClient 오류 (stderr):`);
+                step.response.stderr.trim().split('\n').forEach(line => {
+                    if (line.trim()) {
+                        console.log(`   ${line.trim()}`);
+                    }
+                });
+            }
+            
+            // 실행 시간 표시
+            if (step.response && step.response.duration) {
+                console.log(`실행 시간: ${step.response.duration}ms`);
+            }
+            
+            // 추출된 변수 표시 (개선된 형태)
             if (step.extracted && Object.keys(step.extracted).length > 0) {
-                console.log('추출된 변수:');
+                console.log(`추출된 변수:`);
                 Object.keys(step.extracted).forEach(varName => {
                     const value = step.extracted[varName];
                     const type = typeof value;
                     const length = (typeof value === 'string') ? value.length : 'N/A';
-                    console.log(`  ${varName}: "${value}" (type: ${type}, length: ${length})`);
+                    console.log(`   ${varName}: "${value}" (${type}, length: ${length})`);
                 });
             }
             
             // 테스트 결과 출력
             if (step.tests && Array.isArray(step.tests) && step.tests.length > 0) {
+                console.log(`테스트 결과:`);
                 step.tests.forEach(test => {
                     totalTests++;
                     const status = test.passed ? '✅' : '❌';
                     const testName = test.name || test.assertion || 'Unknown test';
                     
-                    console.log(`${status} ${testName}`);
+                    console.log(`   ${status} ${testName}`);
                     
                     if (!test.passed) {
-                        console.log(`    Expected: ${test.expected || 'N/A'}`);
-                        console.log(`    Actual: ${test.actual || 'N/A'}`);
+                        console.log(`       Expected: ${test.expected || 'N/A'}`);
+                        console.log(`       Actual: ${test.actual || 'N/A'}`);
                         if (test.error) {
-                            console.log(`    Error: ${test.error}`);
+                            console.log(`       Error: ${test.error}`);
                         }
                         
                         // JavaScript 표현식 실패 시 상세 디버깅 정보
                         if (test.assertion && test.assertion.startsWith('js:') && test.debugInfo) {
-                            console.log(`    ━━━ JavaScript Debug Info ━━━`);
-                            console.log(`    Expression: ${test.debugInfo.expression}`);
-                            console.log(`    Result: ${test.debugInfo.result} (${test.debugInfo.resultType})`);
+                            console.log(`       ━━━ JavaScript Debug Info ━━━`);
+                            console.log(`       Expression: ${test.debugInfo.expression}`);
+                            console.log(`       Result: ${test.debugInfo.result} (${test.debugInfo.resultType})`);
                             
                             if (test.debugInfo.variables && Object.keys(test.debugInfo.variables).length > 0) {
-                                console.log(`    Variables:`);
+                                console.log(`       Variables:`);
                                 Object.entries(test.debugInfo.variables).forEach(([name, info]) => {
-                                    console.log(`      ${name} = "${info.value}" (${info.type}, exists: ${info.exists})`);
+                                    console.log(`         ${name} = "${info.value}" (${info.type}, exists: ${info.exists})`);
                                 });
                             }
                             
                             if (test.debugInfo.evaluation && test.debugInfo.evaluation.steps) {
-                                console.log(`    Steps:`);
+                                console.log(`       Steps:`);
                                 test.debugInfo.evaluation.steps.forEach((step, index) => {
                                     const result = step.error ? `ERROR: ${step.error}` : `${step.result}`;
-                                    console.log(`      ${index + 1}. ${step.expression} → ${result}`);
+                                    console.log(`         ${index + 1}. ${step.expression} → ${result}`);
                                 });
                             }
                         }
                         // JavaScript 조건별 상세 분석 (debugInfo 없을 때)
                         else if (test.assertion && test.assertion.startsWith('js:')) {
                             const jsExpression = test.assertion.substring(3).trim();
-                            console.log(`    JavaScript Expression: ${jsExpression}`);
+                            console.log(`       JavaScript Expression: ${jsExpression}`);
                             
                             // 조건별 분석 수행
                             const conditionAnalysis = analyzeJavaScriptConditions(jsExpression, step.extracted || {});
                             if (conditionAnalysis && conditionAnalysis.length > 0) {
-                                console.log(`    Condition Analysis:`);
+                                console.log(`       Condition Analysis:`);
                                 conditionAnalysis.forEach(condition => {
                                     const status = condition.result ? '✅' : '❌';
-                                    console.log(`      ${status} ${condition.expression} → ${condition.result} ${condition.details ? condition.details : ''}`);
+                                    console.log(`         ${status} ${condition.expression} → ${condition.result} ${condition.details ? condition.details : ''}`);
                                 });
-                                console.log(`    Overall Result: ${test.actual || 'false'}`);
+                                console.log(`       Overall Result: ${test.actual || 'false'}`);
                             }
                         }
                         
@@ -256,6 +293,11 @@ function displayResults(scenarioResult) {
             }
         });
     }
+    
+    // 전체 테스트 요약 추가
+    console.log(`\n═══════════════════════════════════════════════════════════════════════════════════════════════`);
+    console.log(`테스트 요약: ${passedTests}/${totalTests} 통과 (성공률: ${totalTests > 0 ? Math.round(passedTests / totalTests * 100) : 0}%)`);
+    console.log(`═══════════════════════════════════════════════════════════════════════════════════════════════`);
 }
 
 // 명령행 실행
