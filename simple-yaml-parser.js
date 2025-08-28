@@ -15,13 +15,17 @@ export class SClientYAMLParser {
    */
   static convertYamlToScenario(yamlPath) {
     const content = fs.readFileSync(yamlPath, 'utf-8');
-    return this.parseYamlToScenario(content);
+    const basePath = path.dirname(yamlPath);
+    return this.parseYamlToScenario(content, basePath);
   }
 
   /**
    * YAML 내용을 파싱하여 SClient 시나리오로 변환
    */
-  static parseYamlToScenario(yamlContent) {
+  static parseYamlToScenario(yamlContent, basePath = null) {
+    // include 처리
+    yamlContent = this.processIncludes(yamlContent, basePath);
+    
     const lines = yamlContent.replace(/\r/g, '').split('\n');
     
     const scenario = {
@@ -933,6 +937,72 @@ export class SClientYAMLParser {
       jsonPath,
       scenario
     };
+  }
+
+  /**
+   * YAML 파일에서 include 구문을 처리
+   */
+  static processIncludes(yamlContent, basePath = null) {
+    if (!basePath) basePath = path.resolve('./collections');
+    
+    // include: filename.yaml 패턴 찾기
+    const includePattern = /^(\s*)include:\s*(.+\.yaml)\s*$/gm;
+    
+    let processedContent = yamlContent;
+    let match;
+    
+    while ((match = includePattern.exec(yamlContent)) !== null) {
+      const [fullMatch, indent, filename] = match;
+      
+      try {
+        const trimmedFilename = filename.trim();
+        let includePath;
+        
+        // 절대경로인지 확인 (Windows: C:\, D:\ / Unix: /)
+        if (path.isAbsolute(trimmedFilename)) {
+          includePath = trimmedFilename;
+        } else {
+          // 상대경로는 현재 YAML 파일 기준으로 해석
+          includePath = path.resolve(basePath, trimmedFilename);
+        }
+        
+        if (fs.existsSync(includePath)) {
+          const includeContent = fs.readFileSync(includePath, 'utf-8');
+          
+          // 들여쓰기 적용하여 포함
+          const indentedContent = this.applyIndentToYaml(includeContent, indent);
+          
+          // 원본에서 include 구문을 포함된 내용으로 교체
+          processedContent = processedContent.replace(fullMatch, indentedContent);
+        } else {
+          console.warn(`⚠️ Include 파일을 찾을 수 없습니다: ${includePath}`);
+        }
+      } catch (error) {
+        console.error(`❌ Include 처리 중 오류 발생: ${filename} - ${error.message}`);
+      }
+    }
+    
+    return processedContent;
+  }
+
+  /**
+   * YAML 내용에 들여쓰기 적용
+   */
+  static applyIndentToYaml(content, baseIndent) {
+    const lines = content.split('\n');
+    return lines.map((line, index) => {
+      if (line.trim() === '') return line; // 빈 줄은 그대로
+      if (index === 0 && line.trim().startsWith('#')) return line; // 첫 줄 주석은 그대로
+      return baseIndent + line;
+    }).join('\n');
+  }
+
+  /**
+   * 공통 변수를 현재 YAML의 변수와 병합
+   */
+  static mergeVariables(currentVars, commonVars) {
+    // 현재 파일의 변수가 공통 변수보다 우선순위가 높음
+    return { ...commonVars, ...currentVars };
   }
 }
 
