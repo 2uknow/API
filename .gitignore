@@ -1,13 +1,10 @@
-# Ignore everything
+# 기본적으로 모든 파일 무시
+*
 
-# But don't ignore these files...
+# 필수/예외 파일들
 !README.md
-
-# Essential project files
 !package.json
 !package-lock.json
-
-# Core application files
 !server.js
 !alert.js
 !run-yaml.js
@@ -19,61 +16,47 @@
 !newman-converter.js
 !sclient-test-validator.js
 
-
-# Configuration directories
+# Config / Collections / Jobs
 !config/
 !config/**/*.json
 
-# Collection and job directories
 !collections/
 !collections/**/*.yaml
 !collections/**/*.yml
 !collections/**/*.json
-!/Danal_Teledit_v1.0/**
-!/Danal_Teledit_v1.0/**/*.yaml
-!/Danal_Teledit_v1.0/**/*.yml
+
+# Danal_Teledit_v1.0 (YAML 시나리오 폴더)
+!Danal_Teledit_v1.0/**
+!Danal_Teledit_v1.0/**/*.yaml
+!Danal_Teledit_v1.0/**/*.yml
+
+!jobs/
+!jobs/**/*.json
 
 # Web interface
 !public/
-!public/*.html
-!public/*.css
-!public/*.js
+!public/**/*.html
+!public/**/*.css
+!public/**/*.js
 
-# Binary directory
-!binaries/
+# Binaries / Scripts / Docs
 !binaries/**
+!scripts/**/*.js
+!sample/**/*.md
 
-# Scripts
-!scripts/
-!scripts/*.js
-
-# Documentation
-!sample/
-!sample/*.md
-
-# Git files
+# Git 관리 파일
 !.gitignore
-!.git
 
-# Directories (allow them to be tracked)
-!/config
-!/collections
-!/jobs
-!/public
-!/binaries
-!/scripts
-!/sample
-
-# Generated files to ignore
+# 생성/빌드 산출물 무시
 node_modules/
 reports/
 logs/
 temp/
+dist/
+build/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-dist/
-build/
 .env*
 .DS_Store
 Thumbs.db
