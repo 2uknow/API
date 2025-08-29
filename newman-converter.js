@@ -115,17 +115,17 @@ export class SClientToNewmanConverter {
           responseSize: (step.response?.stdout || '').length
         },
         assertions: (step.tests || []).map(test => ({
-          assertion: test.name,
-          description: test.description || null,
-          originalAssertion: test.assertion || null,  // 원래 assertion 저장
-          skipped: false,
-          error: test.passed ? null : {
-            name: 'AssertionError',
-            index: 0,
-            test: test.name,
-            message: test.error || 'Test failed',
-            stack: test.error || 'Test failed'
-          }
+            assertion: test.name,
+            description: test.description || null,
+            originalAssertion: test.assertion || null,  // 원래 assertion 저장
+            skipped: false,
+            error: test.passed ? null : {
+              name: 'AssertionError',
+              index: 0,
+              test: test.name,
+              message: test.error || 'Test failed',
+              stack: test.error || 'Test failed'
+            }
         })),
         testScript: step.tests && step.tests.length > 0 ? {
           id: this.generateId(),
@@ -846,7 +846,7 @@ export class SClientToNewmanConverter {
                 <div class="request-item">
                     <div class="request-header" onclick="toggleDetails('request-${index}')">
                         <div style="display: flex; align-items: center;">
-                            <span class="request-method">POST</span>
+                            <span class="request-method">SClient</span>
                             <span class="request-name">${execution.item.name}</span>
                         </div>
                         <div class="request-status">
