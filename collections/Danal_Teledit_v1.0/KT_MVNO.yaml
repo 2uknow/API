@@ -1,0 +1,288 @@
+
+name: "KT 알뜰 SMS 정상케이스"
+description: "Danal_Taldit_v1.0 자동화 테스트"
+version: "1.0.0"
+
+# 공통 변수 불러오기
+include: Danal_Teledit_v1.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [1차 호출] ITEMSEND2
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+
+steps:
+  - name: "ITEMSEND2"
+    description: "가맹점 인증 및 상품정보 검증 요청"
+
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+      EMAIL: "{{EMAIL}}"
+          
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE == 0"
+
+      - name: "거래 인증 key(ServerInfo) 정상 출력"
+        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO  !== undefined" 
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ERROR_MESSAGE == No Information"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [2차 호출] IDELIVER
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "IDELIVER"
+    description: "사용자정보 인증 및 승인번호 발송 요청"
+
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      IDEN: "{{KTMVNO_IDEN}}"
+      ISPREOTBILL: "N"
+      DSTADDR: "{{KTMVNO_DST_ADDR}}"
+      CARRIER: "{{KTMVNO_CARRIER}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      AMOUNT: "{{KTMVNO_AMOUNT}}"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"      
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      COMMAND: "IDELIVER"
+      TERMSAGREE1: "Y"
+      IPADDR : "10.10.52.54"
+      SMTOTP: "N"
+      ISCPIN: "Y"
+      CPIN: "663466"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "ID_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "ID_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ID_ERROR_MSG"
+      - name: "cap"
+        pattern: "CAP"
+        variable: "ID_CAP"
+      - name: "ANSIMMEMBER"
+        pattern: "ANSIMMEMBER"
+        variable: "ID_ANSIMMEMBER"
+      - name: "ARSCHANGE"
+        pattern: "ARSCHANGE"
+        variable: "ID_ARSCHANGE"
+      - name: "UAM"
+        pattern: "UAM"
+        variable: "ID_UAM"
+      - name: "ISLGPWDUSER"
+        pattern: "ISLGPWDUSER"
+        variable: "ID_ISLGPWDUSER"
+      - name: "ISPROM"
+        pattern: "ISPROM"
+        variable: "ID_ISPROM"
+      - name: "PROM_AMT"
+        pattern: "PROM_AMT"
+        variable: "ID_PROM_AMT"
+      - name: "ISCARRIERPROM"
+        pattern: "ISCARRIERPROM"
+        variable: "ID_ISCARRIERPROM"
+
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "거래 인증 key(ServerInfo) 정상 출력"
+        assertion: "js: ID_SERVER_INFO !== null && ID_SERVER_INFO.trim().length > 0 && typeof ID_SERVER_INFO  !== undefined" 
+
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "ID_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력" 
+        assertion: "ID_ERROR_MSG == No Information"
+
+      # 개인정보 (잔여한도 금액) 미전달
+      - name: "잔여한도 금액(CAP) 정상 출력"
+        assertion: "ID_CAP == 000000"
+
+      - name: "안심결제 회원 여부(ANSIMMEMBER) 정상 출력"
+        assertion: "ID_ANSIMMEMBER == N"
+
+      - name: "ARS 전환 지원(ARSCHANGE) 정상 출력"
+        assertion: "ID_ARSCHANGE == N"
+
+      - name: "인증 방식(UAM) 정상 출력"
+        assertion: "ID_UAM == 0"
+
+      - name: "LGU+ 휴대폰결제 비밀번호 사용 여부(ISLGPWDUSER) 정상 출력"
+        assertion: "ID_ISLGPWDUSER == N"
+
+      - name: "즉시 할인용(ISPROM) 정상 출력"
+        assertion: "ID_ISPROM == N"
+
+      - name: "프로모션 할인금액(PROM_AMT) 정상 출력"
+        assertion: "ID_PROM_AMT == 0"
+
+      - name: "통신사 프로모션 적용 여부(ISCARRIERPROM) 정상 출력"
+        assertion: "ID_ISCARRIERPROM == N"
+
+      - name: "인증 방식(UAM) 정상 출력"
+        assertion: "ID_UAM == 0"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [3차 호출] IREPORT
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+
+  - name: "IREPORT"
+    description: "승인번호 확인 요청"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      Command: "IREPORT"
+      Configure: "FAILURE"
+      IFVERSION: "V1.0.5"
+      TERMSAGREE2: "N"
+      WPRCODE: "0000"
+      ANSIMPASS: ""
+      ANSIMMEMBER: "N"
+      OTP: "000000"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "IR_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "IR_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "IR_ERROR_MSG"
+    
+
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 482 출력 확인"
+        assertion: "IR_RESULT == 482"
+
+      - name: "결과 메시지(ErrMsg) 불일치 출력 확인"
+        assertion: "IR_ERROR_MSG == 승인 번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [4차 호출] NCONFIRM
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "NCONFIRM"
+    description: "결제정보 검증 요청"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      Command: "NCONFIRM"
+      OUTPUTOPTION: "DEFAULT"
+      ConfirmOption: "1"
+      CPID: "{{MERCHANT_ID}}"
+      AMOUNT: "301"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "NC_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "NC_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "NC_ERROR_MSG"
+    
+
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 492 출력 확인"
+        assertion: "NC_RESULT == 492"
+      - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
+        assertion: "NC_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [5차 호출] NBILL
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "NBILL"
+    description: "결제 요청"
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      BillOption: "1"
+      Command: "NBILL"
+      OUTPUTOPTION: "DEFAULT"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "NB_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "NB_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "NB_ERROR_MSG"
+    
+
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 492 출력 확인"
+        assertion: "NB_RESULT == 492"
+      - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
+        assertion: "NB_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
+
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 15000
+  retryCount: 0
