@@ -88,6 +88,60 @@ node run-yaml.js collections/simple_api_test.yaml
 - ⚡ **즉시 실행**: YAML 파일만 작성하고 바로 테스트
 - 🧪 **JavaScript 지원**: 복잡한 조건도 JavaScript로 표현 가능
 
+### 🔄 동적 변수 치환 (Variable Substitution)
+
+**YAML 테스트에서 실시간 변수 치환 지원:**
+
+```yaml
+variables:
+  SERVICE_NAME: "TELEDIT"
+  MERCHANT_ID: "A010002002"
+  ORDER_ID: "{{$timestamp}}_{{$randomInt}}"
+  DYNAMIC_MSG: "{{js: new Date().getHours() > 12 ? 'PM' : 'AM'}}_TEST"
+
+steps:
+  - name: "{{SERVICE_NAME}} 결제 요청 테스트"  # ✅ SERVICE_NAME으로 치환
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+    
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "PAYMENT_RESULT"
+    
+    test:
+      - name: "{{SERVICE_NAME}} 응답코드 확인"      # ✅ 치환됨
+        assertion: "PAYMENT_RESULT == 0"
+      - name: "추출된 결과값 {{PAYMENT_RESULT}} 검증"  # ✅ 추출변수도 치환
+        assertion: "js: PAYMENT_RESULT !== null"
+```
+
+**지원하는 변수 타입:**
+
+| 변수 패턴 | 예시 | 설명 |
+|-----------|------|------|
+| **YAML 변수** | `{{SERVICE_NAME}}` | variables 섹션에 정의된 변수 |
+| **동적 변수** | `{{$timestamp}}`, `{{$randomId}}` | 내장 동적 생성 변수 |
+| **JavaScript 식** | `{{js: new Date().getTime()}}` | JavaScript 코드 실행 결과 |
+| **추출 변수** | `{{PAYMENT_RESULT}}` | 이전 단계에서 추출된 변수 |
+
+**내장 동적 변수:**
+- `{{$timestamp}}` - Unix 타임스탬프 (밀리초)
+- `{{$randomId}}` - 고유 랜덤 ID 
+- `{{$randomInt}}` - 랜덤 정수 (0-9999)
+- `{{$date}}` - 현재 날짜 (YYYYMMDD)
+- `{{$time}}` - 현재 시간 (HHMMSS)
+- `{{$uuid}}` - UUID v4
+
+**특징:**
+- ✅ **실시간 치환**: 실행 시점에 변수값 적용
+- ✅ **완전 독립**: run-yaml.js와 웹 대시보드 모두 지원
+- ✅ **체이닝**: 이전 단계 결과를 다음 단계에서 사용
+- ✅ **JavaScript 지원**: 복잡한 동적 값 생성 가능
+- ✅ **하위 호환**: 기존 YAML 파일 그대로 동작
+
 ### 3. 기본 설정
 
 프로젝트 실행 시 `config/settings.json`이 자동 생성됩니다:

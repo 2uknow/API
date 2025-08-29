@@ -163,8 +163,8 @@ async function runYamlTest(yamlFilePath) {
         // 4. 공통 테스트 검증 모듈 사용
         const validatedResults = validateTestsWithYamlData(results, yamlData);
         
-        // 5. 결과 출력
-        displayResults(validatedResults);
+        // 5. 결과 출력 (변수가 치환된 시나리오 정보와 함께)
+        displayResults(validatedResults, scenario);
         
     } catch (error) {
         console.error('실행 중 오류 발생:', error.message);
@@ -172,7 +172,7 @@ async function runYamlTest(yamlFilePath) {
     }
 }
 
-function displayResults(scenarioResult) {
+function displayResults(scenarioResult, processedScenario = null) {
     let totalTests = 0;
     let passedTests = 0;
     
@@ -187,6 +187,7 @@ function displayResults(scenarioResult) {
             if (step.commandString) {
                 console.log(`실행 커맨드:`);
                 console.log(`   ./SClient "${step.commandString}"`);
+                console.log(); // 줄바꿈 추가
             }
             
             // SClient stdout 응답 표시 (새로 추가)
@@ -203,6 +204,7 @@ function displayResults(scenarioResult) {
                 } else {
                     console.log(`   (응답 없음)`);
                 }
+                console.log(); // 줄바꿈 추가
             }
             
             // stderr가 있으면 표시
@@ -213,11 +215,13 @@ function displayResults(scenarioResult) {
                         console.log(`   ${line.trim()}`);
                     }
                 });
+                console.log(); // 줄바꿈 추가
             }
             
             // 실행 시간 표시
             if (step.response && step.response.duration) {
                 console.log(`실행 시간: ${step.response.duration}ms`);
+                console.log(); // 줄바꿈 추가
             }
             
             // 추출된 변수 표시 (개선된 형태)
@@ -229,15 +233,22 @@ function displayResults(scenarioResult) {
                     const length = (typeof value === 'string') ? value.length : 'N/A';
                     console.log(`   ${varName}: "${value}" (${type}, length: ${length})`);
                 });
+                console.log(); // 줄바꿈 추가
             }
             
             // 테스트 결과 출력
             if (step.tests && Array.isArray(step.tests) && step.tests.length > 0) {
                 console.log(`테스트 결과:`);
-                step.tests.forEach(test => {
+                step.tests.forEach((test, testIndex) => {
                     totalTests++;
                     const status = test.passed ? '✅' : '❌';
-                    const testName = test.name || test.assertion || 'Unknown test';
+                    
+                    // 변수가 치환된 test name 우선 사용
+                    let testName = test.name || test.assertion || 'Unknown test';
+                    if (processedScenario && processedScenario.requests && processedScenario.requests[index] && 
+                        processedScenario.requests[index].tests && processedScenario.requests[index].tests[testIndex]) {
+                        testName = processedScenario.requests[index].tests[testIndex].name || testName;
+                    }
                     
                     console.log(`   ${status} ${testName}`);
                     
@@ -290,14 +301,12 @@ function displayResults(scenarioResult) {
                         passedTests++;
                     }
                 });
+                console.log(); // 줄바꿈 추가
             }
         });
     }
     
-    // 전체 테스트 요약 추가
-    console.log(`\n═══════════════════════════════════════════════════════════════════════════════════════════════`);
-    console.log(`테스트 요약: ${passedTests}/${totalTests} 통과 (성공률: ${totalTests > 0 ? Math.round(passedTests / totalTests * 100) : 0}%)`);
-    console.log(`═══════════════════════════════════════════════════════════════════════════════════════════════`);
+ 
 }
 
 // 명령행 실행

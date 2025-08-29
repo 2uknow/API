@@ -2505,8 +2505,9 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       console.log(`[YAML] Modules imported successfully`);
       console.log('[YAML SCENARIO] Loading YAML collection:', collectionPath);
       
-      // YAML 파일을 JSON 시나리오로 변환
-      const scenario = SClientYAMLParser.convertYamlToScenario(collectionPath);
+      // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
+      const yamlContent = fs.readFileSync(collectionPath, 'utf-8');
+      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
       console.log('[YAML SCENARIO] Parsed scenario:', scenario.info.name);
       
       // SClient 바이너리 경로 확인

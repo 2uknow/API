@@ -1,0 +1,107 @@
+# 공통 설정을 사용하는 SKT SMS 테스트
+name: "SKT SMS 테스트 (공통 설정 사용)"
+description: "common.yaml을 사용한 SKT SMS 정상케이스 테스트"
+version: "1.0.0"
+
+# 공통 설정 포함
+include: common.yaml
+
+# 이 파일만의 추가 변수 (공통 변수를 덮어쓸 수 있음)
+variables:
+  # SKT 특화 변수들 (common.yaml에서 가져옴)
+  IDEN: "{{SKT_IDEN}}"           # common.yaml의 SKT_IDEN 사용
+  DST_ADDR: "{{SKT_DST_ADDR}}"   # common.yaml의 SKT_DST_ADDR 사용  
+  CARRIER: "{{SKT_CARRIER}}"     # common.yaml의 SKT_CARRIER 사용
+  AMOUNT: "1000"
+  
+  # 테스트용 커스텀 변수
+  TEST_DESCRIPTION: "SKT SMS 결제 테스트"
+
+# 시나리오 단계
+steps:
+  - name: "1차 호출 : ITEMSEND2 (공통 설정 사용)"
+    
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|{{AMOUNT}}|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+      EMAIL: "{{EMAIL}}"
+          
+    # 공통 추출 패턴 사용
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "SERVER_1"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+    
+    # 공통 테스트 + 커스텀 테스트
+    test:
+      - name: "결과 코드 정상 확인"
+        assertion: "RESULT_CODE == 0"
+      - name: "서버 정보 존재 확인"
+        assertion: "js: SERVER_1 && SERVER_1.length > 0"
+      - name: "에러 메시지 정상 확인"  
+        assertion: "ERROR_MESSAGE == No Information"
+
+  - name: "2차 호출 : IDELIVER (공통 설정 사용)"
+    
+    args:
+      ServerInfo: "{{SERVER_1}}"
+      IDEN: "{{IDEN}}"
+      ISPREOTBILL: "N"
+      DSTADDR: "{{DST_ADDR}}"
+      CARRIER: "{{CARRIER}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      AMOUNT: "{{AMOUNT}}"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"      
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      COMMAND: "IDELIVER"
+      TERMSAGREE1: "Y"
+      IPADDR: "{{IPADDR}}"
+      SMTOTP: "N"
+      ISCPIN: "Y"
+      CPIN: "663466"
+    
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "ID_RESULT"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "ID_SERVER_INFO"
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ID_ERROR_MSG"
+      - name: "cap"
+        pattern: "CAP"
+        variable: "ID_CAP"
+    
+    test:
+      - name: "IDELIVER 결과 코드 정상 확인"
+        assertion: "ID_RESULT == 0"
+      - name: "IDELIVER 서버 정보 존재 확인"
+        assertion: "js: ID_SERVER_INFO && ID_SERVER_INFO.length > 0"
+
+# options는 common.yaml에서 자동으로 포함됨

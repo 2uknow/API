@@ -283,6 +283,203 @@ variables:
   ENVIRONMENT: "{{js: env.NODE_ENV || 'development'}}"
 ```
 
+## Variable Substitution System (Updated 2025-08-29)
+
+### Overview
+Comprehensive variable substitution system that enables dynamic content in YAML test files, supporting step names, test names, arguments, and any text content.
+
+### Architecture
+
+**Core Components:**
+1. **simple-yaml-parser.js**: Main substitution engine with `substituteVariables()` function
+2. **sclient-engine.js**: Runtime variable application with extracted variable support  
+3. **sclient-test-validator.js**: Preserves substituted names in final output
+4. **server.js**: Uses correct parsing method for web dashboard integration
+
+### Variable Types Supported
+
+#### 1. YAML Variables
+Variables defined in the `variables` section:
+```yaml
+variables:
+  SERVICE_NAME: "TELEDIT"
+  MERCHANT_ID: "A010002002"
+  
+steps:
+  - name: "{{SERVICE_NAME}} 결제 요청"  # → "TELEDIT 결제 요청"
+```
+
+#### 2. Dynamic Variables  
+Built-in system variables generated at runtime:
+```yaml
+variables:
+  ORDER_ID: "{{$timestamp}}_{{$randomInt}}"    # → "1724580000123_7429"
+  UNIQUE_ID: "{{$randomId}}"                   # → "1724580000123456"
+  TODAY: "{{$date}}"                           # → "20250829"
+```
+
+#### 3. JavaScript Expressions
+Dynamic code execution for complex logic:
+```yaml
+variables:
+  TIME_BASED: "{{js: new Date().getHours() > 12 ? 'PM' : 'AM'}}"
+  ORDER_PREFIX: "{{js: 'ORD_' + Date.now()}}"
+  ENVIRONMENT: "{{js: process.env.NODE_ENV || 'dev'}}"
+```
+
+#### 4. Extracted Variables
+Variables from previous step responses:
+```yaml
+steps:
+  - name: "Payment Request"
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "PAYMENT_RESULT"
+  
+  - name: "Validation for result {{PAYMENT_RESULT}}"  # Uses extracted value
+    test:
+      - name: "Payment {{PAYMENT_RESULT}} verification"
+```
+
+### Implementation Details
+
+#### Core Substitution Function
+**Location**: `simple-yaml-parser.js` lines 45-89
+
+```javascript
+static substituteVariables(text, variables = {}) {
+  if (typeof text !== 'string') return text;
+  
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmed = varName.trim();
+    
+    // Handle dynamic variables
+    if (trimmed.startsWith('$')) {
+      return this.generateDynamicVariable(trimmed);
+    }
+    
+    // Handle JavaScript expressions
+    if (trimmed.startsWith('js:')) {
+      return this.evaluateJavaScript(trimmed.substring(3).trim());
+    }
+    
+    // Handle regular variables
+    return variables[trimmed] || match;
+  });
+}
+```
+
+#### Runtime Variable Resolution
+**Location**: `sclient-engine.js` lines 62-78
+
+```javascript
+replaceVariables(text, additionalVars = {}) {
+  if (typeof text !== 'string') return text;
+  
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmed = varName.trim();
+    
+    // Check additional vars first (extracted variables)
+    if (additionalVars[varName]) {
+      return additionalVars[varName];
+    }
+    
+    // Then check stored variables
+    return this.variables.get(varName) || match;
+  });
+}
+```
+
+#### Critical Fix: Test Name Preservation
+**Location**: `sclient-test-validator.js` lines 155-170
+
+**Problem**: Original YAML test names were overwriting substituted names
+**Solution**: Preserve existing substituted names from execution results
+
+```javascript
+// Use existing substituted name if available, otherwise fallback to original
+const existingTest = step.tests && step.tests[testIndex];
+const finalTestName = existingTest && existingTest.name ? existingTest.name : originalTestName;
+
+return {
+  name: finalTestName,  // Preserves substitution
+  assertion: assertion,
+  passed: evalResult.passed,
+  // ...
+};
+```
+
+### Execution Flow
+
+#### Command Line (`run-yaml.js`)
+1. **YAML Parsing**: Load and parse YAML with variable collection
+2. **Initial Substitution**: Apply YAML and dynamic variables  
+3. **Scenario Generation**: Create JSON scenario with substituted content
+4. **Runtime Processing**: Apply extracted variables to test names
+5. **Output Display**: Show final substituted names in console
+
+#### Web Dashboard (`server.js` + HTML reports)
+1. **YAML Processing**: Use `parseYamlToScenario()` for proper substitution
+2. **Execution**: Run SClient with substituted scenario
+3. **Test Validation**: Preserve substituted names in validator
+4. **HTML Generation**: Display substituted names in reports
+
+### Testing & Validation
+
+#### Test Coverage
+- ✅ YAML variables in step names and test names
+- ✅ Dynamic variables (`$timestamp`, `$randomId`, etc.)
+- ✅ JavaScript expressions with complex logic
+- ✅ Extracted variables from previous steps
+- ✅ Mixed variable types in single text
+- ✅ Command line and web dashboard compatibility
+
+#### Example Test Case
+```yaml
+variables:
+  SERVICE_NAME: "TELEDIT"
+  ORDER_ID: "{{js: 'ORD_' + Date.now()}}"
+
+steps:
+  - name: "{{SERVICE_NAME}} Payment Request"
+    extract:
+      - name: "result"
+        pattern: "Result"  
+        variable: "PAYMENT_RESULT"
+    
+    test:
+      - name: "{{SERVICE_NAME}} Response Code {{PAYMENT_RESULT}} Validation"
+        assertion: "PAYMENT_RESULT exists"
+```
+
+**Expected Output**:
+- Step name: `"TELEDIT Payment Request"`
+- Test name: `"TELEDIT Response Code 0 Validation"` (assuming result was 0)
+
+### Troubleshooting
+
+#### Common Issues
+1. **Variables not substituting**: Check variable name spelling and case sensitivity
+2. **Web dashboard shows {{variable}}**: Ensure server uses `parseYamlToScenario()`
+3. **Extracted variables not working**: Verify extraction patterns and variable names
+4. **JavaScript errors**: Check syntax in `{{js: expression}}` blocks
+
+#### Debug Logging
+```javascript
+// Enable debug logging in simple-yaml-parser.js
+console.log('Substituting:', text, 'with variables:', variables);
+
+// Enable debug logging in sclient-engine.js  
+console.log('Runtime substitution:', text, 'additional:', additionalVars);
+```
+
+### Performance Considerations
+- **Caching**: Variable values cached during execution session
+- **Lazy Evaluation**: JavaScript expressions evaluated only when used
+- **Memory Management**: Variables cleaned up after test completion
+- **Backward Compatibility**: No performance impact on files without variables
+
 ### Test Naming and Results (Updated 2025-08-27)
 
 **Clean Test Names**:
