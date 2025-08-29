@@ -305,11 +305,9 @@ function displayResults(scenarioResult, processedScenario = null) {
     
     // 최종 전체 결과 요약
     console.log('\n' + '━'.repeat(90));
-    console.log(' 전체 테스트 결과 요약');
+    console.log('전체 테스트 결과 요약');
     console.log('━'.repeat(90));
-    console.log(`총 테스트: ${totalTests}개`);
-    console.log(`성공: ${passedTests}개 ✅`);
-    console.log(`실패: ${totalTests - passedTests}개 ❌`);    
+    console.log(`총 테스트: ${totalTests}개 | 성공: ${passedTests}개 ✅ | 실패: ${totalTests - passedTests}개 ❌`);
     
     console.log('━'.repeat(90));
  
