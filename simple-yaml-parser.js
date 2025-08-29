@@ -20,6 +20,65 @@ export class SClientYAMLParser {
   }
 
   /**
+   * 변수 치환 처리 ({{variable}} 형태)
+   */
+  static substituteVariables(text, variables = {}) {
+    if (typeof text !== 'string') return text;
+    
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+      const trimmed = varName.trim();
+      
+      // 동적 변수 처리
+      if (trimmed === '$timestamp') {
+        return Date.now().toString();
+      }
+      if (trimmed === '$randomInt') {
+        return Math.floor(Math.random() * 10000).toString();
+      }
+      if (trimmed === '$randomId') {
+        return Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+      }
+      if (trimmed === '$dateTime') {
+        return new Date().toISOString().replace(/[-:T]/g, '').substring(0, 14);
+      }
+      if (trimmed === '$date') {
+        return new Date().toISOString().substring(0, 10).replace(/-/g, '');
+      }
+      if (trimmed === '$time') {
+        return new Date().toTimeString().substring(0, 8).replace(/:/g, '');
+      }
+      if (trimmed === '$uuid') {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+      
+      // JavaScript 표현식 처리
+      if (trimmed.startsWith('js:')) {
+        try {
+          const jsCode = trimmed.substring(3).trim();
+          const context = {
+            Date, Math, parseInt, parseFloat, String, Number,
+            env: process.env,
+            ...variables
+          };
+          const func = new Function(...Object.keys(context), `return (${jsCode})`);
+          const result = func(...Object.values(context));
+          return result !== undefined ? result.toString() : match;
+        } catch (error) {
+          console.warn(`[JS ERROR] Failed to evaluate: ${trimmed} - ${error.message}`);
+          return match;
+        }
+      }
+      
+      // 일반 변수 치환
+      return variables[trimmed] !== undefined ? variables[trimmed] : match;
+    });
+  }
+
+  /**
    * YAML 내용을 파싱하여 SClient 시나리오로 변환
    */
   static parseYamlToScenario(yamlContent, basePath = null) {
@@ -47,6 +106,7 @@ export class SClientYAMLParser {
     let currentStep = null;
     let currentStepProperty = null;
     let indentLevel = 0;
+    let collectedVariables = {}; // 변수 수집용
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -94,6 +154,8 @@ export class SClientYAMLParser {
           value: value,
           description: `Variable: ${key}`
         });
+        // 변수 수집 (변수 치환용)
+        collectedVariables[key] = value;
       }
       
       // 단계 섹션 파싱
@@ -104,8 +166,9 @@ export class SClientYAMLParser {
             scenario.requests.push(currentStep);
           }
           
+          const rawName = this.extractValue(trimmed.substring(2)); // '- ' 제거
           currentStep = {
-            name: this.extractValue(trimmed.substring(2)), // '- ' 제거
+            name: this.substituteVariables(rawName, collectedVariables), // 변수 치환 적용
             description: '',
             command: '',
             arguments: {},
@@ -177,7 +240,8 @@ export class SClientYAMLParser {
           else if (currentStepProperty === 'test' && trimmed.startsWith('- ')) {
             // 객체 형태 테스트 처리 (- name: "test name")
             if (trimmed.includes('name:')) {
-              const testName = this.extractValue(trimmed.substring(2));
+              const rawTestName = this.extractValue(trimmed.substring(2));
+              const testName = this.substituteVariables(rawTestName, collectedVariables); // 변수 치환 적용
               let description = '';
               let assertion = '';
               
@@ -247,7 +311,46 @@ export class SClientYAMLParser {
       scenario.requests.push(currentStep);
     }
 
-    return scenario;
+    // 모든 시나리오에서 변수 치환 적용 (post-processing)
+    const processedScenario = this.applyVariableSubstitutionToScenario(scenario, collectedVariables);
+
+    return processedScenario;
+  }
+
+  /**
+   * 시나리오의 모든 필드에 변수 치환 적용 (post-processing)
+   */
+  static applyVariableSubstitutionToScenario(scenario, variables) {
+    // Deep clone to avoid modifying original
+    const newScenario = JSON.parse(JSON.stringify(scenario));
+    
+    // info.name에 변수 치환 적용
+    if (newScenario.info && newScenario.info.name) {
+      newScenario.info.name = this.substituteVariables(newScenario.info.name, variables);
+    }
+    
+    // info.description에 변수 치환 적용
+    if (newScenario.info && newScenario.info.description) {
+      newScenario.info.description = this.substituteVariables(newScenario.info.description, variables);
+    }
+    
+    // requests의 모든 test name에 변수 치환 적용
+    if (newScenario.requests && Array.isArray(newScenario.requests)) {
+      newScenario.requests.forEach(request => {
+        if (request.tests && Array.isArray(request.tests)) {
+          request.tests.forEach(test => {
+            if (test.name) {
+              test.name = this.substituteVariables(test.name, variables);
+            }
+            if (test.description) {
+              test.description = this.substituteVariables(test.description, variables);
+            }
+          });
+        }
+      });
+    }
+    
+    return newScenario;
   }
 
   /**

@@ -75,6 +75,28 @@ export function evaluateAssertion(assertion, extractedVars) {
                 evalContext[key.toLowerCase()] = extractedVars[key];
             });
             
+            // JavaScript 테스트에서 자주 사용하는 공통 변수명 매핑 추가
+            if (extractedVars.RESULT_CODE !== undefined) {
+                evalContext.result = extractedVars.RESULT_CODE;
+            }
+            if (extractedVars.SERVER_INFO !== undefined) {
+                evalContext.serverinfo = extractedVars.SERVER_INFO;
+            }
+            if (extractedVars.ERROR_MESSAGE !== undefined) {
+                evalContext.errmsg = extractedVars.ERROR_MESSAGE;
+            }
+            
+            // IDELIVER 단계에서의 변수 매핑
+            if (extractedVars.IDELIVER_RESULT !== undefined) {
+                evalContext.result = extractedVars.IDELIVER_RESULT;
+            }
+            if (extractedVars.IDELIVER_SERVER_INFO !== undefined) {
+                evalContext.serverinfo = extractedVars.IDELIVER_SERVER_INFO;
+            }
+            if (extractedVars.IDELIVER_ERROR_MSG !== undefined) {
+                evalContext.errmsg = extractedVars.IDELIVER_ERROR_MSG;
+            }
+            
             // JavaScript 코드 실행 및 상세 디버깅 정보 수집
             let result, error = null;
             let debugInfo = null;
@@ -126,15 +148,19 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
     scenarioResult.steps.forEach((step, stepIndex) => {
         const yamlStep = yamlData.steps && yamlData.steps[stepIndex];
         if (yamlStep && yamlStep.test && Array.isArray(yamlStep.test)) {
-            const validatedTests = yamlStep.test.map(yamlTest => {
-                const testName = yamlTest.name || yamlTest;
+            const validatedTests = yamlStep.test.map((yamlTest, testIndex) => {
+                const originalTestName = yamlTest.name || yamlTest;
                 const assertion = yamlTest.assertion || yamlTest;
+                
+                // 기존 실행된 테스트에서 변수 치환된 이름 사용 (있으면)
+                const existingTest = step.tests && step.tests[testIndex];
+                const finalTestName = existingTest && existingTest.name ? existingTest.name : originalTestName;
                 
                 // 범용 assertion 평가
                 const evalResult = evaluateAssertion(assertion, step.extracted || {});
                 
                 return {
-                    name: testName,
+                    name: finalTestName,  // 변수 치환된 이름 사용
                     assertion: assertion,
                     passed: evalResult.passed,
                     expected: evalResult.expected,

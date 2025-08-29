@@ -37,7 +37,7 @@ export class SClientScenarioEngine {
   }
 
   // 변수 치환 처리 (JavaScript 표현식 지원)
-  replaceVariables(text) {
+  replaceVariables(text, additionalVars = {}) {
     if (typeof text !== 'string') return text;
     
     return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
@@ -93,8 +93,8 @@ export class SClientScenarioEngine {
         });
       }
       
-      // 일반 변수 처리
-      return this.variables.get(varName) || match;
+      // 일반 변수 처리 (추가 변수 우선, 기본 변수는 fallback)
+      return additionalVars[varName] || this.variables.get(varName) || match;
     });
   }
 
@@ -268,6 +268,9 @@ export class SClientScenarioEngine {
     
     tests.forEach(test => {
       const { name, script, description } = test;
+      // test name에도 변수 치환 적용 (추출된 변수들도 포함)
+      const resolvedTestName = this.replaceVariables(name || 'Unknown test', extracted);
+      // Debug logging removed for production
       
       try {
         // 간단한 테스트 스크립트 실행 환경 생성
@@ -275,11 +278,11 @@ export class SClientScenarioEngine {
           test: (testName, testFn) => {
             try {
               testFn();
-              testResults.push({ name: testName, description: description, passed: true });
-              this.log(`[TEST PASS] ${testName}`);
+              testResults.push({ name: resolvedTestName, description: description, passed: true });
+              this.log(`[TEST PASS] ${resolvedTestName}`);
             } catch (err) {
-              testResults.push({ name: testName, description: description, passed: false, error: err.message });
-              this.log(`[TEST FAIL] ${testName}: ${err.message}`);
+              testResults.push({ name: resolvedTestName, description: description, passed: false, error: err.message });
+              this.log(`[TEST FAIL] ${resolvedTestName}: ${err.message}`);
               this.log(`[DEBUG] PM Response: ${JSON.stringify(pm.response, null, 2)}`);
               this.log(`[DEBUG] Extracted variables: ${JSON.stringify(extracted, null, 2)}`);
             }
@@ -358,8 +361,8 @@ export class SClientScenarioEngine {
         // 스크립트 실행
         eval(script);
       } catch (err) {
-        testResults.push({ name, description, passed: false, error: err.message });
-        this.log(`[TEST ERROR] ${name}: ${err.message}`);
+        testResults.push({ name: resolvedTestName, description, passed: false, error: err.message });
+        this.log(`[TEST ERROR] ${resolvedTestName}: ${err.message}`);
       }
     });
 
@@ -405,14 +408,17 @@ export class SClientScenarioEngine {
       const request = requests[i];
       const stepNumber = i + 1;
       
+      // request name에도 변수 치환 적용
+      const resolvedName = this.replaceVariables(request.name);
+      
       try {
-        this.log(`[STEP ${stepNumber}/${requests.length}] ${request.name}`);
+        this.log(`[STEP ${stepNumber}/${requests.length}] ${resolvedName}`);
         
         // 명령 실행
         const response = await this.executeCommand(
           request.command,
           request.arguments,
-          `${stepNumber}. ${request.name}`
+          `${stepNumber}. ${resolvedName}`
         );
 
         // 변수 추출
@@ -423,7 +429,7 @@ export class SClientScenarioEngine {
 
         const stepResult = {
           step: stepNumber,
-          name: request.name,
+          name: resolvedName, // 변수가 치환된 이름 사용
           command: request.command,
           commandString: response.cmdString,
           response,
@@ -448,7 +454,7 @@ export class SClientScenarioEngine {
       } catch (err) {
         const errorStep = {
           step: stepNumber,
-          name: request.name,
+          name: resolvedName, // 변수가 치환된 이름 사용
           command: request.command,
           error: err.message,
           passed: false
