@@ -243,12 +243,9 @@ function displayResults(scenarioResult, processedScenario = null) {
                     totalTests++;
                     const status = test.passed ? '✅' : '❌';
                     
-                    // 변수가 치환된 test name 우선 사용
+                    // 실행 결과의 치환된 test name 우선 사용
                     let testName = test.name || test.assertion || 'Unknown test';
-                    if (processedScenario && processedScenario.requests && processedScenario.requests[index] && 
-                        processedScenario.requests[index].tests && processedScenario.requests[index].tests[testIndex]) {
-                        testName = processedScenario.requests[index].tests[testIndex].name || testName;
-                    }
+                    // processedScenario보다는 실행 결과(test.name)를 우선 사용
                     
                     console.log(`   ${status} ${testName}`);
                     
@@ -306,6 +303,15 @@ function displayResults(scenarioResult, processedScenario = null) {
         });
     }
     
+    // 최종 전체 결과 요약
+    console.log('\n' + '━'.repeat(90));
+    console.log(' 전체 테스트 결과 요약');
+    console.log('━'.repeat(90));
+    console.log(`총 테스트: ${totalTests}개`);
+    console.log(`성공: ${passedTests}개 ✅`);
+    console.log(`실패: ${totalTests - passedTests}개 ❌`);    
+    
+    console.log('━'.repeat(90));
  
 }
 

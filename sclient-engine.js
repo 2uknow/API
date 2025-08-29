@@ -94,7 +94,17 @@ export class SClientScenarioEngine {
       }
       
       // 일반 변수 처리 (추가 변수 우선, 기본 변수는 fallback)
-      return additionalVars[varName] || this.variables.get(varName) || match;
+      const extractedValue = additionalVars[varName];
+      const storedValue = this.variables.get(varName);
+      
+      if (extractedValue !== undefined) {
+        return extractedValue.toString();
+      }
+      if (storedValue !== undefined) {
+        return storedValue.toString();  
+      }
+      
+      return match;
     });
   }
 
