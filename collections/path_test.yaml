@@ -1,16 +1,20 @@
 # 다양한 경로 테스트
 name: "경로 테스트"
-description: "여러 폴더의 설정 파일들을 include하는 테스트"
+description: "경로 테스트"
 version: "1.0.0"
 
-# 1. 같은 폴더의 파일 포함
-include: common.yaml
-
-# 2. 상위 폴더의 환경 설정 포함 (아직 만들지 않음, 예시만)
-# include: ../config/environments/production.yaml
-
-# 이 파일만의 변수
 variables:
+  # 다날 기본 설정
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # 테스트 특화 변수
   TEST_TYPE: "PATH_TEST"
   CUSTOM_VAR: "경로 테스트용"
 

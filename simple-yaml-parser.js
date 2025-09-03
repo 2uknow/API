@@ -912,13 +912,16 @@ export class SClientYAMLParser {
   }
 
   /**
-   * 키:값 라인에서 값 추출
+   * 키:값 라인에서 값 추출 (인라인 주석 제거 포함)
    */
   static extractValue(line) {
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) return '';
     
     let value = line.substring(colonIndex + 1).trim();
+    
+    // 인라인 주석 제거 (따옴표 밖의 # 이후 제거)
+    value = this.removeInlineComments(value);
     
     // 따옴표 제거
     if ((value.startsWith('"') && value.endsWith('"')) || 
@@ -927,6 +930,38 @@ export class SClientYAMLParser {
     }
     
     return value;
+  }
+
+  /**
+   * 인라인 주석 제거 (따옴표 안의 # 문자는 보존)
+   */
+  static removeInlineComments(text) {
+    let result = '';
+    let inQuotes = false;
+    let quoteChar = '';
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      
+      if (!inQuotes && (char === '"' || char === "'")) {
+        // 따옴표 시작
+        inQuotes = true;
+        quoteChar = char;
+        result += char;
+      } else if (inQuotes && char === quoteChar) {
+        // 따옴표 끝
+        inQuotes = false;
+        quoteChar = '';
+        result += char;
+      } else if (!inQuotes && char === '#') {
+        // 따옴표 밖의 주석 시작 - 여기서 중단
+        break;
+      } else {
+        result += char;
+      }
+    }
+    
+    return result.trim();
   }
 
   /**

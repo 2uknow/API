@@ -8,10 +8,22 @@ version: "1.0.0"
 #  * [1차 호출] ITEMSEND2
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-include: common.yaml
-
 variables:
+  # 다날 기본 설정
   MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # SKT 관련 변수들
+  KTMVNO_IDEN: "9002051"
+  KTMVNO_DST_ADDR: "01046911117"
+  KTMVNO_CARRIER: "SKT"
+  KTMVNO_AMOUNT: "1000"
 
 
 steps:

@@ -1,17 +1,23 @@
 # 공통 설정을 사용하는 SKT SMS 테스트
 name: "SKT SMS 테스트 (공통 설정 사용)"
-description: "common.yaml을 사용한 SKT SMS 정상케이스 테스트"
+description: "SKT SMS 정상케이스 테스트"
 version: "1.0.0"
 
-# 공통 설정 포함
-include: common.yaml
-
-# 이 파일만의 추가 변수 (공통 변수를 덮어쓸 수 있음)
 variables:
-  # SKT 특화 변수들 (common.yaml에서 가져옴)
-  IDEN: "{{SKT_IDEN}}"           # common.yaml의 SKT_IDEN 사용
-  DST_ADDR: "{{SKT_DST_ADDR}}"   # common.yaml의 SKT_DST_ADDR 사용  
-  CARRIER: "{{SKT_CARRIER}}"     # common.yaml의 SKT_CARRIER 사용
+  # 다날 기본 설정
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # SKT 특화 변수들
+  IDEN: "9002051"
+  DST_ADDR: "01046911117"
+  CARRIER: "SKT"
   AMOUNT: "1000"
   
   # 테스트용 커스텀 변수
