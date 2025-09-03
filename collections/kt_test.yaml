@@ -1,14 +1,20 @@
 # KT 테스트 (공통 설정 사용)
 name: "KT SMS 결제 테스트"
-description: "common.yaml을 사용한 KT SMS 테스트 예시"
+description: "KT SMS 테스트 예시"
 version: "1.0.0"
 
-# 공통 설정 포함
-include: common.yaml
-
-# KT 특화 변수들
 variables:
-  # KT 통신사 설정 (common.yaml의 carriers.KT 참고)
+  # 다날 기본 설정
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # KT 통신사 설정
   IDEN: "9003051"
   DST_ADDR: "01046911118" 
   CARRIER: "KT"

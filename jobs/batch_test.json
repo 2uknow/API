@@ -1,21 +1,23 @@
 {
-  "name": "TDB_SKT",
+  "name": "batch_test",
   "type": "binary",
-  "description": "Simple YAML-based SClient test for system validation with HTML report",
+  "description": "Execute all YAML files in collections directory as batch",
   "collection": "collections/",
-  "excludePatterns": [
-    "test_config.yaml",
-    "common.yaml", 
-    "enhanced_chai_test.yaml"
-  ],
   "environment": "Production",
+  "excludePatterns": [
+    "*config*",
+    "_*",
+    "*.config.yaml",
+    "**/config/**",
+    "*common*"
+  ],
   "platforms": {
     "win32": {
       "executable": "SClient.exe",
       "path": "binaries/windows"
     }
   },
-  "timeout": 15000,
+  "timeout": 60000,
   "encoding": "cp949",
   "parseOutput": {
     "successPattern": "Result=0|SUCCESS",
@@ -24,7 +26,7 @@
   },
   "generateHtmlReport": true,
   "reportOptions": {
-    "title": "Simple YAML Test Execution Report",
-    "browserTitle": "Simple YAML Test Report"
+    "title": "Batch YAML Test Execution Report",
+    "browserTitle": "Batch YAML Test Report"
   }
 }
