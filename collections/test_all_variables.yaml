@@ -1,0 +1,36 @@
+# 🎯 모든 자동 생성 변수 테스트
+name: "완전 동적 변수 시스템 테스트"
+description: "carriers, payment_methods, servers 등 모든 구조에서 자동 생성된 변수들 테스트"
+version: "1.0.0"
+
+include: common.yaml
+
+steps:
+  - name: "통신사 변수 테스트"
+    args:
+      Command: "TEST"
+      # 기본값 (첫 번째)
+      IDEN: "{{IDEN}}"                    # → 9002051 (SKT 기본값)
+      DST_ADDR: "{{DST_ADDR}}"            # → 01046911117 (SKT 기본값)
+      CARRIER: "{{CARRIER}}"              # → SKT (기본값)
+      
+      # 간편 변수 (ITEM_KEY)
+      SKT_IDEN: "{{SKT_IDEN}}"            # → 9002051
+      KT_DST_ADDR: "{{KT_DST_ADDR}}"      # → 01046911118
+      LGU_CARRIER: "{{LGU_CARRIER}}"      # → LG U+
+      
+      # 구조화된 변수 (SECTION_ITEM_KEY)
+      CARRIERS_SKT_IDEN: "{{CARRIERS_SKT_IDEN}}"           # → 9002051
+      CARRIERS_KT_DST_ADDR: "{{CARRIERS_KT_DST_ADDR}}"     # → 01046911118
+      
+      # 결제 수단 변수들
+      CARD_TYPE: "{{CARD_TYPE}}"          # → CREDIT
+      BANK_FEE: "{{BANK_FEE}}"            # → 50
+      CARD_PROCESSOR: "{{CARD_PROCESSOR}}" # → VISA
+      
+      # 서버 환경 변수들  
+      DEV_HOST: "{{DEV_HOST}}"            # → dev.api.danal.co.kr
+      PROD_PORT: "{{PROD_PORT}}"          # → 443
+      DEV_SSL: "{{DEV_SSL}}"              # → false
+
+# 모든 자동 추출과 테스트도 적용됨!
