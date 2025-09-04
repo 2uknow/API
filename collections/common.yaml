@@ -19,21 +19,6 @@ variables:
   # 테스트 환경 설정
   TEST_AMOUNT: "1000"
   IPADDR: "10.10.52.54"
-  
-  # SKT 기본 변수들 (직접 사용 가능)
-  SKT_IDEN: "9002051"
-  SKT_DST_ADDR: "01046911117"
-  SKT_CARRIER: "SKT"
-  
-  # KT 기본 변수들
-  KT_IDEN: "9003051"
-  KT_DST_ADDR: "01046911118"
-  KT_CARRIER: "KT"
-  
-  # LGU 기본 변수들
-  LGU_IDEN: "9005051"
-  LGU_DST_ADDR: "01046911119"
-  LGU_CARRIER: "LG U+"
 
 # 공통 테스트 옵션
 options:
@@ -80,3 +65,25 @@ carriers:
     IDEN: "9005051"
     DST_ADDR: "01046911119"
     CARRIER: "LG U+"
+
+# 결제 수단별 설정 (예시)
+payment_methods:
+  CARD:
+    TYPE: "CREDIT"
+    FEE: "100"
+    PROCESSOR: "VISA"
+  BANK:
+    TYPE: "TRANSFER" 
+    FEE: "50"
+    PROCESSOR: "KB"
+
+# 서버 환경별 설정 (예시)
+servers:
+  DEV:
+    HOST: "dev.api.danal.co.kr"
+    PORT: "8080"
+    SSL: "false"
+  PROD:
+    HOST: "api.danal.co.kr" 
+    PORT: "443"
+    SSL: "true"

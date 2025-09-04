@@ -115,9 +115,96 @@ if (!fs.existsSync(logsDir))    fs.mkdirSync(logsDir,    { recursive: true });
 // SSE + history (최적화된 버전)
 const state = { 
   runningJobs: new Map(), // jobName -> { startTime, process } 형태로 관리
-  batchMode: false // 배치 모드 플래그 - true일 때는 중복 실행 체크 우회
+  batchMode: false, // 배치 모드 플래그 - true일 때는 중복 실행 체크 우회
+  scheduleQueue: [], // 스케줄 대기 큐: [{jobName, timestamp, retryCount}]
+  processingQueue: false // 큐 처리 중 플래그
 };const stateClients = new Set(); 
 const logClients = new Set();
+
+// 스케줄 큐 관리 함수들
+function addToScheduleQueue(jobName) {
+  const queueItem = {
+    jobName,
+    timestamp: Date.now(),
+    retryCount: 0
+  };
+  
+  // 이미 큐에 있는 작업인지 확인
+  const existing = state.scheduleQueue.find(item => item.jobName === jobName);
+  if (existing) {
+    console.log(`[SCHEDULE QUEUE] Job ${jobName} already in queue, skipping`);
+    return false;
+  }
+  
+  state.scheduleQueue.push(queueItem);
+  console.log(`[SCHEDULE QUEUE] Added ${jobName} to queue. Queue length: ${state.scheduleQueue.length}`);
+  broadcastLog(`[SCHEDULE QUEUE] ${jobName} queued for execution`, 'SYSTEM');
+  
+  // 큐 처리 시작
+  processScheduleQueue();
+  return true;
+}
+
+async function processScheduleQueue() {
+  if (state.processingQueue) {
+    console.log(`[SCHEDULE QUEUE] Already processing queue, returning`);
+    return;
+  }
+  
+  if (state.scheduleQueue.length === 0) {
+    console.log(`[SCHEDULE QUEUE] Queue is empty`);
+    return;
+  }
+  
+  // 실행 중인 작업이 있으면 대기
+  if (state.running && !state.batchMode) {
+    console.log(`[SCHEDULE QUEUE] Job ${state.running.job} is running, waiting...`);
+    setTimeout(() => processScheduleQueue(), 5000); // 5초 후 재시도
+    return;
+  }
+  
+  state.processingQueue = true;
+  const queueItem = state.scheduleQueue.shift(); // 큐에서 첫 번째 작업 가져오기
+  
+  console.log(`[SCHEDULE QUEUE] Processing queued job: ${queueItem.jobName}`);
+  broadcastLog(`[SCHEDULE QUEUE] Processing ${queueItem.jobName}`, 'SYSTEM');
+  
+  try {
+    const result = await runJob(queueItem.jobName, true);
+    
+    if (!result.started && result.reason === 'already_running') {
+      // 여전히 실행 중이면 다시 큐에 넣고 재시도
+      queueItem.retryCount++;
+      
+      if (queueItem.retryCount < 3) { // 최대 3번 재시도
+        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} still running, requeuing (attempt ${queueItem.retryCount}/3)`);
+        state.scheduleQueue.unshift(queueItem); // 큐 앞쪽에 다시 넣기
+        setTimeout(() => {
+          state.processingQueue = false;
+          processScheduleQueue();
+        }, 10000); // 10초 후 재시도
+      } else {
+        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} max retries exceeded, dropping`);
+        broadcastLog(`[SCHEDULE QUEUE] ${queueItem.jobName} dropped after max retries`, 'ERROR');
+        state.processingQueue = false;
+        processScheduleQueue(); // 다음 큐 아이템 처리
+      }
+    } else {
+      console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} execution result:`, result);
+      state.processingQueue = false;
+      
+      // 작업 완료 후 다음 큐 처리
+      setTimeout(() => processScheduleQueue(), 1000);
+    }
+  } catch (error) {
+    console.error(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}:`, error);
+    broadcastLog(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}: ${error.message}`, 'ERROR');
+    state.processingQueue = false;
+    
+    // 에러 발생 시에도 다음 큐 처리
+    setTimeout(() => processScheduleQueue(), 5000);
+  }
+}
 
 // 통합 Job 완료 처리 함수
 function finalizeJobCompletion(jobName, exitCode, success = null) {
@@ -150,6 +237,10 @@ function finalizeJobCompletion(jobName, exitCode, success = null) {
           broadcastState({ running: null });
         }
         console.log(`[FINALIZE] Completion process finished for ${jobName}`);
+        
+        // 작업 완료 후 스케줄 큐 처리
+        setTimeout(() => processScheduleQueue(), 2000);
+        
         resolve();
       }, 50);
     }, 100);
@@ -656,6 +747,16 @@ app.get('/api/status', (req, res) => {
   res.json({
     running: state.running,
     timestamp: new Date().toISOString(),
+    scheduleQueue: {
+      length: state.scheduleQueue.length,
+      items: state.scheduleQueue.map(item => ({
+        jobName: item.jobName,
+        timestamp: item.timestamp,
+        retryCount: item.retryCount,
+        waitingTime: Date.now() - item.timestamp
+      })),
+      processing: state.processingQueue
+    },
     clients: {
       state: stateClients.size,
       log: logClients.size,
@@ -735,6 +836,10 @@ app.get('/api/stream/state', (req, res) => {
   res.write(`event: state\ndata: ${JSON.stringify({ 
     running: state.running, 
     last,
+    scheduleQueue: {
+      length: state.scheduleQueue.length,
+      processing: state.processingQueue
+    },
     serverTime: Date.now()
   })}\n\n`);
   
@@ -932,8 +1037,8 @@ function loadSchedules(){
       }
       
       const task=cron.schedule(convertedCron,()=>{
-        console.log(`[SCHEDULE TRIGGER] Running job: ${name}`);
-        runJob(name);
+        console.log(`[SCHEDULE TRIGGER] Triggered job: ${name}`);
+        addToScheduleQueue(name);
       },{scheduled:true}); 
       
       schedules.set(name,{cronExpr:convertedCron,task});
@@ -1022,8 +1127,8 @@ function processSchedule(name, cronExpr, res) {
   
   // 새 스케줄 등록
   const task=cron.schedule(convertedCron,()=>{
-    console.log(`[SCHEDULE TRIGGER] Running job: ${name}`);
-    runJob(name);
+    console.log(`[SCHEDULE TRIGGER] Triggered job: ${name}`);
+    addToScheduleQueue(name);
   },{scheduled:true}); 
   
   schedules.set(name,{cronExpr:convertedCron,task}); 
@@ -1481,13 +1586,18 @@ app.get('/api/statistics/today', (req, res) => {
     });
   }
 });
-async function runJob(jobName){
-  console.log(`[RUNJOB] Starting job execution: ${jobName}`);
+async function runJob(jobName, fromSchedule = false){
+  console.log(`[RUNJOB] Starting job execution: ${jobName}, fromSchedule: ${fromSchedule}`);
   
-  // 배치 모드가 아닐 때만 중복 실행 체크
-  if (state.running && !state.batchMode) {
+  // 스케줄 실행이 아니고 배치 모드가 아닐 때만 중복 실행 체크
+  if (state.running && !state.batchMode && !fromSchedule) {
     console.log(`[RUNJOB] Job rejected - already running: ${state.running.job}`);
     return { started:false, reason:'already_running' };
+  }
+  
+  // 스케줄 실행일 때는 동시 실행 허용
+  if (fromSchedule) {
+    console.log(`[RUNJOB] Schedule execution - allowing concurrent execution for: ${jobName}`);
   }
   
   // 배치 모드일 때는 중복 실행 허용
