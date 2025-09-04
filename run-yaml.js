@@ -2,8 +2,15 @@
 
 /**
  * YAML 테스트 실행기
- * 사용법: node run-yaml.js [yaml파일경로]
- * 예시: node run-yaml.js collections/simple_api_test.yaml
+ * 사용법: 
+ *   단일 파일: node run-yaml.js [yaml파일경로]
+ *   다중 파일: node run-yaml.js [파일1] [파일2] [파일3]
+ *   디렉토리: node run-yaml.js --dir collections/
+ *   패턴 매칭: node run-yaml.js collections/*.yaml
+ * 예시: 
+ *   node run-yaml.js collections/simple_api_test.yaml
+ *   node run-yaml.js collections/test1.yaml collections/test2.yaml
+ *   node run-yaml.js --dir collections/
  */
 
 import fs from 'fs';
@@ -305,24 +312,306 @@ function displayResults(scenarioResult, processedScenario = null) {
     
     // 최종 전체 결과 요약
     console.log('\n' + '━'.repeat(90));
-    console.log('전체 테스트 결과 요약');
+    console.log(' 전체 테스트 결과 요약');
     console.log('━'.repeat(90));
-    console.log(`총 테스트: ${totalTests}개 | 성공: ${passedTests}개 ✅ | 실패: ${totalTests - passedTests}개 ❌`);
+    console.log(`총 테스트: ${totalTests}개`);
+    console.log(`성공: ${passedTests}개 ✅`);
+    console.log(`실패: ${totalTests - passedTests}개 ❌`);    
     
     console.log('━'.repeat(90));
  
 }
 
-// 명령행 실행
-const yamlFile = process.argv[2];
+/**
+ * 디렉토리에서 모든 YAML 파일 찾기
+ */
+function findYamlFiles(dirPath) {
+    const yamlFiles = [];
+    
+    if (!fs.existsSync(dirPath)) {
+        console.error(`디렉토리를 찾을 수 없습니다: ${dirPath}`);
+        return yamlFiles;
+    }
+    
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+        const fullPath = path.join(dirPath, file);
+        const stat = fs.statSync(fullPath);
+        
+        if (stat.isFile() && (file.endsWith('.yaml') || file.endsWith('.yml'))) {
+            yamlFiles.push(fullPath);
+        }
+    }
+    
+    return yamlFiles.sort();
+}
 
-if (!yamlFile) {
-    console.log('사용법: node run-yaml.js [yaml파일경로]');
-    console.log('예시: node run-yaml.js collections/simple_api_test.yaml');
+/**
+ * 다중 YAML 파일 실행
+ */
+async function runMultipleYamlTests(yamlFiles) {
+    console.log(`\n🚀 다중 YAML 테스트 실행 시작 - 총 ${yamlFiles.length}개 파일`);
+    console.log('═'.repeat(100));
+    
+    const results = [];
+    let totalTests = 0;
+    let totalPassed = 0;
+    let totalFailed = 0;
+    
+    for (let i = 0; i < yamlFiles.length; i++) {
+        const yamlFile = yamlFiles[i];
+        const fileName = path.basename(yamlFile);
+        
+        console.log(`\n📄 [${i + 1}/${yamlFiles.length}] ${fileName} 실행 중...`);
+        console.log('─'.repeat(80));
+        
+        try {
+            const startTime = Date.now();
+            
+            // 기존 runYamlTest 함수를 사용하되, 결과를 수집
+            const result = await runSingleYamlTest(yamlFile);
+            
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            
+            // 결과 통계 수집
+            const fileStats = {
+                file: fileName,
+                fullPath: yamlFile,
+                success: result.success,
+                tests: result.tests,
+                passed: result.passed,
+                failed: result.failed,
+                duration: duration,
+                error: result.error
+            };
+            
+            results.push(fileStats);
+            totalTests += result.tests;
+            totalPassed += result.passed;
+            totalFailed += result.failed;
+            
+            if (result.success) {
+                console.log(`✅ ${fileName} 완료 (${duration}ms) - 성공: ${result.passed}개, 실패: ${result.failed}개`);
+            } else {
+                console.log(`❌ ${fileName} 실패 (${duration}ms) - ${result.error || '알 수 없는 오류'}`);
+            }
+            
+        } catch (error) {
+            console.error(`❌ ${fileName} 실행 중 오류:`, error.message);
+            results.push({
+                file: fileName,
+                fullPath: yamlFile,
+                success: false,
+                tests: 0,
+                passed: 0,
+                failed: 0,
+                duration: 0,
+                error: error.message
+            });
+        }
+    }
+    
+    // 전체 결과 요약
+    displayMultipleTestsSummary(results, totalTests, totalPassed, totalFailed);
+}
+
+/**
+ * 단일 YAML 테스트 실행 (결과 반환용)
+ */
+async function runSingleYamlTest(yamlFilePath) {
+    try {
+        // 1. YAML 파일 읽기
+        if (!fs.existsSync(yamlFilePath)) {
+            return { success: false, tests: 0, passed: 0, failed: 0, error: `파일을 찾을 수 없습니다: ${yamlFilePath}` };
+        }
+        
+        const yamlContent = fs.readFileSync(yamlFilePath, 'utf8');
+        const yamlData = yaml.load(yamlContent);
+        
+        // 2. YAML → JSON 시나리오 변환
+        const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+        
+        // 3. 임시 시나리오 파일 생성 및 SClient 실행
+        const tempScenarioPath = path.join('temp', `temp_scenario_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.json`);
+        
+        // temp 디렉토리 확인/생성
+        const tempDir = path.dirname(tempScenarioPath);
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        // 시나리오를 임시 파일로 저장
+        fs.writeFileSync(tempScenarioPath, JSON.stringify(scenario, null, 2), 'utf-8');
+        
+        const engine = new SClientScenarioEngine();
+        const results = await engine.runScenario(tempScenarioPath);
+        
+        // 임시 파일 정리
+        try {
+            fs.unlinkSync(tempScenarioPath);
+        } catch (error) {
+            console.log(`임시 파일 정리 실패: ${error.message}`);
+        }
+        
+        // 4. 공통 테스트 검증 모듈 사용
+        const validatedResults = validateTestsWithYamlData(results, yamlData);
+        
+        // 5. 결과 출력 (변수가 치환된 시나리오 정보와 함께)
+        displayResults(validatedResults, scenario);
+        
+        // 6. 통계 수집
+        let testCount = 0;
+        let passedCount = 0;
+        let failedCount = 0;
+        
+        if (validatedResults.steps && Array.isArray(validatedResults.steps)) {
+            validatedResults.steps.forEach(step => {
+                if (step.tests && Array.isArray(step.tests)) {
+                    step.tests.forEach(test => {
+                        testCount++;
+                        if (test.passed) {
+                            passedCount++;
+                        } else {
+                            failedCount++;
+                        }
+                    });
+                }
+            });
+        }
+        
+        return { 
+            success: failedCount === 0, 
+            tests: testCount, 
+            passed: passedCount, 
+            failed: failedCount 
+        };
+        
+    } catch (error) {
+        console.error('실행 중 오류 발생:', error.message);
+        return { success: false, tests: 0, passed: 0, failed: 0, error: error.message };
+    }
+}
+
+/**
+ * 다중 테스트 결과 요약 출력
+ */
+function displayMultipleTestsSummary(results, totalTests, totalPassed, totalFailed) {
+    console.log('\n' + '═'.repeat(100));
+    console.log(' 🎯 다중 YAML 테스트 실행 결과 요약');
+    console.log('═'.repeat(100));
+    
+    // 파일별 결과 테이블
+    console.log('\n📊 파일별 실행 결과:');
+    console.log('┌─────────────────────────────────────┬──────────┬─────────┬─────────┬─────────┬──────────────┐');
+    console.log('│ 파일명                              │ 상태     │ 총 테스트│ 성공    │ 실패    │ 실행시간(ms) │');
+    console.log('├─────────────────────────────────────┼──────────┼─────────┼─────────┼─────────┼──────────────┤');
+    
+    results.forEach(result => {
+        const fileName = result.file.length > 35 ? result.file.substring(0, 32) + '...' : result.file;
+        const status = result.success ? '✅ 성공' : '❌ 실패';
+        const tests = result.tests.toString().padStart(8);
+        const passed = result.passed.toString().padStart(8);
+        const failed = result.failed.toString().padStart(8);
+        const duration = result.duration.toString().padStart(13);
+        
+        console.log(`│ ${fileName.padEnd(35)} │ ${status.padEnd(8)} │${tests} │${passed} │${failed} │${duration} │`);
+    });
+    
+    console.log('└─────────────────────────────────────┴──────────┴─────────┴─────────┴─────────┴──────────────┘');
+    
+    // 전체 통계
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.length - successCount;
+    const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
+    
+    console.log('\n 전체 실행 통계:');
+    console.log(`   📁 실행 파일: ${results.length}개`);
+    console.log(`   ✅ 성공 파일: ${successCount}개`);
+    console.log(`   ❌ 실패 파일: ${failureCount}개`);
+    console.log(`    총 테스트: ${totalTests}개`);
+    console.log(`   ✅ 성공 테스트: ${totalPassed}개`);
+    console.log(`   ❌ 실패 테스트: ${totalFailed}개`);
+    console.log(`    총 실행시간: ${totalDuration}ms (${(totalDuration/1000).toFixed(2)}초)`);
+    console.log(`    성공률: ${results.length > 0 ? ((successCount / results.length) * 100).toFixed(1) : 0}%`);
+    
+    console.log('\n' + '═'.repeat(100));
+    
+    if (failureCount > 0) {
+        console.log('\n❌ 실패한 파일 목록:');
+        results.filter(r => !r.success).forEach(result => {
+            console.log(`   • ${result.file}: ${result.error || '테스트 실패'}`);
+        });
+    }
+    
+    console.log(`\n🏁 다중 YAML 테스트 실행 완료 ${successCount === results.length ? '- 모든 테스트 성공! 🎉' : '- 일부 테스트 실패'}`);
+}
+
+// 명령행 인자 파싱 및 실행
+const args = process.argv.slice(2);
+
+if (args.length === 0) {
+    console.log('사용법:');
+    console.log('  단일 파일: node run-yaml.js [yaml파일경로]');
+    console.log('  다중 파일: node run-yaml.js [파일1] [파일2] [파일3]');  
+    console.log('  디렉토리: node run-yaml.js --dir [디렉토리경로]');
+    console.log('');
+    console.log('예시:');
+    console.log('  node run-yaml.js collections/simple_api_test.yaml');
+    console.log('  node run-yaml.js collections/test1.yaml collections/test2.yaml');
+    console.log('  node run-yaml.js --dir collections/');
     process.exit(1);
 }
 
-runYamlTest(yamlFile);
+// 실행 로직
+async function main() {
+    let yamlFiles = [];
+    
+    if (args[0] === '--dir') {
+        // 디렉토리 모드
+        if (args.length < 2) {
+            console.error('디렉토리 경로를 지정해주세요.');
+            process.exit(1);
+        }
+        const dirPath = args[1];
+        yamlFiles = findYamlFiles(dirPath);
+        
+        if (yamlFiles.length === 0) {
+            console.error(`${dirPath} 디렉토리에서 YAML 파일을 찾을 수 없습니다.`);
+            process.exit(1);
+        }
+        
+        console.log(`📁 ${dirPath} 디렉토리에서 ${yamlFiles.length}개의 YAML 파일을 발견했습니다.`);
+    } else {
+        // 파일 모드 (단일 또는 다중)
+        yamlFiles = args.filter(arg => fs.existsSync(arg));
+        
+        if (yamlFiles.length === 0) {
+            console.error('유효한 YAML 파일을 찾을 수 없습니다.');
+            process.exit(1);
+        }
+        
+        // 존재하지 않는 파일 경고
+        const missingFiles = args.filter(arg => !fs.existsSync(arg));
+        if (missingFiles.length > 0) {
+            console.warn('⚠️  다음 파일들을 찾을 수 없습니다:', missingFiles.join(', '));
+        }
+    }
+    
+    // 단일 파일인 경우 기존 로직 사용 (호환성 유지)
+    if (yamlFiles.length === 1) {
+        console.log(`📄 단일 YAML 파일 실행: ${yamlFiles[0]}`);
+        await runYamlTest(yamlFiles[0]);
+    } else {
+        // 다중 파일 실행
+        await runMultipleYamlTests(yamlFiles);
+    }
+}
+
+main().catch(error => {
+    console.error('실행 중 오류 발생:', error);
+    process.exit(1);
+});
 
 
 export { runYamlTest };
