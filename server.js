@@ -1455,11 +1455,14 @@ app.get('/api/statistics/today', (req, res) => {
   try {
     const history = histRead();
     
-    // 한국 시간 기준으로 오늘 날짜 계산
+    // 한국 시간 기준으로 오늘 날짜 계산 (올바른 방법)
     const now = new Date();
-    const kstOffset = 9 * 60; // 한국 시간은 UTC+9
-    const kstDate = new Date(now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60 * 1000);
-    const todayStr = kstDate.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    const todayStr = new Intl.DateTimeFormat('sv-SE', { 
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(now); // YYYY-MM-DD 형식
     
     console.log(`[STATS] Today (KST): ${todayStr}, Server time: ${now.toISOString()}`);
     console.log(`[STATS] Total history items: ${history.length}`);
@@ -1475,8 +1478,12 @@ app.get('/api/statistics/today', (req, res) => {
         if (item.timestamp.includes('T')) {
           // ISO 형식인 경우 (UTC 시간을 KST로 변환)
           const itemDate = new Date(item.timestamp);
-          const itemKstDate = new Date(itemDate.getTime() + (kstOffset + itemDate.getTimezoneOffset()) * 60 * 1000);
-          itemDateStr = itemKstDate.toISOString().split('T')[0];
+          itemDateStr = new Intl.DateTimeFormat('sv-SE', { 
+            timeZone: 'Asia/Seoul',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).format(itemDate);
         } else {
           // "YYYY-MM-DD HH:mm:ss" 형식인 경우 (이미 한국 시간)
           itemDateStr = item.timestamp.split(' ')[0];
