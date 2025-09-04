@@ -114,9 +114,97 @@ if (!fs.existsSync(logsDir))    fs.mkdirSync(logsDir,    { recursive: true });
 
 // SSE + history (최적화된 버전)
 const state = { 
-  runningJobs: new Map() // jobName -> { startTime, process } 형태로 관리
+  runningJobs: new Map(), // jobName -> { startTime, process } 형태로 관리
+  batchMode: false, // 배치 모드 플래그 - true일 때는 중복 실행 체크 우회
+  scheduleQueue: [], // 스케줄 대기 큐: [{jobName, timestamp, retryCount}]
+  processingQueue: false // 큐 처리 중 플래그
 };const stateClients = new Set(); 
 const logClients = new Set();
+
+// 스케줄 큐 관리 함수들
+function addToScheduleQueue(jobName) {
+  const queueItem = {
+    jobName,
+    timestamp: Date.now(),
+    retryCount: 0
+  };
+  
+  // 이미 큐에 있는 작업인지 확인
+  const existing = state.scheduleQueue.find(item => item.jobName === jobName);
+  if (existing) {
+    console.log(`[SCHEDULE QUEUE] Job ${jobName} already in queue, skipping`);
+    return false;
+  }
+  
+  state.scheduleQueue.push(queueItem);
+  console.log(`[SCHEDULE QUEUE] Added ${jobName} to queue. Queue length: ${state.scheduleQueue.length}`);
+  broadcastLog(`[SCHEDULE QUEUE] ${jobName} queued for execution`, 'SYSTEM');
+  
+  // 큐 처리 시작
+  processScheduleQueue();
+  return true;
+}
+
+async function processScheduleQueue() {
+  if (state.processingQueue) {
+    console.log(`[SCHEDULE QUEUE] Already processing queue, returning`);
+    return;
+  }
+  
+  if (state.scheduleQueue.length === 0) {
+    console.log(`[SCHEDULE QUEUE] Queue is empty`);
+    return;
+  }
+  
+  // 실행 중인 작업이 있으면 대기
+  if (state.running && !state.batchMode) {
+    console.log(`[SCHEDULE QUEUE] Job ${state.running.job} is running, waiting...`);
+    setTimeout(() => processScheduleQueue(), 5000); // 5초 후 재시도
+    return;
+  }
+  
+  state.processingQueue = true;
+  const queueItem = state.scheduleQueue.shift(); // 큐에서 첫 번째 작업 가져오기
+  
+  console.log(`[SCHEDULE QUEUE] Processing queued job: ${queueItem.jobName}`);
+  broadcastLog(`[SCHEDULE QUEUE] Processing ${queueItem.jobName}`, 'SYSTEM');
+  
+  try {
+    const result = await runJob(queueItem.jobName, true);
+    
+    if (!result.started && result.reason === 'already_running') {
+      // 여전히 실행 중이면 다시 큐에 넣고 재시도
+      queueItem.retryCount++;
+      
+      if (queueItem.retryCount < 3) { // 최대 3번 재시도
+        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} still running, requeuing (attempt ${queueItem.retryCount}/3)`);
+        state.scheduleQueue.unshift(queueItem); // 큐 앞쪽에 다시 넣기
+        setTimeout(() => {
+          state.processingQueue = false;
+          processScheduleQueue();
+        }, 10000); // 10초 후 재시도
+      } else {
+        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} max retries exceeded, dropping`);
+        broadcastLog(`[SCHEDULE QUEUE] ${queueItem.jobName} dropped after max retries`, 'ERROR');
+        state.processingQueue = false;
+        processScheduleQueue(); // 다음 큐 아이템 처리
+      }
+    } else {
+      console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} execution result:`, result);
+      state.processingQueue = false;
+      
+      // 작업 완료 후 다음 큐 처리
+      setTimeout(() => processScheduleQueue(), 1000);
+    }
+  } catch (error) {
+    console.error(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}:`, error);
+    broadcastLog(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}: ${error.message}`, 'ERROR');
+    state.processingQueue = false;
+    
+    // 에러 발생 시에도 다음 큐 처리
+    setTimeout(() => processScheduleQueue(), 5000);
+  }
+}
 
 // 통합 Job 완료 처리 함수
 function finalizeJobCompletion(jobName, exitCode, success = null) {
@@ -149,6 +237,10 @@ function finalizeJobCompletion(jobName, exitCode, success = null) {
           broadcastState({ running: null });
         }
         console.log(`[FINALIZE] Completion process finished for ${jobName}`);
+        
+        // 작업 완료 후 스케줄 큐 처리
+        setTimeout(() => processScheduleQueue(), 2000);
+        
         resolve();
       }, 50);
     }, 100);
@@ -655,6 +747,16 @@ app.get('/api/status', (req, res) => {
   res.json({
     running: state.running,
     timestamp: new Date().toISOString(),
+    scheduleQueue: {
+      length: state.scheduleQueue.length,
+      items: state.scheduleQueue.map(item => ({
+        jobName: item.jobName,
+        timestamp: item.timestamp,
+        retryCount: item.retryCount,
+        waitingTime: Date.now() - item.timestamp
+      })),
+      processing: state.processingQueue
+    },
     clients: {
       state: stateClients.size,
       log: logClients.size,
@@ -734,6 +836,10 @@ app.get('/api/stream/state', (req, res) => {
   res.write(`event: state\ndata: ${JSON.stringify({ 
     running: state.running, 
     last,
+    scheduleQueue: {
+      length: state.scheduleQueue.length,
+      processing: state.processingQueue
+    },
     serverTime: Date.now()
   })}\n\n`);
   
@@ -931,8 +1037,8 @@ function loadSchedules(){
       }
       
       const task=cron.schedule(convertedCron,()=>{
-        console.log(`[SCHEDULE TRIGGER] Running job: ${name}`);
-        runJob(name);
+        console.log(`[SCHEDULE TRIGGER] Triggered job: ${name}`);
+        addToScheduleQueue(name);
       },{scheduled:true}); 
       
       schedules.set(name,{cronExpr:convertedCron,task});
@@ -1021,8 +1127,8 @@ function processSchedule(name, cronExpr, res) {
   
   // 새 스케줄 등록
   const task=cron.schedule(convertedCron,()=>{
-    console.log(`[SCHEDULE TRIGGER] Running job: ${name}`);
-    runJob(name);
+    console.log(`[SCHEDULE TRIGGER] Triggered job: ${name}`);
+    addToScheduleQueue(name);
   },{scheduled:true}); 
   
   schedules.set(name,{cronExpr:convertedCron,task}); 
@@ -1480,12 +1586,23 @@ app.get('/api/statistics/today', (req, res) => {
     });
   }
 });
-async function runJob(jobName){
-  console.log(`[RUNJOB] Starting job execution: ${jobName}`);
+async function runJob(jobName, fromSchedule = false){
+  console.log(`[RUNJOB] Starting job execution: ${jobName}, fromSchedule: ${fromSchedule}`);
   
-  if (state.running) {
+  // 스케줄 실행이 아니고 배치 모드가 아닐 때만 중복 실행 체크
+  if (state.running && !state.batchMode && !fromSchedule) {
     console.log(`[RUNJOB] Job rejected - already running: ${state.running.job}`);
     return { started:false, reason:'already_running' };
+  }
+  
+  // 스케줄 실행일 때는 동시 실행 허용
+  if (fromSchedule) {
+    console.log(`[RUNJOB] Schedule execution - allowing concurrent execution for: ${jobName}`);
+  }
+  
+  // 배치 모드일 때는 중복 실행 허용
+  if (state.batchMode) {
+    console.log(`[RUNJOB] Batch mode enabled - allowing concurrent execution for: ${jobName}`);
   }
 
   const jobPath = path.join(root, 'jobs', `${jobName}.json`);
@@ -2087,6 +2204,8 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 
 // 바이너리 Job 실행 함수
 async function runBinaryJob(jobName, job) {
+  console.log('🔥🔥🔥 [BINARY_ENTRY] runBinaryJob called! 🔥🔥🔥');
+  process.stdout.write('🔥🔥🔥 [BINARY_ENTRY] runBinaryJob called! 🔥🔥🔥\n');
   console.log(`[BINARY] Starting binary job: ${jobName}`);
   
   const stamp = kstTimestamp();
@@ -2104,6 +2223,9 @@ async function runBinaryJob(jobName, job) {
     if (job.collection) {
       const collectionPath = path.resolve(root, job.collection);
       console.log(`[BINARY] Checking collection: ${collectionPath}`);
+      console.log(`[BINARY] Path exists: ${fs.existsSync(collectionPath)}`);
+      console.log(`[BINARY] Is YAML file: ${collectionPath.toLowerCase().endsWith('.yaml')}`);
+      console.log(`[BINARY] Is directory: ${fs.existsSync(collectionPath) && fs.statSync(collectionPath).isDirectory()}`);
       
       if (fs.existsSync(collectionPath) && collectionPath.toLowerCase().endsWith('.yaml')) {
         console.log(`[BINARY] YAML collection found, delegating to runYamlSClientScenario`);
@@ -2119,6 +2241,21 @@ async function runBinaryJob(jobName, job) {
         });
         
         console.log(`[BINARY] YAML scenario completed, result:`, result);
+        return result;
+      } else if (fs.existsSync(collectionPath) && fs.statSync(collectionPath).isDirectory()) {
+        console.log(`[BINARY] YAML directory found, delegating to runYamlDirectoryBatch`);
+        
+        // YAML 폴더 배치 실행
+        const result = await runYamlDirectoryBatch(jobName, job, collectionPath, {
+          stdoutPath,
+          stderrPath,
+          txtReport,
+          outStream,
+          errStream,
+          stamp
+        });
+        
+        console.log(`[BINARY] YAML directory batch completed, result:`, result);
         return result;
       }
     }
@@ -2631,13 +2768,18 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
             // Newman 컨버터 사용하여 Newman 스타일 리포트 생성
             const { SClientToNewmanConverter } = await import('./newman-converter.js');
             const converter = new SClientToNewmanConverter();
-            const result = await converter.generateReport(scenarioResult, htmlReport, 'htmlextra');
             
-            if (!result.success) {
-              console.warn(`[YAML NEWMAN REPORT] Failed to generate Newman report, falling back to standard report`);
-              const htmlContent = SClientReportGenerator.generateHTMLReport(scenarioResult);
-              fs.writeFileSync(htmlReport, htmlContent);
-            }
+            console.log(`[BATCH_HTML] Converting ${jobName} to Newman format...`);
+            const newmanRun = converter.convertToNewmanRun(scenarioResult);
+            console.log(`[BATCH_HTML] Newman run executions:`, (newmanRun.executions || []).length);
+            
+            console.log(`[BATCH_HTML] Generating Newman style HTML for ${jobName}...`);
+            await converter.generateNewmanStyleHTML(newmanRun.run, htmlReport, {
+              title: `${jobName} Test Report`,
+              browserTitle: `${jobName} Report`
+            });
+            console.log(`[BATCH_HTML] ✅ Newman style HTML generated successfully for ${jobName}`);
+            
           } catch (error) {
             console.warn(`[YAML NEWMAN REPORT] Error generating Newman report: ${error.message}`);
             const htmlContent = SClientReportGenerator.generateHTMLReport(scenarioResult);
@@ -2847,16 +2989,18 @@ app.get('/api/run/:name', async (req,res)=>{
     // 상태 검증 및 강제 초기화 로직 추가
     if (state.running) {
       const runningTime = Date.now() - new Date(state.running.startAt).getTime();
-      console.log(`[DEBUG] Job ${state.running.job} has been running for ${runningTime}ms`);
+      console.log(`[DEBUG] Job ${state.running.job} has been running for ${runningTime}ms, batchMode: ${state.batchMode}`);
       
-      // 바이너리 Job이 3초 이상 실행 중이면 아마도 상태가 잘못된 것
-      if (runningTime > 2000) {
-        console.log(`[DEBUG] Job ${state.running.job} running too long (${runningTime}ms), forcing reset`);
+      // 배치 모드일 때는 더 긴 시간 허용 (30초), 일반 작업은 10초
+      const timeoutLimit = state.batchMode ? 30000 : 10000;
+      if (runningTime > timeoutLimit) {
+        console.log(`[DEBUG] Job ${state.running.job} running too long (${runningTime}ms > ${timeoutLimit}ms), forcing reset`);
         state.running = null;
+        state.batchMode = false;
         broadcastState({ running: null });
-        broadcastLog(`[SYSTEM] Forced state reset due to stale job state`, 'SYSTEM');
+        broadcastLog(`[SYSTEM] Forced state reset due to stale job state (${runningTime}ms)`, 'SYSTEM');
       } else {
-        console.log(`[API] Job execution rejected - already running: ${state.running.job}`);
+        console.log(`[API] Job execution rejected - already running: ${state.running.job} (${runningTime}ms)`);
         console.log(`[DEBUG] About to send already_running response`);
         const response = { ok: false, reason: 'already_running' };
         console.log(`[DEBUG] Response data:`, response);
@@ -3144,6 +3288,866 @@ app.get('/', (req, res) => {
   res.setHeader('ETag', false);
   res.sendFile(path.join(root, 'public', 'index.html'));
 });
+
+// YAML 단일 파일 실행 함수 (state.running 체크 없음)
+async function runSingleYamlFile(jobName, job, collectionPath, paths) {
+  console.log('🚨🚨🚨 [SINGLE_YAML_ENTRY] FUNCTION CALLED! 🚨🚨🚨');
+  console.log('🚨🚨🚨 [SINGLE_YAML_ENTRY] JobName:', jobName);
+  console.log('🚨🚨🚨 [SINGLE_YAML_ENTRY] CollectionPath:', collectionPath);
+  
+  // 강제로 stdout에도 출력
+  process.stdout.write('🚨🚨🚨 [SINGLE_YAML_ENTRY] FUNCTION CALLED! 🚨🚨🚨\n');
+  process.stdout.write(`🚨🚨🚨 [SINGLE_YAML_ENTRY] JobName: ${jobName}\n`);
+  process.stdout.write(`🚨🚨🚨 [SINGLE_YAML_ENTRY] CollectionPath: ${collectionPath}\n`);
+  debugLog(`[SINGLE_YAML] Starting single YAML file: ${jobName}`);
+  debugLog(`[SINGLE_YAML] Collection path: ${collectionPath}`);
+  debugLog(`[SINGLE_YAML] Job config`, job);
+  console.log(`[SINGLE_YAML] Starting single YAML file: ${jobName}`);
+  console.log(`[SINGLE_YAML] Collection path: ${collectionPath}`);
+  
+  const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
+  
+  return new Promise(async (resolve) => {
+    try {
+      debugLog(`[SINGLE_YAML] Importing modules for: ${jobName}`);
+      // YAML 파서와 SClient 엔진 import
+      const { SClientYAMLParser } = await import('./simple-yaml-parser.js');
+      const { SClientScenarioEngine, SClientReportGenerator } = await import('./sclient-engine.js');
+      debugLog(`[SINGLE_YAML] Modules imported successfully for: ${jobName}`);
+      
+      debugLog(`[SINGLE_YAML] Reading YAML file: ${collectionPath}`);
+      console.log('[SINGLE_YAML] Loading YAML collection:', collectionPath);
+      
+      // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
+      const yamlContent = fs.readFileSync(collectionPath, 'utf-8');
+      debugLog(`[SINGLE_YAML] YAML content read, length: ${yamlContent.length} chars`);
+      
+      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+      debugLog(`[SINGLE_YAML] Scenario parsed for: ${jobName}`, {
+        name: scenario.info?.name,
+        steps: scenario.requests?.length || 0,
+        variables: scenario.variables?.length || 0
+      });
+      console.log('[SINGLE_YAML] Parsed scenario:', scenario.info.name);
+      
+      // SClient 바이너리 경로 확인
+      const binaryPath = getBinaryPath(job);
+      if (!fs.existsSync(binaryPath)) {
+        resolve({ started: false, reason: 'binary_not_found', path: binaryPath });
+        return;
+      }
+      
+      const startTime = nowInTZString();
+      const startTs = Date.now();
+      
+      // 개별 파일용 로그 브로드캐스트
+      broadcastLog(`[SINGLE_YAML START] ${jobName} - ${scenario.info.name}`);
+      
+      // SClient 엔진 초기화
+      const engine = new SClientScenarioEngine({
+        binaryPath,
+        timeout: job.timeout || 30000,
+        encoding: job.encoding || 'cp949'
+      });
+      
+      // 임시 시나리오 파일 생성
+      const tempDir = path.join(root, 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempScenarioPath = path.join(tempDir, `scenario_${jobName}_${stamp}.json`);
+      fs.writeFileSync(tempScenarioPath, JSON.stringify(scenario, null, 2));
+      console.log('[SINGLE_YAML] Temp scenario written to:', tempScenarioPath);
+      
+      // 실시간 로그 이벤트 연결
+      engine.on('log', (data) => {
+        outStream.write(data.message + '\n');
+        broadcastLog(data.message, jobName);
+      });
+    
+      engine.on('stdout', (data) => {
+        outStream.write(data.text);
+        const lines = data.text.split(/\r?\n/);
+        lines.forEach(line => {
+          if (line.trim()) {
+            broadcastLog(line.trim(), jobName);
+          }
+        });
+      });
+      
+      engine.on('stderr', (data) => {
+        errStream.write(data.text);
+        const lines = data.text.split(/\r?\n/);
+        lines.forEach(line => {
+          if (line.trim()) {
+            broadcastLog(`[ERROR] ${line.trim()}`, jobName);
+          }
+        });
+      });
+      
+      // 시나리오 실행
+      debugLog(`[SINGLE_YAML] Starting scenario execution for: ${jobName}`);
+      debugLog(`[SINGLE_YAML] Temp scenario path: ${tempScenarioPath}`);
+      console.log('[SINGLE_YAML] Executing scenario...');
+      
+      const executionResult = await engine.runScenario(tempScenarioPath);
+      
+      // 강제 로그 출력 - 디버깅용
+      console.log('🚨🚨🚨 [FORCE_DEBUG] executionResult received! 🚨🚨🚨');
+      console.log('🚨🚨🚨 [FORCE_DEBUG] Type:', typeof executionResult);
+      console.log('🚨🚨🚨 [FORCE_DEBUG] Is null:', executionResult === null);
+      console.log('🚨🚨🚨 [FORCE_DEBUG] Is undefined:', executionResult === undefined);
+      if (executionResult) {
+        console.log('🚨🚨🚨 [FORCE_DEBUG] Keys:', Object.keys(executionResult));
+        console.log('🚨🚨🚨 [FORCE_DEBUG] Info exists:', !!executionResult.info);
+        console.log('🚨🚨🚨 [FORCE_DEBUG] Steps length:', executionResult.steps?.length || 0);
+        console.log('🚨🚨🚨 [FORCE_DEBUG] Summary total:', executionResult.summary?.total || 0);
+      }
+      
+      debugLog(`[SINGLE_YAML] Scenario execution completed for: ${jobName}`, {
+        success: executionResult?.success,
+        stepCount: executionResult?.steps?.length || 0,
+        totalTests: executionResult?.summary?.total || 0,
+        passedTests: executionResult?.summary?.passed || 0
+      });
+      console.log('[SINGLE_YAML] Scenario execution completed, result:', executionResult);
+      
+      // 임시 파일 정리
+      try {
+        if (fs.existsSync(tempScenarioPath)) {
+          fs.unlinkSync(tempScenarioPath);
+        }
+      } catch (cleanupError) {
+        console.warn('[SINGLE_YAML] Temp file cleanup failed:', cleanupError.message);
+      }
+      
+      const endTime = nowInTZString();
+      const duration = Date.now() - startTs;
+      
+      const success = executionResult && executionResult.success;
+      
+      // HTML 리포트 생성
+      console.log('🔥🔥🔥 [HTML_CHECK] Checking HTML report generation! 🔥🔥🔥');
+      console.log('🔥🔥🔥 [HTML_CHECK] job.generateHtmlReport:', job.generateHtmlReport);
+      console.log('🔥🔥🔥 [HTML_CHECK] typeof job.generateHtmlReport:', typeof job.generateHtmlReport);
+      console.log('🔥🔥🔥 [HTML_CHECK] Boolean check:', !!job.generateHtmlReport);
+      console.log('🔥🔥🔥 [HTML_CHECK] reportsDir:', reportsDir);
+      console.log('🔥🔥🔥 [HTML_CHECK] stamp:', stamp);
+      
+      debugLog(`[SINGLE_YAML] Checking HTML report generation for: ${jobName}`, {
+        generateHtmlReport: job.generateHtmlReport,
+        reportsDir: reportsDir,
+        stamp: stamp
+      });
+      
+      let finalReportPath = null;
+      
+      if (job.generateHtmlReport) {
+        debugLog(`[SINGLE_YAML] Starting HTML report generation for: ${jobName}`);
+        try {
+          console.log('[SINGLE_YAML] Generating HTML report...');
+          const { SClientToNewmanConverter } = await import('./newman-converter.js');
+          const reportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
+          
+          debugLog(`[SINGLE_YAML] Report path: ${reportPath}`);
+          debugLog(`[SINGLE_YAML] Execution result for report`, {
+            success: executionResult?.success,
+            totalTests: executionResult?.summary?.total,
+            passedTests: executionResult?.summary?.passed,
+            steps: executionResult?.steps?.length
+          });
+          
+          // DEBUG: executionResult 구조 완전히 로깅
+          console.log('[DEBUG_EXECUTION_RESULT] Full executionResult structure:', JSON.stringify(executionResult, null, 2));
+          console.log('[DEBUG_EXECUTION_RESULT] Object keys:', Object.keys(executionResult || {}));
+          console.log('[DEBUG_EXECUTION_RESULT] Has info?', !!executionResult?.info);
+          console.log('[DEBUG_EXECUTION_RESULT] Has steps?', !!executionResult?.steps);
+          console.log('[DEBUG_EXECUTION_RESULT] Has summary?', !!executionResult?.summary);
+          
+          console.log('[HTML_GENERATION] Starting HTML report generation...');
+          console.log('[HTML_GENERATION] Report path:', reportPath);
+          
+          try {
+            const converter = new SClientToNewmanConverter();
+            // SClient 결과를 Newman 형식으로 변환한 후 HTML 생성
+            console.log('[DEBUG_CONVERSION] About to call convertToNewmanRun...');
+            const newmanRun = converter.convertToNewmanRun(executionResult);
+            console.log('[DEBUG_CONVERSION] Newman conversion result:', JSON.stringify(newmanRun, null, 2));
+            console.log('[DEBUG_CONVERSION] Newman run has info?', !!newmanRun?.info);
+            console.log('[DEBUG_CONVERSION] Newman run info name?', newmanRun?.info?.name);
+            
+            console.log('[HTML_GENERATION] Calling generateNewmanStyleHTML...');
+            console.log('[HTML_GENERATION] Passing run object with executions:', (newmanRun.run.executions || []).length);
+            await converter.generateNewmanStyleHTML(newmanRun.run, reportPath, {
+              title: job.reportOptions?.title || `${jobName} Test Report`,
+              browserTitle: job.reportOptions?.browserTitle || `${jobName} Report`
+            });
+            console.log('[HTML_GENERATION] generateNewmanStyleHTML completed');
+            
+            // 파일이 실제로 생성되었는지 확인
+            const reportExists = fs.existsSync(reportPath);
+            debugLog(`[SINGLE_YAML] HTML report file exists: ${reportExists}`, {
+              reportPath: reportPath,
+              fileSize: reportExists ? fs.statSync(reportPath).size : 'N/A'
+            });
+            
+            if (reportExists) {
+              finalReportPath = reportPath;
+              console.log(`[HTML_GENERATION] ✅ HTML report successfully generated: ${reportPath}`);
+            } else {
+              console.error('[HTML_GENERATION] ❌ HTML report file not found after generation');
+            }
+            
+          } catch (htmlError) {
+            console.error('[HTML_GENERATION] ❌ HTML generation failed:', htmlError.message);
+            console.error('[HTML_GENERATION] Error stack:', htmlError.stack);
+            
+            // 폴백: 기본 HTML 리포트 생성 시도
+            try {
+              console.log('[HTML_FALLBACK] Attempting fallback HTML generation...');
+              const { SClientReportGenerator } = await import('./sclient-engine.js');
+              const fallbackContent = SClientReportGenerator.generateHTMLReport(executionResult);
+              fs.writeFileSync(reportPath, fallbackContent);
+              
+              if (fs.existsSync(reportPath)) {
+                finalReportPath = reportPath;
+                console.log('[HTML_FALLBACK] ✅ Fallback HTML report generated successfully');
+              }
+            } catch (fallbackError) {
+              console.error('[HTML_FALLBACK] ❌ Fallback HTML generation also failed:', fallbackError.message);
+            }
+          }
+        } catch (reportError) {
+          debugLog(`[SINGLE_YAML] HTML report generation failed for: ${jobName}`, {
+            error: reportError.message,
+            stack: reportError.stack
+          });
+          console.error('[SINGLE_YAML] HTML report generation failed:', reportError);
+          
+          // 폴백 HTML 생성
+          try {
+            debugLog(`[SINGLE_YAML] Attempting fallback HTML generation for: ${jobName}`);
+            const { SClientReportGenerator } = await import('./sclient-engine.js');
+            const fallbackReportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
+            SClientReportGenerator.generateHTMLReport(executionResult, fallbackReportPath, jobName);
+            
+            // 폴백 파일이 실제로 생성되었는지 확인
+            const fallbackExists = fs.existsSync(fallbackReportPath);
+            debugLog(`[SINGLE_YAML] Fallback HTML report file exists: ${fallbackExists}`, {
+              reportPath: fallbackReportPath,
+              fileSize: fallbackExists ? fs.statSync(fallbackReportPath).size : 'N/A'
+            });
+            
+            if (fallbackExists) {
+              finalReportPath = fallbackReportPath;
+              console.log(`[SINGLE_YAML] Fallback HTML report generated: ${fallbackReportPath}`);
+            }
+          } catch (fallbackError) {
+            debugLog(`[SINGLE_YAML] Fallback HTML generation failed for: ${jobName}`, {
+              error: fallbackError.message,
+              stack: fallbackError.stack
+            });
+            console.error('[SINGLE_YAML] Fallback HTML report generation failed:', fallbackError);
+          }
+        }
+      } else {
+        debugLog(`[SINGLE_YAML] HTML report generation SKIPPED for: ${jobName} (generateHtmlReport=false)`);
+      }
+      
+      // 완료 로그
+      const statusIcon = success ? '✅' : '❌';
+      const message = `${statusIcon} ${jobName}: ${success ? 'SUCCESS' : 'FAILED'} (${duration}ms)`;
+      broadcastLog(message);
+      
+      // HTML 리포트 생성 완료 후 resolve
+      debugLog(`[SINGLE_YAML] Final resolve for: ${jobName}`, {
+        success: success,
+        duration: duration,
+        reportsGenerated: job.generateHtmlReport,
+        finalReportPath: finalReportPath
+      });
+      
+      resolve({
+        started: true,
+        success: success,
+        duration: duration,
+        startTime: startTime,
+        endTime: endTime,
+        reportPath: finalReportPath,
+        result: executionResult
+      });
+      
+    } catch (error) {
+      debugLog(`[SINGLE_YAML] Error in ${jobName}`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      console.error(`[SINGLE_YAML] Error in ${jobName}:`, error);
+      broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`);
+      
+      const errorResult = {
+        started: true,
+        success: false,
+        error: error.message,
+        result: null
+      };
+      debugLog(`[SINGLE_YAML] Resolving with error result for: ${jobName}`, errorResult);
+      resolve(errorResult);
+    }
+  });
+}
+
+// 디버깅용 로그 함수
+function debugLog(message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = data ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}` : `[${timestamp}] ${message}`;
+  
+  console.log(logEntry);
+  
+  // 디버그 로그 파일에도 기록
+  const debugLogPath = path.join(logsDir, `debug_batch_${new Date().toISOString().split('T')[0]}.log`);
+  try {
+    fs.appendFileSync(debugLogPath, logEntry + '\n');
+  } catch (err) {
+    console.error('Debug log write failed:', err);
+  }
+}
+
+// 배치 전용 로그 함수 (콘솔 + 파일 동시 기록)
+function batchLog(message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logEntry = data ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}` : `[${timestamp}] ${message}`;
+  
+  // 콘솔 출력
+  console.log(logEntry);
+  
+  // 배치 전용 로그 파일에 기록
+  const batchLogPath = path.join(logsDir, `batch_execution_${new Date().toISOString().split('T')[0]}.log`);
+  try {
+    fs.appendFileSync(batchLogPath, logEntry + '\n');
+  } catch (err) {
+    console.error('Batch log write failed:', err);
+  }
+}
+
+// YAML 디렉토리 배치 실행 함수 (기존 runYamlSClientScenario 방식 재사용)
+async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
+  console.log('🎯🎯🎯 [BATCH_FUNCTION] runYamlDirectoryBatch called! 🎯🎯🎯');
+  process.stdout.write('🎯🎯🎯 [BATCH_FUNCTION] runYamlDirectoryBatch called! 🎯🎯🎯\n');
+  
+  batchLog(`\n🚀 === BATCH FUNCTION ENTRY === 🚀`);
+  batchLog(`[BATCH_ENTRY] Function called at: ${new Date().toISOString()}`);
+  batchLog(`[BATCH_ENTRY] jobName: ${jobName}`);
+  batchLog(`[BATCH_ENTRY] collectionPath: ${collectionPath}`);
+  batchLog(`[BATCH_ENTRY] Function parameters received successfully`);
+  
+  debugLog(`[YAML_BATCH] Starting YAML directory batch: ${jobName}`);
+  debugLog(`[YAML_BATCH] Directory path: ${collectionPath}`);
+  debugLog(`[YAML_BATCH] Job configuration`, job);
+  debugLog(`[YAML_BATCH] Paths configuration`, paths);
+  
+  // 배치 모드 활성화
+  state.batchMode = true;
+  console.log(`[YAML_BATCH] Batch mode activated for concurrent file execution`);
+  console.log(`[YAML_BATCH] Current state before start:`, state.running);
+  
+  const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
+  
+  batchLog(`\n🔄 === ENTERING MAIN TRY BLOCK === 🔄`);
+  batchLog(`[MAIN_TRY] About to start main batch processing logic`);
+  
+  try {
+    console.log('🚨🚨🚨 [TRY_BLOCK_ENTRY] Entered main try block! 🚨🚨🚨');
+    batchLog(`[MAIN_TRY] Inside try block, about to read directory`);
+    // YAML 파일들 찾기
+    debugLog(`[YAML_BATCH] Reading directory: ${collectionPath}`);
+    const allFiles = fs.readdirSync(collectionPath);
+    batchLog(`[MAIN_TRY] Directory read successfully, found ${allFiles.length} files`);
+    debugLog(`[YAML_BATCH] All files in directory`, allFiles);
+    
+    const allYamlFiles = allFiles.filter(file => file.toLowerCase().endsWith('.yaml'));
+    debugLog(`[YAML_BATCH] All YAML files found`, allYamlFiles);
+    
+    // excludePatterns 적용
+    let yamlFiles = allYamlFiles;
+    if (job.excludePatterns && Array.isArray(job.excludePatterns)) {
+      debugLog(`[YAML_BATCH] Applying exclude patterns`, job.excludePatterns);
+      yamlFiles = allYamlFiles.filter(file => {
+        const filePath = path.join(collectionPath, file);
+        const relativePath = path.relative(collectionPath, filePath);
+        
+        // 각 제외 패턴과 비교
+        for (const pattern of job.excludePatterns) {
+          if (matchPattern(file, pattern) || matchPattern(relativePath, pattern)) {
+            debugLog(`[YAML_BATCH] Excluding file: ${file} (matches pattern: ${pattern})`);
+            return false; // 제외
+          }
+        }
+        debugLog(`[YAML_BATCH] Including file: ${file}`);
+        return true; // 포함
+      });
+    }
+    debugLog(`[YAML_BATCH] Final YAML files for execution`, yamlFiles);
+    
+    batchLog(`\n📂 === FILE FILTERING RESULT === 📂`);
+    batchLog(`[FILE_FILTER] Total YAML files found: ${allYamlFiles.length}`);
+    batchLog(`[FILE_FILTER] After exclude patterns: ${yamlFiles.length}`);
+    batchLog(`[FILE_FILTER] Files to process:`, yamlFiles);
+    
+    if (yamlFiles.length === 0) {
+      console.log(`[YAML_BATCH] No YAML files found in ${collectionPath}`);
+      batchLog(`[FILE_FILTER] ⚠️ EARLY RETURN: No files to process`);
+      return { started: false, reason: 'no_yaml_files', path: collectionPath };
+    }
+    
+    console.log(`[YAML_BATCH] All YAML files found: ${allYamlFiles.length}`);
+    allYamlFiles.forEach(file => console.log(`[YAML_BATCH] ALL: ${file}`));
+    
+    console.log(`[YAML_BATCH] After exclude patterns: ${yamlFiles.length}`);
+    yamlFiles.forEach(file => console.log(`[YAML_BATCH] INCLUDED: ${file}`));
+    
+    const startTime = nowInTZString();
+    const startTs = Date.now();
+
+    state.running = { job: jobName, startAt: startTime };
+    broadcastState({ running: state.running });
+    broadcastLog(`[YAML_BATCH START] ${jobName} - ${yamlFiles.length} files`);
+    
+    // 전체 배치 로그에 시작 정보 기록
+    outStream.write(`\n🚀 === YAML BATCH EXECUTION START ===\n`);
+    outStream.write(`Job: ${jobName}\n`);
+    outStream.write(`Start Time: ${startTime}\n`);
+    outStream.write(`Total Files: ${yamlFiles.length}\n`);
+    outStream.write(`Files: ${yamlFiles.join(', ')}\n`);
+    outStream.write(`=== EXECUTION LOG ===\n\n`);
+
+    // 시작 알람 전송
+    try {
+      await sendAlert('start', {
+        jobName,
+        startTime,
+        target: collectionPath,
+        fileCount: yamlFiles.length,
+        type: 'yaml_batch'
+      });
+      console.log('[YAML_BATCH] Alert sent successfully');
+    } catch (alertError) {
+      console.error('[YAML_BATCH] Alert sending failed:', alertError.message);
+      // 알람 실패는 배치 실행을 중단시키지 않음
+    }
+
+    console.log('🚨🚨🚨 [BATCH_ABOUT_TO_START_LOOP] About to start batch loop! 🚨🚨🚨');
+    console.log('🚨🚨🚨 [BATCH_ABOUT_TO_START_LOOP] Files to process:', yamlFiles);
+
+    // 각 YAML 파일을 순차적으로 기존 runYamlSClientScenario 방식으로 처리
+    const batchResults = [];
+    let overallSuccess = true;
+    
+    debugLog(`[YAML_BATCH] Starting sequential execution of ${yamlFiles.length} files`);
+    
+    for (let i = 0; i < yamlFiles.length; i++) {
+      const fileName = yamlFiles[i];
+      const filePath = path.join(collectionPath, fileName);
+      
+      console.log(`\n=== [BATCH_LOOP] Starting file ${i + 1}/${yamlFiles.length} ===`);
+      console.log(`[BATCH_LOOP] Current time: ${new Date().toISOString()}`);
+      console.log(`[BATCH_LOOP] Processing: ${fileName}`);
+      console.log(`[BATCH_LOOP] Full path: ${filePath}`);
+      console.log(`[BATCH_LOOP] Current state.running: ${JSON.stringify(state.running)}`);
+      console.log(`[BATCH_LOOP] Current state.batchMode: ${state.batchMode}`);
+      console.log(`[BATCH_LOOP] Previous results count: ${batchResults.length}`);
+      console.log(`[BATCH_LOOP] Overall success so far: ${overallSuccess}`);
+      
+      debugLog(`[YAML_BATCH] Processing file ${i + 1}/${yamlFiles.length}: ${fileName}`);
+      debugLog(`[YAML_BATCH] Full file path: ${filePath}`);
+      console.log(`[YAML_BATCH] Processing ${i + 1}/${yamlFiles.length}: ${fileName}`);
+      broadcastLog(`📋 [${i + 1}/${yamlFiles.length}] Starting ${fileName}...`);
+      
+      // 진행률 표시
+      const progressPercent = Math.round(((i + 1) / yamlFiles.length) * 100);
+      broadcastLog(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)`);
+      
+      // 전체 배치 로그에도 진행률 기록
+      outStream.write(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)\n`);
+      
+      console.log(`[BATCH_LOOP] About to enter try block for ${fileName}`);
+      try {
+        console.log('⭐⭐⭐ [TRY_ENTRY] Entered try block successfully! ⭐⭐⭐');
+        process.stdout.write('⭐⭐⭐ [TRY_ENTRY] Entered try block successfully! ⭐⭐⭐\n');
+        
+        // 개별 파일을 위한 paths 생성
+        const fileStamp = kstTimestamp();
+        console.log('⭐⭐⭐ [TRY_PATHS] Created fileStamp:', fileStamp, '⭐⭐⭐');
+        const individualOutStream = fs.createWriteStream(path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
+        const individualErrStream = fs.createWriteStream(path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
+        
+        const filePaths = {
+          stdoutPath: path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`),
+          stderrPath: path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`),
+          txtReport: path.join(reportsDir, `${jobName}_${fileName}_${fileStamp}.txt`),
+          outStream: individualOutStream,
+          errStream: individualErrStream,
+          stamp: fileStamp
+        };
+        
+        // 배치 전체 로그에도 기록하기 위한 로그 함수 오버라이드
+        const originalLog = console.log;
+        const enhancedLog = (...args) => {
+          const message = args.join(' ');
+          // 개별 파일 로그에 기록
+          if (individualOutStream && !individualOutStream.destroyed) {
+            individualOutStream.write(message + '\n');
+          }
+          // 전체 배치 로그에도 기록
+          if (outStream && !outStream.destroyed) {
+            outStream.write(`[${fileName}] ${message}\n`);
+          }
+          originalLog(...args);
+        };
+        
+        // runYamlSClientScenario 함수의 핵심 로직을 직접 실행 (state.running 체크 우회)
+        console.log(`[BATCH_LOOP] About to call runSingleYamlFile for: ${fileName}`);
+        console.log(`[BATCH_LOOP] File paths created:`, {
+          stdoutPath: filePaths.stdoutPath,
+          stderrPath: filePaths.stderrPath,
+          txtReport: filePaths.txtReport
+        });
+        
+        debugLog(`[YAML_BATCH] Calling runSingleYamlFile for: ${fileName}`);
+        console.log(`[BATCH_LOOP] Calling runSingleYamlFile at: ${new Date().toISOString()}`);
+        
+        // 전체 배치 로그에 개별 파일 시작 로그 기록
+        outStream.write(`\n=== [${i + 1}/${yamlFiles.length}] Starting ${fileName} ===\n`);
+        
+        console.log('🚨🚨🚨 [FORCE_CALL] About to call runSingleYamlFile! 🚨🚨🚨');
+        console.log('🚨🚨🚨 [FORCE_CALL] JobName:', `${jobName}_${fileName}`);
+        console.log('🚨🚨🚨 [FORCE_CALL] FilePath:', filePath);
+        console.log('🚨🚨🚨 [FORCE_CALL] Job.generateHtmlReport:', job.generateHtmlReport);
+        console.log('🚨🚨🚨 [FORCE_CALL] Job object keys:', Object.keys(job || {}));
+        
+        const result = await runSingleYamlFile(`${jobName}_${fileName}`, job, filePath, filePaths);
+        
+        console.log('🚨🚨🚨 [FORCE_RESULT] runSingleYamlFile returned! 🚨🚨🚨');
+        console.log('🚨🚨🚨 [FORCE_RESULT] Success:', result?.success);
+        console.log('🚨🚨🚨 [FORCE_RESULT] ReportPath:', result?.reportPath);
+        
+        // 전체 배치 로그에 개별 파일 완료 로그 기록
+        const fileStatusIcon = result.success ? '✅' : '❌';
+        const fileStatusText = result.success ? 'SUCCESS' : 'FAILED';
+        outStream.write(`=== [${i + 1}/${yamlFiles.length}] ${fileStatusIcon} ${fileName}: ${fileStatusText} (${result.duration}ms) ===\n\n`);
+        
+        console.log(`[BATCH_LOOP] runSingleYamlFile returned at: ${new Date().toISOString()}`);
+        console.log(`[BATCH_LOOP] Result received:`, {
+          started: result?.started,
+          success: result?.success,
+          duration: result?.duration,
+          error: result?.error,
+          reportPath: result?.reportPath
+        });
+        
+        debugLog(`[YAML_BATCH] runSingleYamlFile completed for: ${fileName}`, {
+          started: result.started,
+          success: result.success,
+          duration: result.duration,
+          error: result.error
+        });
+        
+        // 스트림 정리
+        individualOutStream.end();
+        individualErrStream.end();
+        
+        const fileResult = {
+          fileName,
+          filePath,
+          success: result.success,
+          reportPath: result.reportPath,
+          result
+        };
+        
+        batchResults.push(fileResult);
+        debugLog(`[YAML_BATCH] Added result to batch for: ${fileName}`, fileResult);
+        
+        if (!result.success) {
+          overallSuccess = false;
+          debugLog(`[YAML_BATCH] File failed, setting overallSuccess to false: ${fileName}`);
+        }
+        
+        const statusIcon = result.success ? '✅' : '❌';
+        const stepInfo = result.scenarioResult?.summary ? 
+          `${result.scenarioResult.summary.passed}/${result.scenarioResult.summary.total} steps passed` : 
+          'No steps';
+        const message = `${statusIcon} ${fileName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${stepInfo})`;
+        console.log(`[YAML_BATCH] ${message}`);
+        broadcastLog(message);
+        
+        // 개별 파일 상세 진행 상황 브로드캐스트
+        if (result.scenarioResult?.summary) {
+          const detailMessage = `[${fileName}] Steps: ${result.scenarioResult.summary.passed}✅ ${result.scenarioResult.summary.failed}❌ Duration: ${result.duration}ms`;
+          broadcastLog(detailMessage);
+        }
+        
+        debugLog(`[YAML_BATCH] Broadcasted result for: ${fileName}`, { statusIcon, success: result.success, stepInfo });
+        
+        console.log(`[BATCH_LOOP] Completed processing ${fileName} successfully`);
+        console.log(`[BATCH_LOOP] Moving to next file...`);
+        
+      } catch (error) {
+        console.error(`[BATCH_LOOP] *** ERROR processing ${fileName} ***`);
+        console.error(`[BATCH_LOOP] Error message:`, error.message);
+        console.error(`[BATCH_LOOP] Error stack:`, error.stack);
+        console.error(`[BATCH_LOOP] Current state when error occurred:`, {
+          running: state.running,
+          batchMode: state.batchMode,
+          fileName: fileName,
+          fileIndex: i,
+          totalFiles: yamlFiles.length
+        });
+        
+        console.error(`[YAML_BATCH] Error processing ${fileName}:`, error);
+        console.error(`[YAML_BATCH] Error stack:`, error.stack);
+        debugLog(`[YAML_BATCH] Critical error processing file: ${fileName}`, {
+          message: error.message,
+          stack: error.stack,
+          fileName,
+          index: i
+        });
+        
+        batchResults.push({
+          fileName,
+          filePath,
+          success: false,
+          result: { success: false, error: error.message }
+        });
+        
+        overallSuccess = false;
+        broadcastLog(`❌ ${fileName}: ERROR - ${error.message}`);
+      }
+      
+      // 각 파일 처리 후 상태 확인
+      console.log(`[BATCH_LOOP] === File ${i + 1}/${yamlFiles.length} processing completed ===`);
+      console.log(`[BATCH_LOOP] Batch results count: ${batchResults.length}`);
+      console.log(`[BATCH_LOOP] Overall success: ${overallSuccess}`);
+      console.log(`[BATCH_LOOP] Will continue: ${(i < yamlFiles.length - 1)}`);
+      console.log(`[BATCH_LOOP] Current state.running: ${JSON.stringify(state.running)}`);
+      console.log(`[BATCH_LOOP] Current state.batchMode: ${state.batchMode}`);
+      
+      debugLog(`[YAML_BATCH] File ${i + 1}/${yamlFiles.length} processing completed: ${fileName}`, {
+        batchResults: batchResults.length,
+        overallSuccess,
+        willContinue: (i < yamlFiles.length - 1)
+      });
+      console.log(`[YAML_BATCH] Completed ${i + 1}/${yamlFiles.length}: ${fileName}`);
+      
+      if (i < yamlFiles.length - 1) {
+        console.log(`[BATCH_LOOP] Continuing to next file...`);
+      } else {
+        console.log(`[BATCH_LOOP] All files processed, exiting loop`);
+      }
+    }
+
+    console.log(`\n=== [BATCH_LOOP] Loop completed ===`);
+    console.log(`[BATCH_LOOP] Final batch results count: ${batchResults.length}`);
+    console.log(`[BATCH_LOOP] Final overall success: ${overallSuccess}`);
+    console.log(`[BATCH_LOOP] About to proceed to batch completion...`);
+
+    const endTime = nowInTZString();
+    const duration = Date.now() - startTs;
+    const successFiles = batchResults.filter(r => r.success).length;
+    const failedFiles = yamlFiles.length - successFiles;
+    const successRate = ((successFiles / yamlFiles.length) * 100).toFixed(1);
+
+    console.log(`[YAML_BATCH] Batch execution completed`);
+    console.log(`[YAML_BATCH] Results: ${successFiles}/${yamlFiles.length} files passed (${successRate}%)`);
+    
+    debugLog(`[YAML_BATCH] Final batch statistics`, {
+      totalFiles: yamlFiles.length,
+      successFiles: successFiles,
+      failedFiles: failedFiles,
+      successRate: successRate,
+      duration: duration,
+      overallSuccess: overallSuccess
+    });
+
+    debugLog(`[YAML_BATCH] Clearing state.running and broadcasting null state`);
+    console.log(`[YAML_BATCH] About to clear state.running - current:`, state.running);
+    console.log(`[YAML_BATCH] About to deactivate batch mode - current:`, state.batchMode);
+    
+    state.running = null;
+    state.batchMode = false; // 배치 모드 비활성화
+    
+    console.log(`[YAML_BATCH] State cleared - running:`, state.running, 'batchMode:', state.batchMode);
+    console.log(`[YAML_BATCH] About to broadcast null state`);
+    try {
+      broadcastState({ running: null });
+      console.log(`[YAML_BATCH] State broadcast completed`);
+    } catch (broadcastError) {
+      console.error(`[YAML_BATCH] WARNING: broadcastState failed:`, broadcastError.message);
+      debugLog(`[YAML_BATCH] WARNING: broadcastState failed: ${broadcastError.message}`);
+    }
+    debugLog(`[YAML_BATCH_DEBUG] After broadcastState, about to reach batch report section`);
+    debugLog(`[YAML_BATCH_DEBUG] REACHED BATCH REPORT GENERATION SECTION`);
+
+    // 배치 요약 리포트 생성 - 기본 방식으로 복구
+    let batchReportPath = null;
+    if (job.generateHtmlReport !== false) {
+      try {
+        console.log(`[YAML_BATCH] Generating simple batch summary report...`);
+        batchReportPath = await generateSimpleBatchReport(jobName, {
+          startTime,
+          endTime,
+          duration,
+          yamlFiles: yamlFiles.length,
+          successFiles,
+          failedFiles,
+          successRate,
+          results: batchResults,
+          stamp
+        });
+        console.log(`[YAML_BATCH] ✅ Batch report generated: ${path.basename(batchReportPath)}`);
+      } catch (error) {
+        console.error(`[YAML_BATCH] Batch report generation failed:`, error);
+        batchReportPath = null;
+      }
+    }
+
+    const finalResult = {
+      started: true,
+      success: overallSuccess,
+      duration,
+      stats: {
+        files: yamlFiles.length,
+        successFiles,
+        failedFiles,
+        successRate: parseFloat(successRate)
+      },
+      results: batchResults,
+      batchReportPath
+    };
+
+    // 알람 전송
+    await sendAlert(overallSuccess ? 'success' : 'error', {
+      jobName,
+      endTime,
+      duration,
+      result: finalResult,
+      stats: finalResult.stats,
+      reportUrl: batchReportPath ? `${readCfg().dashboard_url || 'http://localhost:3000'}/reports/${path.basename(batchReportPath)}` : null
+    });
+
+    // 배치 실행 결과를 히스토리에 저장
+    const historyEntry = {
+      timestamp: endTime,
+      job: jobName,
+      type: 'binary',
+      exitCode: overallSuccess ? 0 : 1,
+      summary: `${successFiles}/${yamlFiles.length} files passed (batch)`,
+      report: batchReportPath,
+      htmlReport: batchReportPath,
+      stdout: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
+      stderr: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
+      tags: ['binary', 'yaml', 'batch'],
+      duration: Math.round(duration / 1000), // ms를 초로 변환
+      batchStats: {
+        totalFiles: yamlFiles.length,
+        successFiles: successFiles,
+        failedFiles: failedFiles,
+        successRate: parseFloat(successRate),
+        results: batchResults
+      },
+      detailedStats: {
+        totalSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.total || 0), 0),
+        passedSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.passed || 0), 0),
+        failedSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.failed || 0), 0),
+        avgResponseTime: Math.round(batchResults.reduce((sum, r) => {
+          const duration = r.result?.scenarioResult?.summary?.duration || 0;
+          const total = r.result?.scenarioResult?.summary?.total || 1;
+          return sum + (total > 0 ? duration / total : 0);
+        }, 0) / Math.max(batchResults.length, 1)),
+        totalDuration: duration,
+        successRate: parseFloat(successRate)
+      }
+    };
+    
+    debugLog(`[YAML_BATCH] Adding batch result to history`, {
+      jobName: historyEntry.job,
+      summary: historyEntry.summary,
+      batchReport: historyEntry.report ? 'Generated' : 'None',
+      totalSteps: historyEntry.detailedStats.totalSteps,
+      passedSteps: historyEntry.detailedStats.passedSteps
+    });
+    
+    // history 저장
+    const history = histRead();
+    history.push(historyEntry);
+    
+    // 최대 기록 개수 유지
+    const { history_keep = 500 } = readCfg();
+    if (history.length > history_keep) {
+      history.splice(0, history.length - history_keep);
+    }
+    
+    // 히스토리 파일에 저장
+    try {
+      histWrite(history);
+      console.log(`[YAML_BATCH] History saved successfully`);
+      
+      // 히스토리 업데이트 신호 브로드캐스트
+      broadcastLog(`[HISTORY_UPDATE] Batch job ${jobName} completed and history updated`, 'SYSTEM');
+      broadcastState({ history_updated: true });
+    } catch (error) {
+      console.error(`[YAML_BATCH] Failed to save history:`, error);
+    }
+
+    const statusIcon = overallSuccess ? '✅' : '❌';
+    console.log(`\n🏁 === BATCH COMPLETION === 🏁`);
+    console.log(`[BATCH_COMPLETE] Final results:`, {
+      started: finalResult.started,
+      success: finalResult.success,
+      totalFiles: yamlFiles.length,
+      successFiles: successFiles,
+      failedFiles: failedFiles,
+      duration: finalResult.duration,
+      batchReportPath: finalResult.batchReportPath
+    });
+    console.log(`[BATCH_COMPLETE] About to broadcast completion message`);
+    broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`);
+    console.log(`[BATCH_COMPLETE] About to return finalResult`);
+
+    return finalResult;
+
+  } catch (error) {
+    console.error('🚨🚨🚨 [BATCH_ERROR_CAUGHT] CATCH BLOCK ENTERED! 🚨🚨🚨');
+    console.error('🚨🚨🚨 [BATCH_ERROR_CAUGHT] Error:', error.message);
+    console.error('🚨🚨🚨 [BATCH_ERROR_CAUGHT] Stack:', error.stack);
+    console.error(`\n💥 === [BATCH_ERROR] Critical batch execution error === 💥`);
+    console.error(`[BATCH_ERROR] Error occurred at: ${new Date().toISOString()}`);
+    console.error(`[BATCH_ERROR] Error message:`, error.message);
+    console.error(`[BATCH_ERROR] Error stack:`, error.stack);
+    console.error(`[BATCH_ERROR] This error caused the entire batch to terminate!`);
+    console.error(`[BATCH_ERROR] Current state when error occurred:`, {
+      running: state.running,
+      batchMode: state.batchMode,
+      processedFiles: batchResults?.length || 0,
+      totalFiles: yamlFiles?.length || 'unknown'
+    });
+    
+    console.error(`[YAML_BATCH] Batch execution error:`, error);
+    
+    console.log(`[BATCH_ERROR] Cleaning up state...`);
+    state.running = null;
+    state.batchMode = false; // 에러 시에도 배치 모드 비활성화
+    console.log(`[YAML_BATCH] Batch mode deactivated due to error`);
+    console.log(`[BATCH_ERROR] State cleaned up, broadcasting null state...`);
+    broadcastState({ running: null });
+    
+    return {
+      started: false,
+      reason: 'batch_execution_error',
+      error: error.message
+    };
+  }
+}
 
 // SClient 시나리오 실행 함수
 async function runSClientScenarioJob(jobName, job) {
@@ -3754,3 +4758,414 @@ app.listen(site_port, '0.0.0.0', () => {
     console.log(`[DEBUG] 브라우저 문제 시 다음 명령 실행: npm run debug:browser`);
   });
 });
+
+// 기존 복잡한 배치 리포트 함수들 제거됨 - generateSimpleBatchReport로 대체
+
+// 간단한 패턴 매칭 함수 (glob-like)
+function matchPattern(str, pattern) {
+  // 특수 문자들을 정규표현식용으로 escape
+  let regexPattern = pattern
+    .replace(/\./g, '\\.')  // . -> \.
+    .replace(/\*/g, '.*')   // * -> .*
+    .replace(/\?/g, '.')    // ? -> .
+    .replace(/\*\*/g, '.*'); // ** -> .*
+    
+  // 패턴이 파일명의 어느 부분에나 매치되도록
+  const regex = new RegExp(regexPattern, 'i'); // case insensitive
+  
+  const isMatch = regex.test(str);
+  
+  // 디버깅을 위한 로그 (필요시)
+  // console.log(`[PATTERN] Testing "${str}" against "${pattern}" -> "${regexPattern}" -> ${isMatch}`);
+  
+  return isMatch;
+}
+
+// 간단한 배치 요약 리포트 생성 함수
+async function generateSimpleBatchReport(jobName, batchData) {
+  const { startTime, endTime, duration, yamlFiles, successFiles, failedFiles, successRate, results, stamp } = batchData;
+  
+  const reportPath = path.join(reportsDir, `${jobName}_batch_summary_${stamp}.html`);
+  
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch YAML Test Summary - Newman Report</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Light theme colors */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --bg-elevated: #ffffff;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-muted: #adb5bd;
+            --border-color: #dee2e6;
+            --border-hover: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #28a745;
+            --success-bg: rgba(40, 167, 69, 0.1);
+            --success-border: rgba(40, 167, 69, 0.3);
+            --error-color: #dc3545;
+            --error-bg: rgba(220, 53, 69, 0.1);
+            --error-border: rgba(220, 53, 69, 0.3);
+            --info-color: #007bff;
+            --warning-color: #ffc107;
+            --hover-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --code-bg: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme colors */
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-elevated: #161b22;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --border-color: #30363d;
+            --border-hover: #58a6ff;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #238636;
+            --success-bg: rgba(35, 134, 54, 0.15);
+            --success-border: rgba(35, 134, 54, 0.4);
+            --error-color: #f85149;
+            --error-bg: rgba(248, 81, 73, 0.15);
+            --error-border: rgba(248, 81, 73, 0.4);
+            --info-color: #58a6ff;
+            --warning-color: #d29922;
+            --hover-bg: #21262d;
+            --card-bg: #161b22;
+            --code-bg: #21262d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            margin: 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 4px 16px var(--shadow-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--shadow-color);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .success { color: var(--success-color); }
+        .failed { color: var(--error-color); }
+
+        .results-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 16px var(--shadow-color);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin: 0 0 24px 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .results-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .results-table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .results-table a {
+            color: var(--info-color);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px dotted var(--info-color);
+            transition: all 0.2s ease;
+        }
+
+        .results-table a:hover {
+            border-bottom: 1px solid var(--info-color);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: var(--success-bg);
+            color: var(--success-color);
+            border: 1px solid var(--success-border);
+        }
+
+        .status-failed {
+            background: var(--error-bg);
+            color: var(--error-color);
+            border: 1px solid var(--error-border);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer p {
+            margin: 8px 0;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 16px var(--shadow-color);
+            transition: all 0.2s ease;
+            z-index: 1000;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 12px 8px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        🌙
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Batch YAML Test Summary</h1>
+            <div class="subtitle">Job: ${jobName} | Generated: ${endTime}</div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${yamlFiles}</div>
+                <div class="stat-label">Total Files</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number success">${successFiles}</div>
+                <div class="stat-label">Success</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number failed">${failedFiles}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${successRate}%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <h2>Test Results</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Status</th>
+                        <th>Individual Report</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${results.map(result => `
+                    <tr>
+                        <td><strong>${result.fileName}</strong></td>
+                        <td>
+                            <span class="status-badge ${result.success ? 'status-success' : 'status-failed'}">
+                                ${result.success ? '✅ SUCCESS' : '❌ FAILED'}
+                            </span>
+                        </td>
+                        <td>
+                            ${result.reportPath ? 
+                              `<a href="${path.basename(result.reportPath)}">${path.basename(result.reportPath)}</a>` : 
+                              '<span style="color: var(--text-muted);">No report generated</span>'}
+                        </td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Execution Time:</strong> ${(duration / 1000).toFixed(2)}s | <strong>Start:</strong> ${startTime} | <strong>End:</strong> ${endTime}</p>
+            <p>Generated by <strong>2uknow API Monitor System</strong> 🤖</p>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            
+            // Update theme toggle icon
+            const toggle = document.querySelector('.theme-toggle');
+            toggle.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+            
+            // Save preference
+            localStorage.setItem('theme', newTheme);
+        }
+        
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            const toggle = document.querySelector('.theme-toggle');
+            toggle.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+        });
+    </script>
+</body>
+</html>`;
+
+  fs.writeFileSync(reportPath, htmlContent, 'utf8');
+  console.log(`[BATCH_SUMMARY] Simple batch report saved: ${reportPath}`);
+  
+  return reportPath;
+}

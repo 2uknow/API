@@ -82,8 +82,9 @@ export class SClientYAMLParser {
    * YAML 내용을 파싱하여 SClient 시나리오로 변환
    */
   static parseYamlToScenario(yamlContent, basePath = null) {
-    // include 처리
-    yamlContent = this.processIncludes(yamlContent, basePath);
+    // include 처리 (구조화된 방식)
+    const { processedContent, commonData } = this.processIncludes(yamlContent, basePath);
+    yamlContent = processedContent;
     
     const lines = yamlContent.replace(/\r/g, '').split('\n');
     
@@ -107,6 +108,9 @@ export class SClientYAMLParser {
     let currentStepProperty = null;
     let indentLevel = 0;
     let collectedVariables = {}; // 변수 수집용
+    
+    // 🎯 공통 설정의 모든 변수를 자동으로 collectedVariables에 추가
+    this.autoLoadCommonVariables(commonData, collectedVariables);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -161,8 +165,10 @@ export class SClientYAMLParser {
       // 단계 섹션 파싱
       else if (currentSection === 'steps') {
         if (indent === 2 && trimmed.startsWith('- name:')) {
-          // 새로운 단계 시작
+          // 새로운 단계 시작 - 이전 단계가 있으면 공통 설정 적용 후 저장
           if (currentStep) {
+            // 🎯 자동 공통 설정 적용 (플래그 없이!)
+            currentStep = this.autoApplyCommonSettings(currentStep, commonData);
             scenario.requests.push(currentStep);
           }
           
@@ -306,10 +312,24 @@ export class SClientYAMLParser {
       }
     }
     
-    // 마지막 단계 추가
+    // 마지막 단계 추가 (자동 공통 설정 적용)
     if (currentStep) {
+      currentStep = this.autoApplyCommonSettings(currentStep, commonData);
       scenario.requests.push(currentStep);
     }
+
+    // 🎯 공통 변수들을 scenario.variables 배열에 추가 (SClient 엔진이 인식할 수 있도록)
+    Object.keys(collectedVariables).forEach(key => {
+      // 기존 variables에 없는 공통 변수들만 추가
+      const existingVar = scenario.variables.find(v => v.key === key);
+      if (!existingVar) {
+        scenario.variables.push({
+          key,
+          value: collectedVariables[key],
+          description: `Auto-loaded variable: ${key}`
+        });
+      }
+    });
 
     // 모든 시나리오에서 변수 치환 적용 (post-processing)
     const processedScenario = this.applyVariableSubstitutionToScenario(scenario, collectedVariables);
@@ -912,13 +932,16 @@ export class SClientYAMLParser {
   }
 
   /**
-   * 키:값 라인에서 값 추출
+   * 키:값 라인에서 값 추출 (인라인 주석 제거 포함)
    */
   static extractValue(line) {
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) return '';
     
     let value = line.substring(colonIndex + 1).trim();
+    
+    // 인라인 주석 제거 (따옴표 밖의 # 이후 제거)
+    value = this.removeInlineComments(value);
     
     // 따옴표 제거
     if ((value.startsWith('"') && value.endsWith('"')) || 
@@ -927,6 +950,38 @@ export class SClientYAMLParser {
     }
     
     return value;
+  }
+
+  /**
+   * 인라인 주석 제거 (따옴표 안의 # 문자는 보존)
+   */
+  static removeInlineComments(text) {
+    let result = '';
+    let inQuotes = false;
+    let quoteChar = '';
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      
+      if (!inQuotes && (char === '"' || char === "'")) {
+        // 따옴표 시작
+        inQuotes = true;
+        quoteChar = char;
+        result += char;
+      } else if (inQuotes && char === quoteChar) {
+        // 따옴표 끝
+        inQuotes = false;
+        quoteChar = '';
+        result += char;
+      } else if (!inQuotes && char === '#') {
+        // 따옴표 밖의 주석 시작 - 여기서 중단
+        break;
+      } else {
+        result += char;
+      }
+    }
+    
+    return result.trim();
   }
 
   /**
@@ -1043,7 +1098,94 @@ export class SClientYAMLParser {
   }
 
   /**
-   * YAML 파일에서 include 구문을 처리
+   * 구조화된 공통 설정 적용 (완전히 동적)
+   */
+  static applyCommonSettings(stepData, commonData, collectedVariables) {
+    console.log('🔧 공통 설정 적용 시작:', stepData.name);
+    console.log('   - commonData keys:', Object.keys(commonData));
+    console.log('   - useCommonExtracts:', stepData.useCommonExtracts);
+    console.log('   - useCommonTests:', stepData.useCommonTests);
+    console.log('   - useCarrier:', stepData.useCarrier);
+
+    // 1. 통신사별 설정 먼저 적용 (변수 치환에 필요)
+    if (commonData.carriers && stepData.useCarrier) {
+      const carrierConfig = commonData.carriers[stepData.useCarrier];
+      console.log('   📱 통신사 설정 적용:', stepData.useCarrier, carrierConfig);
+      
+      if (carrierConfig) {
+        // 통신사별 변수를 현재 변수에 병합
+        Object.keys(carrierConfig).forEach(key => {
+          collectedVariables[key] = carrierConfig[key];
+          console.log(`     + ${key} = ${carrierConfig[key]}`);
+        });
+      }
+    }
+
+    // 2. 공통 추출 패턴 적용
+    if (commonData.common_extracts && stepData.useCommonExtracts) {
+      const extractType = stepData.useCommonExtracts;
+      const extractPatterns = commonData.common_extracts[extractType];
+      console.log('   📤 공통 추출 패턴 적용:', extractType, extractPatterns);
+      
+      if (extractPatterns) {
+        stepData.extractors = stepData.extractors || [];
+        // 공통 추출 패턴을 extractors에 추가
+        extractPatterns.forEach(pattern => {
+          stepData.extractors.push({
+            name: pattern.name,
+            pattern: pattern.pattern,
+            variable: pattern.variable
+          });
+          console.log(`     + Extract: ${pattern.name} -> ${pattern.variable}`);
+        });
+      }
+    }
+
+    // 3. 공통 테스트 적용
+    if (commonData.common_tests && stepData.useCommonTests) {
+      const testTypes = Array.isArray(stepData.useCommonTests) ? stepData.useCommonTests : [stepData.useCommonTests];
+      stepData.tests = stepData.tests || [];
+      console.log('   ✅ 공통 테스트 적용:', testTypes);
+      
+      testTypes.forEach(testType => {
+        const testGroup = commonData.common_tests[testType];
+        if (testGroup) {
+          testGroup.forEach(test => {
+            stepData.tests.push({
+              name: test.name,
+              description: test.description || '',
+              assertion: test.assertion
+            });
+            console.log(`     + Test: ${test.name}`);
+          });
+        }
+      });
+    }
+
+    // 4. arguments에 변수 치환 적용 (이제 통신사 설정이 collectedVariables에 포함됨)
+    if (stepData.arguments && Object.keys(stepData.arguments).length > 0) {
+      console.log('   🔄 Arguments 변수 치환 적용');
+      Object.keys(stepData.arguments).forEach(key => {
+        const originalValue = stepData.arguments[key];
+        const substitutedValue = this.substituteVariables(originalValue, collectedVariables);
+        if (originalValue !== substitutedValue) {
+          console.log(`     + ${key}: ${originalValue} -> ${substitutedValue}`);
+          stepData.arguments[key] = substitutedValue;
+        }
+      });
+    }
+
+    // 정리: 플래그들 제거
+    delete stepData.useCommonExtracts;
+    delete stepData.useCommonTests;
+    delete stepData.useCarrier;
+
+    console.log('✅ 공통 설정 적용 완료:', stepData.name);
+    return stepData;
+  }
+
+  /**
+   * YAML 파일에서 include 구문을 처리 (구조화된 방식)
    */
   static processIncludes(yamlContent, basePath = null) {
     if (!basePath) basePath = path.resolve('./collections');
@@ -1052,6 +1194,7 @@ export class SClientYAMLParser {
     const includePattern = /^(\s*)include:\s*(.+\.yaml)\s*$/gm;
     
     let processedContent = yamlContent;
+    let commonData = {}; // 공통 설정 데이터 저장
     let match;
     
     while ((match = includePattern.exec(yamlContent)) !== null) {
@@ -1072,11 +1215,20 @@ export class SClientYAMLParser {
         if (fs.existsSync(includePath)) {
           const includeContent = fs.readFileSync(includePath, 'utf-8');
           
-          // 들여쓰기 적용하여 포함
-          const indentedContent = this.applyIndentToYaml(includeContent, indent);
-          
-          // 원본에서 include 구문을 포함된 내용으로 교체
-          processedContent = processedContent.replace(fullMatch, indentedContent);
+          // 공통 파일인지 확인 (common.yaml 등)
+          if (trimmedFilename.includes('common')) {
+            // 구조화된 데이터 파싱하여 저장
+            commonData = this.parseCommonData(includeContent);
+            
+            // 공통 파일의 경우 variables와 options만 인라인으로 포함
+            const variablesOnlyContent = this.extractVariablesAndOptions(includeContent);
+            const indentedContent = this.applyIndentToYaml(variablesOnlyContent, indent);
+            processedContent = processedContent.replace(fullMatch, indentedContent);
+          } else {
+            // 일반 include 파일은 기존 방식 유지
+            const indentedContent = this.applyIndentToYaml(includeContent, indent);
+            processedContent = processedContent.replace(fullMatch, indentedContent);
+          }
         } else {
           console.warn(`⚠️ Include 파일을 찾을 수 없습니다: ${includePath}`);
         }
@@ -1085,7 +1237,227 @@ export class SClientYAMLParser {
       }
     }
     
-    return processedContent;
+    // 처리된 내용과 공통 데이터를 함께 반환
+    return { processedContent, commonData };
+  }
+
+  /**
+   * 공통 데이터 파싱 (구조화된 섹션들)
+   */
+  static parseCommonData(yamlContent) {
+    const lines = yamlContent.replace(/\r/g, '').split('\n');
+    const commonData = {};
+    
+    let currentSection = null;
+    let currentSubSection = null;
+    let buffer = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const indent = this.getIndentLevel(line);
+      
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      // 최상위 섹션 (common_extracts, common_tests, carriers 등)
+      if (indent === 0 && trimmed.endsWith(':')) {
+        // 이전 섹션 저장
+        if (currentSection && buffer.length > 0) {
+          commonData[currentSection] = this.parseStructuredSection(buffer);
+          buffer = [];
+        }
+        
+        currentSection = trimmed.replace(':', '');
+        currentSubSection = null;
+      }
+      // 하위 섹션 및 데이터
+      else if (currentSection && (currentSection.includes('common_') || currentSection === 'carriers')) {
+        buffer.push(line);
+      }
+    }
+    
+    // 마지막 섹션 저장
+    if (currentSection && buffer.length > 0) {
+      commonData[currentSection] = this.parseStructuredSection(buffer);
+    }
+    
+    return commonData;
+  }
+
+  /**
+   * 구조화된 섹션 파싱
+   */
+  static parseStructuredSection(lines) {
+    const result = {};
+    let currentKey = null;
+    let currentArray = [];
+    let currentObject = {};
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const indent = this.getIndentLevel(line);
+      
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      // 2단계 들여쓰기: 하위 섹션 키
+      if (indent === 2 && trimmed.endsWith(':')) {
+        // 이전 키 저장
+        if (currentKey) {
+          if (currentArray.length > 0) {
+            result[currentKey] = currentArray;
+          } else if (Object.keys(currentObject).length > 0) {
+            result[currentKey] = currentObject;
+          }
+        }
+        
+        currentKey = trimmed.replace(':', '');
+        currentArray = [];
+        currentObject = {};
+      }
+      // 4단계 들여쓰기: 배열 항목
+      else if (indent === 4 && trimmed.startsWith('- ')) {
+        if (trimmed.includes('name:')) {
+          // 테스트/추출 객체 시작
+          const obj = { name: this.extractValue(trimmed.substring(2)) };
+          currentArray.push(obj);
+        } else {
+          // 간단한 문자열 배열
+          currentArray.push(trimmed.substring(2));
+        }
+      }
+      // 6단계 들여쓰기: 객체 속성 (추출 패턴의 pattern, variable)
+      else if (indent === 6 && trimmed.includes(':')) {
+        const [key, value] = this.splitKeyValue(trimmed);
+        
+        if (currentArray.length > 0 && typeof currentArray[currentArray.length - 1] === 'object') {
+          // 배열의 마지막 객체에 속성 추가
+          currentArray[currentArray.length - 1][key] = value;
+        }
+      }
+      // 4단계 들여쓰기: 객체 속성 (직접 키-값)
+      else if (indent === 4 && trimmed.includes(':')) {
+        const [key, value] = this.splitKeyValue(trimmed);
+        
+        if (currentArray.length > 0 && typeof currentArray[currentArray.length - 1] === 'object') {
+          // 배열의 마지막 객체에 속성 추가
+          currentArray[currentArray.length - 1][key] = value;
+        } else {
+          // 직접 객체 속성
+          currentObject[key] = value;
+        }
+      }
+    }
+    
+    // 마지막 키 저장
+    if (currentKey) {
+      if (currentArray.length > 0) {
+        result[currentKey] = currentArray;
+      } else if (Object.keys(currentObject).length > 0) {
+        result[currentKey] = currentObject;
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * variables와 options만 추출
+   */
+  static extractVariablesAndOptions(yamlContent) {
+    const lines = yamlContent.replace(/\r/g, '').split('\n');
+    const result = [];
+    let currentSection = null;
+    let includeCurrentSection = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const indent = this.getIndentLevel(line);
+      
+      if (!trimmed || trimmed.startsWith('#')) {
+        if (includeCurrentSection) result.push(line);
+        continue;
+      }
+      
+      // 최상위 섹션 확인
+      if (indent === 0 && trimmed.endsWith(':')) {
+        currentSection = trimmed.replace(':', '');
+        includeCurrentSection = (currentSection === 'variables' || currentSection === 'options');
+      }
+      
+      if (includeCurrentSection) {
+        result.push(line);
+      }
+    }
+    
+    return result.join('\n');
+  }
+
+  /**
+   * 🎯 공통 설정의 모든 변수를 자동으로 로드 (완전히 동적!)
+   */
+  static autoLoadCommonVariables(commonData, collectedVariables) {
+    // 🚀 모든 구조화된 섹션을 동적으로 처리
+    Object.keys(commonData).forEach(sectionName => {
+      const section = commonData[sectionName];
+      
+      // 구조화된 섹션인지 확인 (carriers, payment_methods, servers 등)
+      if (typeof section === 'object' && section !== null && !Array.isArray(section)) {
+        Object.keys(section).forEach(itemName => {
+          const itemConfig = section[itemName];
+          
+          // 항목이 객체인 경우 (SKT: {IDEN: "...", DST_ADDR: "..."})
+          if (typeof itemConfig === 'object' && itemConfig !== null) {
+            Object.keys(itemConfig).forEach(key => {
+              // 구조화된 변수: SECTION_ITEM_KEY (예: CARRIERS_SKT_IDEN)
+              const structuredKey = `${sectionName.toUpperCase()}_${itemName}_${key}`;
+              collectedVariables[structuredKey] = itemConfig[key];
+              
+              // 간편 변수: ITEM_KEY (예: SKT_IDEN)  
+              const simpleKey = `${itemName}_${key}`;
+              collectedVariables[simpleKey] = itemConfig[key];
+              
+              // 기본값 설정 (첫 번째 항목을 기본값으로)
+              const baseKey = key;
+              if (!collectedVariables[baseKey]) {
+                collectedVariables[baseKey] = itemConfig[key];
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * 🎯 공통 추출과 테스트를 자동으로 적용 (플래그 없이!)
+   */
+  static autoApplyCommonSettings(stepData, commonData) {
+    // 1. 기본 추출 패턴을 항상 자동 적용
+    if (commonData.common_extracts && commonData.common_extracts.basic_response) {
+      stepData.extractors = stepData.extractors || [];
+      
+      commonData.common_extracts.basic_response.forEach(pattern => {
+        stepData.extractors.push({
+          name: pattern.name,
+          pattern: pattern.pattern,
+          variable: pattern.variable
+        });
+      });
+    }
+    
+    // 2. 기본 성공 테스트를 항상 자동 적용
+    if (commonData.common_tests && commonData.common_tests.success_tests) {
+      stepData.tests = stepData.tests || [];
+      
+      commonData.common_tests.success_tests.forEach(test => {
+        stepData.tests.push({
+          name: test.name,
+          description: test.description || '',
+          assertion: test.assertion
+        });
+      });
+    }
+    
+    return stepData;
   }
 
   /**
