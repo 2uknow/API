@@ -15,6 +15,12 @@ export class SClientToNewmanConverter {
    * SClient 시나리오 결과를 Newman 실행 결과로 변환
    */
   convertToNewmanRun(scenarioResult) {
+    // 강제 디버깅 로그
+    console.log('🔍 [NEWMAN_CONVERTER] convertToNewmanRun called!');
+    console.log('🔍 [NEWMAN_CONVERTER] scenarioResult type:', typeof scenarioResult);
+    console.log('🔍 [NEWMAN_CONVERTER] scenarioResult keys:', Object.keys(scenarioResult || {}));
+    console.log('🔍 [NEWMAN_CONVERTER] scenarioResult:', JSON.stringify(scenarioResult, null, 2));
+    
     const { info, steps, summary, startTime, endTime } = scenarioResult;
     
     // Newman Collection 형식으로 변환
@@ -56,8 +62,8 @@ export class SClientToNewmanConverter {
     // Newman 실행 통계 생성
     const stats = {
       requests: {
-        total: summary.total,
-        failed: summary.failed,
+        total: steps.length,  // 실행된 요청(스텝) 수
+        failed: steps.filter(s => !s.passed).length,  // 실패한 요청 수
         pending: 0
       },
       assertions: {
@@ -78,7 +84,13 @@ export class SClientToNewmanConverter {
     };
 
     // Newman 실행 결과 생성
+    console.log('🔍 [EXECUTIONS] Creating executions array...');
+    console.log('🔍 [EXECUTIONS] Steps count:', steps.length);
+    console.log('🔍 [EXECUTIONS] Steps structure:', steps.map((s, i) => ({ index: i, name: s.name, passed: s.passed })));
+    
     const executions = steps.map((step, index) => {
+      console.log(`🔍 [EXECUTIONS] Processing step ${index + 1}: ${step.name}`);
+      
       const execution = {
         id: this.generateId(),
         item: {
@@ -138,6 +150,9 @@ export class SClientToNewmanConverter {
 
       return execution;
     });
+
+    console.log('🔍 [EXECUTIONS] Final executions array length:', executions.length);
+    console.log('🔍 [EXECUTIONS] First execution sample:', executions[0] ? { name: executions[0].item?.name, id: executions[0].id } : 'No executions');
 
     // Newman Run 객체 생성
     const run = {
@@ -238,9 +253,7 @@ export class SClientToNewmanConverter {
    */
   async generateHTMLExtraReport(collection, run, outputPath) {
     // Newman HTMLExtra 스타일의 고급 HTML 리포트 생성
-    const html = this.generateNewmanStyleHTML(collection, run);
-    fs.writeFileSync(outputPath, html);
-    return { success: true, path: outputPath };
+    return await this.generateNewmanStyleHTML(run, outputPath, {});
   }
 
   /**
@@ -255,20 +268,42 @@ export class SClientToNewmanConverter {
   /**
    * Newman HTMLExtra 스타일 HTML 생성
    */
-  generateNewmanStyleHTML(collection, run) {
+  generateNewmanStyleHTML(run, reportPath, options = {}) {
     console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
-    const { stats, executions, timings, failures } = run;
-    const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
-    const duration = timings.completed - timings.started;
-    const avgResponseTime = timings.responseAverage || 0;
+    console.log('[HTML DEBUG] Run type:', typeof run);
+    console.log('[HTML DEBUG] Run is null?', run === null);
+    console.log('[HTML DEBUG] Run is undefined?', run === undefined);
+    console.log('[HTML DEBUG] Run keys:', Object.keys(run || {}));
+    console.log('[HTML DEBUG] Run executions exists?', 'executions' in (run || {}));
+    console.log('[HTML DEBUG] Run executions type:', typeof (run || {}).executions);
+    console.log('[HTML DEBUG] Run executions length:', (run.executions || []).length);
+    console.log('[HTML DEBUG] Run executions array:', run.executions);
+    console.log('[HTML DEBUG] First 100 chars of run:', JSON.stringify(run, null, 2).substring(0, 100));
+    
+    const { stats, timings, failures } = run;
+    const executions = run.executions || [];
+    
+    console.log('🔍 [HTML_TEMPLATE] About to generate HTML with executions:', executions.length);
+    console.log('🔍 [HTML_TEMPLATE] First execution sample:', executions[0] ? executions[0].item?.name : 'No executions');
+    
+    // stats와 timings의 각 속성이 없는 경우 기본값 설정
+    const requests = stats?.requests || { total: 0, failed: 0 };
+    const assertions = stats?.assertions || { total: 0, failed: 0 };
+    const timingsSafe = timings || { responseMin: 0, responseMax: 0, responseAverage: 0, completed: 0, started: 0 };
+    const successRate = requests.total > 0 
+      ? ((requests.total - requests.failed) / requests.total * 100).toFixed(1) 
+      : '0.0';
+      
+    const duration = (timingsSafe.completed || 0) - (timingsSafe.started || 0);
+    const avgResponseTime = timingsSafe.responseAverage || 0;
 
-    return `
+    const html = `
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${collection.info.name} - Newman Report</title>
+    <title>${run.collection?.name || options.browserTitle || 'Test Report'} - Newman Report</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -793,8 +828,8 @@ export class SClientToNewmanConverter {
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>${collection.info.name}</h1>
-            <div class="subtitle">${collection.info.description || 'API Test Report'}</div>
+            <h1>${run.collection?.name || 'Test Report'}</h1>
+            <div class="subtitle">${run.collection?.description || 'API Test Report'}</div>
             <div class="meta">
                 Generated on ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} • 
                 Duration: ${duration}ms
@@ -814,15 +849,15 @@ export class SClientToNewmanConverter {
                 <div class="metric-label">Success Rate</div>
             </div>
             <div class="metric-card">
-                <div class="metric-number">${stats.requests.total}</div>
+                <div class="metric-number">${requests.total}</div>
                 <div class="metric-label">Total Requests</div>
             </div>
             <div class="metric-card">
-                <div class="metric-number metric-pass">${stats.requests.total - stats.requests.failed}</div>
+                <div class="metric-number metric-pass">${requests.total - requests.failed}</div>
                 <div class="metric-label">Passed</div>
             </div>
             <div class="metric-card">
-                <div class="metric-number metric-fail">${stats.requests.failed}</div>
+                <div class="metric-number metric-fail">${requests.failed}</div>
                 <div class="metric-label">Failed</div>
             </div>
             <div class="metric-card">
@@ -835,22 +870,22 @@ export class SClientToNewmanConverter {
         <div class="test-results">
             <div class="section-header">
                 <div class="section-title">Request Results</div>
-                <div class="section-subtitle">${executions.length} request${executions.length !== 1 ? 's' : ''} executed</div>
+                <div class="section-subtitle">${(executions || []).length} request${(executions || []).length !== 1 ? 's' : ''} executed</div>
             </div>
             
-            ${executions.map((execution, index) => {
-                const hasFailures = execution.assertions.some(a => a.error);
-                const responseData = execution.response.stream ? execution.response.stream.toString() : '';
+            ${(executions || []).map((execution, index) => {
+                const hasFailures = (execution.assertions || []).some(a => a.error);
+                const responseData = execution.response && execution.response.stream ? execution.response.stream.toString() : '';
                 
                 return `
                 <div class="request-item">
                     <div class="request-header" onclick="toggleDetails('request-${index}')">
                         <div style="display: flex; align-items: center;">
                             <span class="request-method">SClient</span>
-                            <span class="request-name">${execution.item.name}</span>
+                            <span class="request-name">${execution.item && execution.item.name || 'Unknown'}</span>
                         </div>
                         <div class="request-status">
-                            <span class="response-time">${execution.response.responseTime}ms</span>
+                            <span class="response-time">${execution.response && execution.response.responseTime || 0}ms</span>
                             <span class="status-badge ${hasFailures ? 'status-fail' : 'status-pass'}">
                                 ${hasFailures ? 'FAIL' : 'PASS'}
                             </span>
@@ -860,18 +895,18 @@ export class SClientToNewmanConverter {
                         <div class="details-grid">
                             <div class="detail-item">
                                 <div class="detail-label">Status Code</div>
-                                <div class="detail-value">${execution.response.code}</div>
+                                <div class="detail-value">${execution.response && execution.response.code || 'N/A'}</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">Response Size</div>
-                                <div class="detail-value">${execution.response.responseSize} bytes</div>
+                                <div class="detail-value">${execution.response && execution.response.responseSize || 0} bytes</div>
                             </div>
                         </div>
                         
-                        ${execution.assertions.length > 0 ? `
+                        ${(execution.assertions || []).length > 0 ? `
                             <div class="assertions">
                                 <div class="detail-label">Test Results</div>
-                                ${execution.assertions.map(assertion => {
+                                ${(execution.assertions || []).map(assertion => {
                                     const hasDescription = assertion.description && assertion.description.trim();
                                     const tooltipClass = hasDescription ? 'tooltip' : '';
                                     const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
@@ -890,7 +925,7 @@ export class SClientToNewmanConverter {
                                             <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">${assertion.originalAssertion.substring(3).trim()}</code><br>
                                             ${(() => {
                                                 const jsExpression = assertion.originalAssertion.substring(3).trim();
-                                                const stepData = executions.find(e => e.assertions.includes(assertion));
+                                                const stepData = (executions || []).find(e => (e.assertions || []).includes(assertion));
                                                 const extractedVars = stepData ? stepData.extracted || {} : {};
                                                 const conditionAnalysis = SClientToNewmanConverter.analyzeJavaScriptConditions(jsExpression, extractedVars);
                                                 if (conditionAnalysis && conditionAnalysis.length > 0) {
@@ -945,19 +980,19 @@ export class SClientToNewmanConverter {
             <div class="section-title" style="text-align: center; margin-bottom: 20px;">Execution Summary</div>
             <div class="stats-grid">
                 <div class="stat-item">
-                    <div class="stat-number">${stats.assertions.total}</div>
+                    <div class="stat-number">${assertions.total}</div>
                     <div class="stat-label">Total Tests</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.assertions.failed}</div>
+                    <div class="stat-number">${assertions.failed}</div>
                     <div class="stat-label">Failed Tests</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${timings.responseMin || 0}ms</div>
+                    <div class="stat-number">${timingsSafe.responseMin || 0}ms</div>
                     <div class="stat-label">Min Response</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${timings.responseMax || 0}ms</div>
+                    <div class="stat-number">${timingsSafe.responseMax || 0}ms</div>
                     <div class="stat-label">Max Response</div>
                 </div>
             </div>
@@ -1031,6 +1066,16 @@ export class SClientToNewmanConverter {
 </body>
 </html>
     `.trim();
+    
+    // Write HTML to file
+    try {
+      fs.writeFileSync(reportPath, html, 'utf8');
+      console.log(`[HTML] Report successfully written to: ${reportPath}`);
+      return { success: true, path: reportPath };
+    } catch (error) {
+      console.error(`[HTML] Failed to write report to ${reportPath}:`, error);
+      return { success: false, error: error.message };
+    }
   }
 
   /**
@@ -1038,8 +1083,14 @@ export class SClientToNewmanConverter {
    */
   generateCustomHTML(collection, run) {
     const { stats, executions, timings } = run;
-    const successRate = ((stats.requests.total - stats.requests.failed) / stats.requests.total * 100).toFixed(1);
-    const duration = timings.completed - timings.started;
+    
+    // stats.requests가 없는 경우 기본값 설정
+    const requests = stats?.requests || { total: 0, failed: 0 };
+    const successRate = requests.total > 0 
+      ? ((requests.total - requests.failed) / requests.total * 100).toFixed(1) 
+      : '0.0';
+      
+    const duration = (timings?.completed || 0) - (timings?.started || 0);
 
     return `
 <!DOCTYPE html>
@@ -1047,7 +1098,7 @@ export class SClientToNewmanConverter {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${collection.info.name} - SClient Test Report</title>
+    <title>${run.collection?.name || 'Test Report'} - SClient Test Report</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
     <style>
@@ -1127,23 +1178,23 @@ export class SClientToNewmanConverter {
 <body>
     <div class="container">
         <div class="header">
-            <h1>${collection.info.name}</h1>
-            <p><strong>Description:</strong> ${collection.info.description || 'SClient Scenario Test'}</p>
+            <h1>${run.collection?.name || 'Test Report'}</h1>
+            <p><strong>Description:</strong> ${run.collection?.description || 'SClient Scenario Test'}</p>
             <p><strong>Generated:</strong> ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
             <p><strong>Duration:</strong> ${duration}ms</p>
         </div>
 
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-value">${stats.requests.total}</div>
+                <div class="stat-value">${requests.total}</div>
                 <div class="stat-label">Total Requests</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value success">${stats.requests.total - stats.requests.failed}</div>
+                <div class="stat-value success">${requests.total - requests.failed}</div>
                 <div class="stat-label">Passed</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value error">${stats.requests.failed}</div>
+                <div class="stat-value error">${requests.failed}</div>
                 <div class="stat-label">Failed</div>
             </div>
             <div class="stat-card">
@@ -1160,21 +1211,21 @@ export class SClientToNewmanConverter {
             ${executions.map((execution, index) => `
                 <div class="execution">
                     <div class="execution-header">
-                        <div class="execution-name">${index + 1}. ${execution.item.name}</div>
-                        <div class="execution-status ${execution.assertions.every(a => !a.error) ? 'status-pass' : 'status-fail'}">
-                            ${execution.assertions.every(a => !a.error) ? 'PASS' : 'FAIL'}
+                        <div class="execution-name">${index + 1}. ${execution.item && execution.item.name || 'Unknown'}</div>
+                        <div class="execution-status ${(execution.assertions || []).every(a => !a.error) ? 'status-pass' : 'status-fail'}">
+                            ${(execution.assertions || []).every(a => !a.error) ? 'PASS' : 'FAIL'}
                         </div>
                     </div>
                     <div class="execution-details">
-                        <span><strong>Response Time:</strong> ${execution.response.responseTime}ms</span> •
-                        <span><strong>Status Code:</strong> ${execution.response.code}</span> •
-                        <span><strong>Size:</strong> ${execution.response.responseSize} bytes</span>
+                        <span><strong>Response Time:</strong> ${execution.response && execution.response.responseTime || 0}ms</span> •
+                        <span><strong>Status Code:</strong> ${execution.response && execution.response.code || 'N/A'}</span> •
+                        <span><strong>Size:</strong> ${execution.response && execution.response.responseSize || 0} bytes</span>
                     </div>
                     
-                    ${execution.assertions.length > 0 ? `
+                    ${(execution.assertions || []).length > 0 ? `
                         <div class="assertions">
                             <strong>Assertions:</strong>
-                            ${execution.assertions.map(assertion => `
+                            ${(execution.assertions || []).map(assertion => `
                                 <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'}">
                                     ${assertion.error ? '✗' : '✓'} ${assertion.assertion}
                                     ${assertion.error ? `<br><small>${assertion.error.message}</small>` : ''}
@@ -1221,10 +1272,10 @@ export class SClientToNewmanConverter {
                         </div>
                     ` : ''}
                     
-                    ${execution.response.stream && execution.response.stream.length > 0 ? `
+                    ${execution.response && execution.response.stream && execution.response.stream.length > 0 ? `
                         <div class="response-data">
                             <strong>Response:</strong><br>
-                            ${execution.response.stream.toString().replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                            ${execution.response && execution.response.stream ? execution.response.stream.toString().replace(/</g, '&lt;').replace(/>/g, '&gt;') : ''}
                         </div>
                     ` : ''}
                 </div>
@@ -1304,8 +1355,8 @@ export class SClientToNewmanConverter {
 <testsuites name="${collection.name}" tests="${stats.assertions.total}" failures="${stats.assertions.failed}" time="${duration}">
     <testsuite name="${collection.name}" tests="${stats.assertions.total}" failures="${stats.assertions.failed}" time="${duration}">
         ${executions.map(execution => 
-          execution.assertions.map(assertion => `
-            <testcase name="${assertion.assertion}" classname="${execution.item.name}" time="${execution.response.responseTime / 1000}">
+          (execution.assertions || []).map(assertion => `
+            <testcase name="${assertion.assertion}" classname="${execution.item && execution.item.name || 'Unknown'}" time="${execution.response && execution.response.responseTime ? execution.response.responseTime / 1000 : 0}">
                 ${assertion.error ? `
                     <failure message="${assertion.error.message}" type="${assertion.error.name}">
                         ${assertion.error.stack}
@@ -1485,6 +1536,319 @@ export class SClientToNewmanConverter {
       default:
         return baseOptions;
     }
+  }
+
+  /**
+   * 배치 Summary HTML 생성 (Newman 스타일)
+   */
+  generateBatchSummaryHTML(batchData, outputPath) {
+    const { 
+      jobName, 
+      startTime, 
+      endTime, 
+      duration, 
+      yamlFiles, 
+      successFiles, 
+      failedFiles, 
+      successRate, 
+      results 
+    } = batchData;
+
+    const successRateNum = parseFloat(successRate) || 0;
+    const totalFiles = results?.length || yamlFiles || 0;
+    const avgResponseTime = results && results.length > 0 
+      ? Math.round(results.reduce((sum, r) => sum + (r.result?.duration || 0), 0) / results.length)
+      : 0;
+
+    const html = `<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${jobName} Batch Test Summary - Newman Report</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --bg-elevated: #ffffff;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-muted: #adb5bd;
+            --border-color: #dee2e6;
+            --border-hover: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #28a745;
+            --success-bg: rgba(40, 167, 69, 0.1);
+            --success-border: rgba(40, 167, 69, 0.3);
+            --error-color: #dc3545;
+            --error-bg: rgba(220, 53, 69, 0.1);
+            --error-border: rgba(220, 53, 69, 0.3);
+            --info-color: #007bff;
+            --warning-color: #ffc107;
+            --hover-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --code-bg: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-elevated: #161b22;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --border-color: #30363d;
+            --border-hover: #58a6ff;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #238636;
+            --success-bg: rgba(35, 134, 54, 0.15);
+            --success-border: rgba(35, 134, 54, 0.4);
+            --error-color: #f85149;
+            --error-bg: rgba(248, 81, 73, 0.15);
+            --error-border: rgba(248, 81, 73, 0.4);
+            --info-color: #58a6ff;
+            --warning-color: #d29922;
+            --hover-bg: #21262d;
+            --card-bg: #161b22;
+            --code-bg: #0d1117;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        .theme-toggle {
+            position: fixed; top: 20px; right: 20px;
+            background: var(--gradient-primary); color: white;
+            border: none; padding: 10px 20px; border-radius: 25px;
+            cursor: pointer; font-weight: 500; z-index: 1000;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: all 0.3s ease;
+        }
+        .theme-toggle:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--shadow-color); }
+
+        .header {
+            text-align: center; padding: 40px 0;
+            background: var(--card-bg); border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            margin-bottom: 30px; border: 1px solid var(--border-color);
+        }
+        .header h1 {
+            font-size: 2.5rem; font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 10px;
+        }
+        .subtitle { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 20px; }
+        .meta { font-size: 0.95rem; color: var(--text-muted); }
+
+        .dashboard {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px; margin-bottom: 40px;
+        }
+        .metric-card {
+            background: var(--card-bg); padding: 25px; border-radius: 12px;
+            text-align: center; box-shadow: 0 4px 20px var(--shadow-color);
+            border: 1px solid var(--border-color); transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 8px 30px var(--shadow-color); }
+        .metric-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: var(--gradient-primary);
+        }
+
+        .progress-ring { position: relative; width: 120px; height: 120px; margin: 0 auto 15px; }
+        .progress-ring svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+        .progress-ring circle.bg { fill: none; stroke: var(--border-color); stroke-width: 8; }
+        .progress-ring circle.progress {
+            fill: none; stroke: var(--gradient-primary); stroke-width: 8;
+            stroke-linecap: round; stroke-dasharray: 283;
+            stroke-dashoffset: ${283 - (283 * successRateNum / 100)};
+            transition: stroke-dashoffset 1s ease;
+        }
+        .progress-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.8rem; font-weight: 700; color: var(--text-primary);
+        }
+
+        .metric-number { font-size: 2.5rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+        .metric-pass { color: var(--success-color); }
+        .metric-fail { color: var(--error-color); }
+        .metric-label { font-size: 1rem; color: var(--text-secondary); font-weight: 500; }
+
+        .batch-results {
+            background: var(--card-bg); border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            border: 1px solid var(--border-color); overflow: hidden;
+        }
+
+        .section-header { padding: 25px 30px; border-bottom: 1px solid var(--border-color); }
+        .section-title {
+            font-size: 1.4rem; font-weight: 600; color: var(--text-primary); margin-bottom: 5px;
+        }
+        .section-subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+
+        .batch-table { width: 100%; border-collapse: collapse; }
+        .batch-table th, .batch-table td {
+            padding: 18px 30px; text-align: left; border-bottom: 1px solid var(--border-color);
+        }
+        .batch-table th {
+            background: var(--bg-secondary); font-weight: 600;
+            color: var(--text-primary); font-size: 0.95rem;
+        }
+        .batch-table tr:hover { background: var(--hover-bg); }
+
+        .file-name { font-weight: 500; color: var(--text-primary); font-family: 'Monaco', 'Consolas', monospace; }
+
+        .status-badge {
+            padding: 6px 12px; border-radius: 20px; font-size: 0.85rem;
+            font-weight: 600; display: inline-block; min-width: 70px; text-align: center;
+        }
+        .status-pass {
+            background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border);
+        }
+        .status-fail {
+            background: var(--error-bg); color: var(--error-color); border: 1px solid var(--error-border);
+        }
+
+        .report-link {
+            color: var(--info-color); text-decoration: none; font-weight: 500;
+            font-family: 'Monaco', 'Consolas', monospace; font-size: 0.9rem;
+            padding: 4px 8px; border-radius: 4px; transition: all 0.2s ease;
+        }
+        .report-link:hover { background: rgba(88, 166, 255, 0.1); text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .dashboard { grid-template-columns: repeat(2, 1fr); }
+            .header h1 { font-size: 2rem; }
+            .batch-table th, .batch-table td { padding: 12px 15px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Batch Test Summary</h1>
+            <div class="subtitle">Job: ${jobName}</div>
+            <div class="meta">
+                Generated on ${new Date(endTime).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} • 
+                Duration: ${Math.round(duration / 1000)}s
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="metric-card">
+                <div class="progress-ring">
+                    <svg>
+                        <circle class="bg" cx="60" cy="60" r="45"></circle>
+                        <circle class="progress" cx="60" cy="60" r="45"></circle>
+                    </svg>
+                    <div class="progress-text">${successRateNum.toFixed(1)}%</div>
+                </div>
+                <div class="metric-label">Success Rate</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">${totalFiles}</div>
+                <div class="metric-label">Total Files</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number metric-pass">${successFiles || 0}</div>
+                <div class="metric-label">Passed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number metric-fail">${failedFiles || 0}</div>
+                <div class="metric-label">Failed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">${avgResponseTime}ms</div>
+                <div class="metric-label">Avg Response</div>
+            </div>
+        </div>
+
+        <div class="batch-results">
+            <div class="section-header">
+                <div class="section-title">File Results</div>
+                <div class="section-subtitle">${totalFiles} file${totalFiles !== 1 ? 's' : ''} executed</div>
+            </div>
+            
+            <table class="batch-table">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Individual Report</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(results || []).map(result => {
+                      const path = require('path');
+                      return `
+                    <tr>
+                        <td><div class="file-name">${result.fileName || 'Unknown'}</div></td>
+                        <td><span class="status-badge ${result.success ? 'status-pass' : 'status-fail'}">
+                            ${result.success ? '✅ PASS' : '❌ FAIL'}
+                        </span></td>
+                        <td>${result.result?.duration || 0}ms</td>
+                        <td>
+                            ${result.reportPath ? 
+                              `<a href="${path.basename(result.reportPath)}" class="report-link">${path.basename(result.reportPath)}</a>` : 
+                              '<span style="color: var(--text-muted);">N/A</span>'}
+                        </td>
+                    </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            const button = document.querySelector('.theme-toggle');
+            button.textContent = newTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            const button = document.querySelector('.theme-toggle');
+            button.textContent = savedTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        });
+    </script>
+</body>
+</html>`;
+
+    const fs = require('fs');
+    fs.writeFileSync(outputPath, html);
+    return { success: true, path: outputPath };
   }
 }
 
