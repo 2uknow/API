@@ -605,7 +605,7 @@ export class SClientScenarioEngine {
 
     return new Promise((resolve, reject) => {
       const cryptoArgs = [operation, processedKey, processedData];
-      const dncryptPath = './dncrypto.exe';
+      const dncryptPath = './binaries/windows/dncrypto.exe';
 
       const dncrypt = spawn(dncryptPath, cryptoArgs, {
         windowsHide: true,
