@@ -1,0 +1,44 @@
+name: "인코딩 없는 직접 전송 테스트"
+description: "HTTP POST에서 인코딩 처리 없이 직접 데이터 전송"
+version: "1.0.0"
+
+variables:
+  PCANCEL_URL: "https://ui.teledit.com/Danal/DGW/PCancel/Cancel.php"
+  CPID: "A010002002"
+  ISCHARSET: "UTF-8"
+  # 인코딩 없이 직접 전송할 데이터
+  RAW_DATA: "TID=test123|PWD=password|ORDERID=order456|CAMT=150"
+
+steps:
+  - name: "인코딩 없이 직접 HTTP POST"
+    description: "원본 데이터를 인코딩 없이 그대로 전송"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded; charset=UTF-8"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      # 인코딩 처리 없이 직접 전송
+      body: "DATA={{RAW_DATA}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "HTTP_STATUS"
+      - name: "body"
+        pattern: "body"
+        variable: "RESPONSE_BODY"
+
+    test:
+      - name: "HTTP 응답 상태 확인"
+        assertion: "HTTP_STATUS == 200"
+      - name: "응답 본문 존재 확인"
+        assertion: "RESPONSE_BODY exists"
+      - name: "에러 응답이 아닌지 확인"
+        assertion: "js: !RESPONSE_BODY || !RESPONSE_BODY.includes('error')"
+
+options:
+  stopOnError: false
+  timeout: 15000

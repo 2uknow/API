@@ -1,0 +1,29 @@
+name: "Debug Decrypt Test"
+description: "간단한 복호화 디버그 테스트"
+version: "1.0.0"
+
+variables:
+  PCANCEL_CRYPTOKEY: "84f889e76a734d9d44f0634d2f0eec15"
+  TEST_ENCRYPTED: "EKAUvDNQeuoZ1vjnJc1nQX0rohg52RhWEypfKeaqOUo="
+
+steps:
+  - name: "직접 복호화 테스트"
+    description: "복호화 테스트"
+    type: "crypto"
+
+    args:
+      operation: "decrypt"
+      key: "{{PCANCEL_CRYPTOKEY}}"
+      data: "{{TEST_ENCRYPTED}}"
+
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "DECRYPTED_RESULT"
+
+    test:
+      - "DECRYPTED_RESULT exists"
+
+options:
+  stopOnError: false
+  timeout: 15000

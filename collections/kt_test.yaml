@@ -1,0 +1,60 @@
+# KT 테스트 (공통 설정 사용)
+name: "KT SMS 결제 테스트"
+description: "KT SMS 테스트 예시"
+version: "1.0.0"
+
+variables:
+  # 다날 기본 설정
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # KT 통신사 설정
+  IDEN: "9003051"
+  DST_ADDR: "01046911118" 
+  CARRIER: "KT"
+  AMOUNT: "2000"
+  
+  # 커스텀 변수
+  TEST_TYPE: "KT_PAYMENT"
+
+steps:
+  - name: "KT ITEMSEND2 테스트"
+    
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|{{AMOUNT}}|1|22S0HZ0100|KT상품"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      EMAIL: "{{EMAIL}}"
+          
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "SERVER_INFO"
+    
+    test:
+      - name: "KT 결과 코드 확인"
+        assertion: "RESULT_CODE == 0"
+      - name: "KT 서버 정보 존재 확인"
+        assertion: "js: SERVER_INFO && SERVER_INFO.length > 0"
+
+# options는 common.yaml에서 상속됨

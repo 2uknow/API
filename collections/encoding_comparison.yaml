@@ -1,0 +1,93 @@
+name: "인코딩 방식 비교 테스트"
+description: "다양한 인코딩 방식으로 동일한 데이터 전송 비교"
+version: "1.0.0"
+
+variables:
+  PCANCEL_URL: "https://ui.teledit.com/Danal/DGW/PCancel/Cancel.php"
+  CPID: "A010002002"
+  ISCHARSET: "UTF-8"
+  TEST_DATA_SIMPLE: "TID=simple123"
+  TEST_DATA_PLUS: "TID=test+with+plus+signs"
+  TEST_DATA_SPECIAL: "TID=test%20with%20spaces&other=value"
+
+steps:
+  # 1. 단순한 데이터 (인코딩 문제 없을 것으로 예상)
+  - name: "단순 데이터 전송 (인코딩 없음)"
+    description: "특수문자가 없는 단순한 데이터 전송"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{TEST_DATA_SIMPLE}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "SIMPLE_STATUS"
+      - name: "body"
+        pattern: "body"
+        variable: "SIMPLE_RESPONSE"
+
+    test:
+      - name: "단순 데이터 응답 확인"
+        assertion: "SIMPLE_STATUS == 200"
+
+  # 2. + 기호 포함 데이터 (인코딩 없음)
+  - name: "+ 기호 데이터 전송 (인코딩 없음)"
+    description: "+ 기호가 포함된 데이터를 인코딩 없이 전송"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{TEST_DATA_PLUS}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "PLUS_STATUS"
+      - name: "body"
+        pattern: "body"
+        variable: "PLUS_RESPONSE"
+
+    test:
+      - name: "+ 기호 데이터 응답 확인"
+        assertion: "PLUS_STATUS == 200"
+      - name: "+ 기호 응답과 단순 응답 비교"
+        assertion: "js: PLUS_RESPONSE !== SIMPLE_RESPONSE"
+
+  # 3. 특수문자 포함 데이터 (인코딩 없음)
+  - name: "특수문자 데이터 전송 (인코딩 없음)"
+    description: "다양한 특수문자가 포함된 데이터를 인코딩 없이 전송"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{TEST_DATA_SPECIAL}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "SPECIAL_STATUS"
+      - name: "body"
+        pattern: "body"
+        variable: "SPECIAL_RESPONSE"
+
+    test:
+      - name: "특수문자 데이터 응답 확인"
+        assertion: "SPECIAL_STATUS == 200"
+
+options:
+  stopOnError: false
+  timeout: 15000

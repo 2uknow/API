@@ -1,0 +1,40 @@
+# 다양한 경로 테스트
+name: "경로 테스트"
+description: "경로 테스트"
+version: "1.0.0"
+
+variables:
+  # 다날 기본 설정
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  USER_ID: "kmhwang"
+  EMAIL: "2uknow@danal.co.kr"
+  
+  # 동적 변수들
+  ORDER_ID: "{{js: 'ORD' + Date.now() + '_' + Math.floor(Math.random() * 1000)}}"
+  
+  # 테스트 특화 변수
+  TEST_TYPE: "PATH_TEST"
+  CUSTOM_VAR: "경로 테스트용"
+
+steps:
+  - name: "경로 테스트 단계"
+    
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"    # common.yaml에서 가져옴
+      ID: "{{MERCHANT_ID}}"          # common.yaml에서 가져옴
+      PWD: "{{MERCHANT_PWD}}"        # common.yaml에서 가져옴
+      EMAIL: "{{EMAIL}}"             # common.yaml에서 가져옴
+      ORDERID: "{{ORDER_ID}}"        # common.yaml에서 가져옴
+          
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+    
+    test:
+      - name: "경로 테스트 결과 확인"
+        assertion: "RESULT_CODE == 0"
