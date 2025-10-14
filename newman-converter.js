@@ -951,9 +951,16 @@ export class SClientToNewmanConverter {
                                   try {
                                     const requestData = JSON.parse(execution.request.body.raw);
                                     if (requestData.cmdString) {
-                                      return requestData.cmdString.replace(/;/g, ';\\n').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                      // crypto와 http 타입에 따른 표시 개선
+                                      if (requestData.cmdString.startsWith('dncrypt')) {
+                                        return `<span style="color: #6c757d; font-weight: bold;">🔐 암호화 작업:</span><br>${requestData.cmdString.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+                                      } else if (requestData.cmdString.startsWith('POST')) {
+                                        return `<span style="color: #007bff; font-weight: bold;">🌐 HTTP 요청:</span><br>${requestData.cmdString.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+                                      } else {
+                                        return requestData.cmdString.replace(/;/g, ';\\n').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                      }
                                     } else {
-                                      return Object.entries(requestData.arguments || {}).map(([key, value]) => 
+                                      return Object.entries(requestData.arguments || {}).map(([key, value]) =>
                                         `${key}=${value}`).join(';\\n');
                                     }
                                   } catch (e) {
@@ -1260,9 +1267,16 @@ export class SClientToNewmanConverter {
                               try {
                                 const requestData = JSON.parse(execution.request.body.raw);
                                 if (requestData.cmdString) {
-                                  return requestData.cmdString.replace(/;/g, ';<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                  // crypto와 http 타입에 따른 표시 개선
+                                  if (requestData.cmdString.startsWith('dncrypt')) {
+                                    return `<span style="color: #6c757d; font-weight: bold;">🔐 암호화:</span> ${requestData.cmdString.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+                                  } else if (requestData.cmdString.startsWith('POST')) {
+                                    return `<span style="color: #007bff; font-weight: bold;">🌐 HTTP:</span> ${requestData.cmdString.replace(/</g, '&lt;').replace(/>/g, '&gt;')}`;
+                                  } else {
+                                    return requestData.cmdString.replace(/;/g, ';<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                  }
                                 } else {
-                                  return Object.entries(requestData.arguments || {}).map(([key, value]) => 
+                                  return Object.entries(requestData.arguments || {}).map(([key, value]) =>
                                     `${key}=${value}`).join(';<br>');
                                 }
                               } catch (e) {
