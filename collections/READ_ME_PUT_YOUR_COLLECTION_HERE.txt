@@ -1,1 +1,0 @@
-Put your *.postman_collection.json here.
