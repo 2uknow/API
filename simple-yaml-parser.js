@@ -177,6 +177,7 @@ export class SClientYAMLParser {
             name: this.substituteVariables(rawName, collectedVariables), // 변수 치환 적용
             description: '',
             command: '',
+            type: 'sclient', // 기본값: SClient 실행
             arguments: {},
             tests: [],
             extractors: []
@@ -190,6 +191,9 @@ export class SClientYAMLParser {
             currentStepProperty = null;
           } else if (trimmed.startsWith('command:')) {
             currentStep.command = this.extractValue(trimmed);
+            currentStepProperty = null;
+          } else if (trimmed.startsWith('type:')) {
+            currentStep.type = this.extractValue(trimmed);
             currentStepProperty = null;
           }
           
@@ -309,6 +313,27 @@ export class SClientYAMLParser {
             }
           }
         }
+
+        // 중첩 객체 파싱 (8-space indent) - headers 내부 키-값 처리
+        else if (currentStep && indent === 8) {
+          if (currentStepProperty === 'args' && trimmed.includes(':')) {
+            const [key, value] = this.splitKeyValue(trimmed);
+
+            // headers 객체 확인 및 생성
+            const parentKeys = Object.keys(currentStep.arguments);
+            const lastKey = parentKeys[parentKeys.length - 1];
+
+            if (lastKey === 'headers' && typeof currentStep.arguments[lastKey] === 'string') {
+              // headers를 객체로 변환
+              currentStep.arguments[lastKey] = {};
+            }
+
+            // headers 객체에 키-값 추가
+            if (lastKey === 'headers' && typeof currentStep.arguments[lastKey] === 'object') {
+              currentStep.arguments[lastKey][key] = value;
+            }
+          }
+        }
       }
     }
     
@@ -354,9 +379,25 @@ export class SClientYAMLParser {
       newScenario.info.description = this.substituteVariables(newScenario.info.description, variables);
     }
     
-    // requests의 모든 test name에 변수 치환 적용
+    // requests의 모든 필드에 변수 치환 적용
     if (newScenario.requests && Array.isArray(newScenario.requests)) {
       newScenario.requests.forEach(request => {
+        // request.name에 변수 치환 적용
+        if (request.name) {
+          request.name = this.substituteVariables(request.name, variables);
+        }
+
+        // request.description에 변수 치환 적용
+        if (request.description) {
+          request.description = this.substituteVariables(request.description, variables);
+        }
+
+        // request.arguments에 변수 치환 적용 (재귀적으로)
+        if (request.arguments && typeof request.arguments === 'object') {
+          request.arguments = this.substituteVariablesInObject(request.arguments, variables);
+        }
+
+        // tests에 변수 치환 적용
         if (request.tests && Array.isArray(request.tests)) {
           request.tests.forEach(test => {
             if (test.name) {
@@ -371,6 +412,24 @@ export class SClientYAMLParser {
     }
     
     return newScenario;
+  }
+
+  /**
+   * 객체의 모든 문자열 값에 변수 치환 적용 (재귀적)
+   */
+  static substituteVariablesInObject(obj, variables) {
+    if (typeof obj === 'string') {
+      return this.substituteVariables(obj, variables);
+    } else if (Array.isArray(obj)) {
+      return obj.map(item => this.substituteVariablesInObject(item, variables));
+    } else if (obj && typeof obj === 'object') {
+      const result = {};
+      Object.keys(obj).forEach(key => {
+        result[key] = this.substituteVariablesInObject(obj[key], variables);
+      });
+      return result;
+    }
+    return obj;
   }
 
   /**

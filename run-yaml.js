@@ -170,16 +170,16 @@ async function runYamlTest(yamlFilePath) {
         // 4. 공통 테스트 검증 모듈 사용
         const validatedResults = validateTestsWithYamlData(results, yamlData);
         
-        // 5. 결과 출력 (변수가 치환된 시나리오 정보와 함께)
-        displayResults(validatedResults, scenario);
-        
+        // 5. 결과 출력 (YAML 데이터와 함께)
+        displayResults(validatedResults, scenario, yamlData);
+
     } catch (error) {
         console.error('실행 중 오류 발생:', error.message);
         process.exit(1);
     }
 }
 
-function displayResults(scenarioResult, processedScenario = null) {
+function displayResults(scenarioResult, processedScenario = null, yamlData = null) {
     let totalTests = 0;
     let passedTests = 0;
     
@@ -190,16 +190,33 @@ function displayResults(scenarioResult, processedScenario = null) {
             console.log(`Step ${index + 1}: ${step.name || 'Unnamed Step'}`);
             console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
             
-            // SClient 명령어 표시 (더 명확하게)
+            // 명령어 표시 (타입별로 다르게 표시)
             if (step.commandString) {
                 console.log(`실행 커맨드:`);
-                console.log(`   ./SClient "${step.commandString}"`);
+                if (step.commandString.startsWith('dncrypt')) {
+                    console.log(`   🔐 ${step.commandString}`);
+                } else if (step.commandString.startsWith('POST')) {
+                    console.log(`   🌐 ${step.commandString}`);
+                } else if (step.commandString.startsWith('JavaScript setTimeout')) {
+                    console.log(`   ⏱️ ${step.commandString}`);
+                } else {
+                    console.log(`   ./SClient "${step.commandString}"`);
+                }
                 console.log(); // 줄바꿈 추가
             }
             
-            // SClient stdout 응답 표시 (새로 추가)
+            // 응답 표시 (타입별로 다르게 표시)
             if (step.response && step.response.stdout) {
-                console.log(`SClient 응답 (stdout):`);
+                if (step.commandString && step.commandString.startsWith('dncrypt')) {
+                    console.log(`🔐 암호화 결과:`);
+                } else if (step.commandString && step.commandString.startsWith('POST')) {
+                    console.log(`🌐 HTTP 응답:`);
+                } else if (step.commandString && step.commandString.startsWith('JavaScript setTimeout')) {
+                    console.log(`⏱️ JavaScript 슬립 결과:`);
+                } else {
+                    console.log(`SClient 응답 (stdout):`);
+                }
+
                 const stdout = step.response.stdout.trim();
                 if (stdout) {
                     // stdout을 줄별로 나누어 들여쓰기로 표시
@@ -214,9 +231,16 @@ function displayResults(scenarioResult, processedScenario = null) {
                 console.log(); // 줄바꿈 추가
             }
             
-            // stderr가 있으면 표시
+            // stderr가 있으면 표시 (타입별로 다르게)
             if (step.response && step.response.stderr && step.response.stderr.trim()) {
-                console.log(`SClient 오류 (stderr):`);
+                if (step.commandString && step.commandString.startsWith('dncrypt')) {
+                    console.log(`🔐 암호화 오류:`);
+                } else if (step.commandString && step.commandString.startsWith('POST')) {
+                    console.log(`🌐 HTTP 오류:`);
+                } else {
+                    console.log(`SClient 오류 (stderr):`);
+                }
+
                 step.response.stderr.trim().split('\n').forEach(line => {
                     if (line.trim()) {
                         console.log(`   ${line.trim()}`);
@@ -289,8 +313,20 @@ function displayResults(scenarioResult, processedScenario = null) {
                             const jsExpression = test.assertion.substring(3).trim();
                             console.log(`       JavaScript Expression: ${jsExpression}`);
                             
-                            // 조건별 분석 수행
-                            const conditionAnalysis = analyzeJavaScriptConditions(jsExpression, step.extracted || {});
+                            // 조건별 분석 수행 - YAML 변수들과 추출된 변수들 모두 포함
+                            const allVariables = {
+                                // YAML에서 정의된 변수들
+                                ...(yamlData && yamlData.variables ? yamlData.variables : {}),
+                                // processedScenario에서 변수들 (if available)
+                                ...(processedScenario && processedScenario.variable ?
+                                    Object.fromEntries(processedScenario.variable.map(v => [v.key, v.value])) : {}),
+                                // scenarioResult의 정보에서 변수들 가져오기
+                                ...(scenarioResult && scenarioResult.variables ? scenarioResult.variables : {}),
+                                // 추출된 변수들
+                                ...(step.extracted || {})
+                            };
+
+                            const conditionAnalysis = analyzeJavaScriptConditions(jsExpression, allVariables);
                             if (conditionAnalysis && conditionAnalysis.length > 0) {
                                 console.log(`       Condition Analysis:`);
                                 conditionAnalysis.forEach(condition => {
