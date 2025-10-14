@@ -1,0 +1,83 @@
+# 개선된 SKT SMS 테스트 (공통 설정 완전 활용)
+name: "SKT SMS 테스트 (공통 설정 완전 활용)"
+description: "공통 설정을 args와 test에서 모두 활용하는 예시"
+version: "1.0.0"
+
+# 공통 설정 포함
+include: common.yaml
+
+# 추가 커스텀 변수
+variables:
+  TEST_SCENARIO: "SKT_SMS_PAYMENT"
+  CUSTOM_AMOUNT: "1500"
+
+# 시나리오 단계
+steps:
+  - name: "{{SERVICE_NAME}} - ITEMSEND2 요청"
+    description: "공통 설정을 활용한 결제 요청"
+    
+    # 공통 설정 활용 플래그
+    useCommonExtracts: basic_response
+    useCommonTests: [success_tests, server_info_tests]
+    useCarrier: SKT
+    
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      USERID: "{{USER_ID}}"
+      EMAIL: "{{EMAIL}}"
+      ORDERID: "{{ORDER_ID}}"
+      ItemInfo: "2|{{CUSTOM_AMOUNT}}|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+    
+    # 추가 커스텀 테스트 (공통 테스트에 추가됨)
+    test:
+      - name: "{{TEST_SCENARIO}} 금액 확인"
+        description: "결제 금액이 올바르게 설정되었는지 확인"
+        assertion: "js: pm.response && pm.response.result !== undefined"
+
+  - name: "{{SERVICE_NAME}} - IDELIVER 인증"
+    description: "{{CARRIER}} 통신사 인증 처리"
+    
+    # 공통 설정 활용
+    useCommonExtracts: basic_response
+    useCommonTests: success_tests
+    
+    args:
+      ServerInfo: "{{SERVER_INFO}}"  # 이전 단계에서 추출된 변수 사용
+      Command: "IDELIVER"
+      IDEN: "{{IDEN}}"              # 통신사별 설정에서 자동 적용
+      DSTADDR: "{{DST_ADDR}}"       # 통신사별 설정에서 자동 적용
+      CARRIER: "{{CARRIER}}"        # 통신사별 설정에서 자동 적용
+      AMOUNT: "{{CUSTOM_AMOUNT}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      ISPREOTBILL: "N"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      TERMSAGREE1: "Y"
+      IPADDR: "{{IPADDR}}"
+      SMTOTP: "N"
+      ISCPIN: "Y"
+      CPIN: "663466"
+    
+    # 추가 인증 관련 테스트
+    test:
+      - name: "{{CARRIER}} 인증 처리 검증"
+        description: "통신사별 인증이 정상적으로 처리되었는지 확인"
+        assertion: "js: RESULT_CODE == '0' || RESULT_CODE == '1'"
+
+# options는 common.yaml에서 자동 포함

@@ -21,8 +21,8 @@ variables:
 
 # 시나리오 단계
 steps:
-  - name: "ITEMSEND2 - 완전 기능 테스트"
-    description: "SClient를 통한 완전한 ITEMSEND2 결제 서버 테스트"
+  - name: "{{SERVICE_NAME}} ITEMSEND2 - 완전 기능 테스트"
+    description: "{{SERVICE_NAME}} SClient를 통한 완전한 ITEMSEND2 결제 서버 테스트"
     
     args:
       Command: "ITEMSEND2"
@@ -59,7 +59,7 @@ steps:
     
     # 테스트 검증
     test:
-      - name: "ITEMSEND2 응답코드 확인"
+      - name: "{{ERROR_MESSAGE}} ITEMSEND2 응답코드 확인"
         description: "ITEMSEND2 응답코드 확인하는 테스트 입니다."
         assertion: "RESULT_CODE exists"
       - name : "ITEMSEND2  Result 0 확인"

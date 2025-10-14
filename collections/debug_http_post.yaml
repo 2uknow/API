@@ -1,0 +1,37 @@
+name: "HTTP POST 디버그 테스트"
+description: "실제 HTTP POST 요청 body 확인"
+version: "1.0.0"
+
+variables:
+  PCANCEL_URL: "https://ui.teledit.com/Danal/DGW/PCancel/Cancel.php"
+  TEST_ENCRYPTED: "PQ4Ser6Z5UQY07SCdJt+dAhSnqmb19tHLq48553nzoQTwyfhurGGEd+d1EqL0k0c7LCphqsuaIAap+IsBCYeubql5ODa2e16BxD74QA7Uts="
+  CPID: "A010002002"
+  ISCHARSET: "UTF-8"
+
+steps:
+  - name: "HTTP POST 요청"
+    description: "실제 전송되는 body 확인"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{TEST_ENCRYPTED}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "HTTP_STATUS"
+      - name: "body"
+        pattern: "body"
+        variable: "RESPONSE_BODY"
+
+    test:
+      - "HTTP_STATUS == 200"
+
+options:
+  stopOnError: false
+  timeout: 15000
