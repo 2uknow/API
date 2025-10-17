@@ -3,7 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import iconv from 'iconv-lite';
+import { URL } from 'url';
+import https from 'https';
+import http from 'http';
+import fetch from 'node-fetch';
 import { SClientToNewmanConverter } from './newman-converter.js';
+import { createRequire } from 'module';
 
 /**
  * SClient 시나리오 실행 엔진
@@ -45,7 +50,7 @@ export class SClientScenarioEngine {
       if (varName.startsWith('js:')) {
         try {
           const jsCode = varName.substring(3).trim();
-          // 안전한 컨텍스트 제공
+          // 안전한 컨텍스트 제공 (additionalVars 포함)
           const context = {
             Date, Math, parseInt, parseFloat, String, Number, Array, Object,
             timestamp: Date.now(),
@@ -53,7 +58,11 @@ export class SClientScenarioEngine {
             date: new Date().toISOString().substring(0, 10).replace(/-/g, ''),
             time: new Date().toTimeString().substring(0, 8).replace(/:/g, ''),
             env: process.env,
-            variables: Object.fromEntries(this.variables)
+            variables: Object.fromEntries(this.variables),
+            encodeURIComponent: encodeURIComponent, // URL 인코딩 함수 추가
+            decodeURIComponent: decodeURIComponent, // URL 디코딩 함수 추가
+            ...Object.fromEntries(this.variables), // 변수들을 직접 컨텍스트에 추가
+            ...additionalVars // 추출된 변수들도 컨텍스트에 추가
           };
           
           // Function constructor를 사용하여 안전한 실행
@@ -293,8 +302,6 @@ export class SClientScenarioEngine {
             } catch (err) {
               testResults.push({ name: resolvedTestName, description: description, passed: false, error: err.message });
               this.log(`[TEST FAIL] ${resolvedTestName}: ${err.message}`);
-              this.log(`[DEBUG] PM Response: ${JSON.stringify(pm.response, null, 2)}`);
-              this.log(`[DEBUG] Extracted variables: ${JSON.stringify(extracted, null, 2)}`);
             }
           },
           expect: (actual) => ({
@@ -333,19 +340,28 @@ export class SClientScenarioEngine {
           // JavaScript 조건부 테스트 지원
           satisfyCondition: (condition) => {
             try {
-              // 응답 데이터를 컨텍스트로 제공
+              // 모든 변수를 컨텍스트에 포함
               const context = {
+                // 기본 JavaScript 객체들
+                Date, Math, parseInt, parseFloat, String, Number,
+
+                // 응답 데이터
                 result: response.parsed.result,
                 serverinfo: response.parsed.serverinfo,
                 errmsg: response.parsed.errmsg,
                 response: response.parsed,
                 actual: actual,
-                Date, Math, parseInt, parseFloat, String, Number
+
+                // 모든 YAML 정의 변수들
+                ...Object.fromEntries(this.variables.entries()),
+
+                // 추출된 변수들
+                ...extracted
               };
-              
+
               const func = new Function(...Object.keys(context), `return (${condition})`);
               const conditionResult = func(...Object.values(context));
-              
+
               if (!conditionResult) {
                 throw new Error(`Condition failed: ${condition} (actual: ${actual})`);
               }
@@ -424,12 +440,22 @@ export class SClientScenarioEngine {
       try {
         this.log(`[STEP ${stepNumber}/${requests.length}] ${resolvedName}`);
         
-        // 명령 실행
-        const response = await this.executeCommand(
-          request.command,
-          request.arguments,
-          `${stepNumber}. ${resolvedName}`
-        );
+        // 타입별 명령 실행
+        let response;
+        if (request.type === 'crypto') {
+          response = await this.executeCryptoCommand(request.arguments, `${stepNumber}. ${resolvedName}`);
+        } else if (request.type === 'http') {
+          response = await this.executeHttpCommand(request.arguments, `${stepNumber}. ${resolvedName}`);
+        } else if (request.type === 'sleep') {
+          response = await this.executeSleepCommand(request.arguments, `${stepNumber}. ${resolvedName}`);
+        } else {
+          // 기본값: SClient 실행
+          response = await this.executeCommand(
+            request.command,
+            request.arguments,
+            `${stepNumber}. ${resolvedName}`
+          );
+        }
 
         // 변수 추출
         const extracted = this.extractVariables(response, request.extractors);
@@ -498,6 +524,12 @@ export class SClientScenarioEngine {
     const timestamp = new Date().toISOString();
     const logEntry = `${timestamp} ${message}`;
     this.logs.push(logEntry);
+
+    // 디버그 모드에서는 콘솔에도 출력
+    if (process.env.DEBUG || message.includes('[DEBUG]')) {
+      console.log(logEntry);
+    }
+
     this.emit('log', { message: logEntry, timestamp });
   }
 
@@ -554,6 +586,428 @@ export class SClientScenarioEngine {
       'cli': 'txt'
     };
     return extensions[reporterName] || 'txt';
+  }
+
+  // dncrypt를 사용한 암호화 명령 실행
+  async executeCryptoCommand(args, description) {
+    const startTime = Date.now();
+
+    const { operation, data, key = 'DEFAULT_KEY', sleepDuration } = args;
+
+    // 변수 치환 적용
+    const processedData = this.replaceVariables(data);
+    const processedKey = this.replaceVariables(key);
+    const configuredSleepDuration = sleepDuration || 20000; // 기본값 20초
+
+    this.log(`[CRYPTO] ${operation}: ${processedData}`);
+    this.log(`[CRYPTO DEBUG] Raw data before processing: "${data}"`);
+    this.log(`[CRYPTO DEBUG] Processed data length: ${processedData.length}`);
+
+    return new Promise((resolve, reject) => {
+      const cryptoArgs = [operation, processedKey, processedData];
+      const dncryptPath = './binaries/windows/dncrypto.exe';
+
+      const dncrypt = spawn(dncryptPath, cryptoArgs, {
+        windowsHide: true,
+        encoding: 'buffer'  // 바이너리 모드
+      });
+
+      let stdoutBuffers = [];
+      let stderr = '';
+
+      dncrypt.stdout.on('data', (data) => {
+        stdoutBuffers.push(data);
+      });
+
+      dncrypt.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      dncrypt.on('close', (code) => {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        if (code === 0) {
+          // 모든 버퍼를 합치기
+          const fullBuffer = Buffer.concat(stdoutBuffers);
+
+          // 복호화된 결과의 특성에 따라 처리
+          let result = null;
+
+          try {
+            // 먼저 기본 문자열로 변환하여 내용 확인
+            const rawString = fullBuffer.toString('utf-8');
+
+            // 암호화 작업 (encrypt)인 경우 - Base64 결과 예상
+            if (operation === 'encrypt') {
+              const asciiResult = fullBuffer.toString('ascii').trim();
+              if (/^[A-Za-z0-9+/=]+$/.test(asciiResult)) {
+                result = asciiResult;
+                console.log(`[CRYPTO ENCODING] Encrypt result (ASCII): ${result.substring(0, 50)}...`);
+              } else {
+                result = rawString.trim();
+                console.log(`[CRYPTO ENCODING] Encrypt result (UTF-8 fallback): ${result.substring(0, 50)}...`);
+              }
+            }
+            // 복호화 작업 (decrypt)인 경우 - 한글 포함 결과 예상
+            else if (operation === 'decrypt') {
+              // CP949로 디코딩 시도
+              const cp949Result = iconv.decode(fullBuffer, 'cp949');
+
+              // Result=이나 한글이 포함되어 있으면 CP949 사용
+              if (cp949Result.includes('Result=') || cp949Result.includes('오류') || cp949Result.includes('성공')) {
+                result = cp949Result.trim();
+              } else {
+                // EUC-KR 시도
+                const eucKrResult = iconv.decode(fullBuffer, 'euc-kr');
+                if (eucKrResult.includes('Result=') || eucKrResult.includes('오류') || eucKrResult.includes('성공')) {
+                  result = eucKrResult.trim();
+                } else {
+                  // UTF-8 fallback
+                  result = rawString.trim();
+                }
+              }
+            }
+            // 기타 작업인 경우
+            else {
+              result = rawString.trim();
+              console.log(`[CRYPTO ENCODING] Other operation result (UTF-8): ${result}`);
+            }
+          } catch (err) {
+            result = fullBuffer.toString('utf-8').trim();
+            console.log(`[CRYPTO ENCODING] Error, using UTF-8: ${result}`);
+          }
+
+          // 암호화 결과는 원본 그대로 유지 (HTTP 전송 시 자동 인코딩)
+          let finalResult = result.trim();
+
+          this.log(`[CRYPTO SUCCESS] ${processedData} -> ${finalResult}`);
+
+          // PCancel 암호화인 경우 자동으로 슬립 추가
+          if (operation === 'encrypt' && processedData.includes('CAMT=')) {
+            this.log(`[CRYPTO SLEEP] PCancel 암호화 완료, ${configuredSleepDuration/1000}초 대기 시작`);
+
+            setTimeout(() => {
+              const finalDuration = Date.now() - startTime; // 슬립 포함 총 시간
+              this.log(`[CRYPTO SLEEP] ${configuredSleepDuration/1000}초 대기 완료, HTTP 요청 준비됨`);
+
+              resolve({
+                command: 'dncrypt',
+                cmdString: `dncrypt ${operation} ${processedKey} ${processedData} + ${configuredSleepDuration/1000}s sleep`,
+                exitCode: code,
+                stdout: finalResult,
+                stderr: stderr,
+                duration: finalDuration,
+                timestamp: new Date().toISOString(),
+                parsed: {
+                  operation: operation,
+                  input: processedData,
+                  output: finalResult,
+                  result: finalResult, // 추출용
+                  sleepAdded: true,
+                  sleepDuration: configuredSleepDuration
+                }
+              });
+            }, configuredSleepDuration); // 설정된 시간만큼 대기
+          } else {
+            // 일반 암호화 (슬립 없음)
+            resolve({
+              command: 'dncrypt',
+              cmdString: `dncrypt ${operation} ${processedKey} ${processedData}`,
+              exitCode: code,
+              stdout: finalResult,
+              stderr: stderr,
+              duration: duration,
+              timestamp: new Date().toISOString(),
+              parsed: {
+                operation: operation,
+                input: processedData,
+                output: finalResult,
+                result: finalResult // 추출용
+              }
+            });
+          }
+        } else {
+          this.log(`[CRYPTO FAILED] Code: ${code}, Error: ${stderr}`);
+          reject(new Error(`Crypto operation failed: ${stderr}`));
+        }
+      });
+
+      dncrypt.on('error', (error) => {
+        this.log(`[CRYPTO ERROR] ${error.message}`);
+        reject(error);
+      });
+
+      // 타임아웃 설정
+      setTimeout(() => {
+        dncrypt.kill();
+        reject(new Error('Crypto operation timeout'));
+      }, this.timeout);
+    });
+  }
+
+  // HTTP POST 명령 실행 (Axios 사용)
+  async executeHttpCommand(args, description) {
+    const startTime = Date.now();
+    console.log('[DEBUG] executeHttpCommand called with args:', args);
+
+    const { url, method = 'POST', headers = {}, body = '' } = args;
+
+    // 변수 치환 적용
+    const processedUrl = this.replaceVariables(url);
+    const processedHeaders = {};
+    let processedBody = this.replaceVariables(body);
+
+    Object.keys(headers).forEach(key => {
+      processedHeaders[key] = this.replaceVariables(headers[key]);
+    });
+
+    // JSP 방식: DATA 파라미터 값에 대해 URL 인코딩 적용
+    // JSP에서 urlEncode(encrypt(...))와 동일한 효과
+    if (processedBody.includes('DATA=')) {
+      console.log('[DEBUG] Original body:', processedBody);
+
+      // DATA= 파라미터의 값만 이중 URL 인코딩 (서버의 자동 디코딩 보상)
+      processedBody = processedBody.replace(/DATA=([^&]+)/, (match, dataValue) => {
+        const firstEncoding = encodeURIComponent(dataValue);
+        const doubleEncoded = encodeURIComponent(firstEncoding);
+        console.log('[DEBUG] Double URL encoding DATA value:');
+        console.log(`  Original: ${dataValue}`);
+        console.log(`  1st Enc:  ${firstEncoding}`);
+        console.log(`  2nd Enc:  ${doubleEncoded}`);
+        return `DATA=${doubleEncoded}`;
+      });
+
+      console.log('[DEBUG] Final body:', processedBody);
+    }
+
+    this.log(`[HTTP POST] ${processedUrl}`);
+    this.log(`[HTTP HEADERS] ${JSON.stringify(processedHeaders, null, 2)}`);
+    this.log(`[HTTP BODY] ${processedBody}`);
+
+    try {
+      // 수동 HTTP 요청 - 완전한 raw 제어
+      const parsedUrl = new URL(processedUrl);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const httpModule = isHttps ? https : http;
+
+      const finalHeaders = {
+        ...processedHeaders,
+        'Content-Length': Buffer.byteLength(processedBody, 'utf8').toString(),
+        'Accept': '*/*',
+        'Connection': 'close'
+      };
+
+      const requestOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: method.toUpperCase(),
+        headers: finalHeaders,
+        timeout: this.timeout,
+        rejectUnauthorized: false // SSL 검증 비활성화
+      };
+
+      console.log(`[RAW HTTP] Sending raw body: ${processedBody.substring(0, 200)}...`);
+      console.log(`[RAW HTTP] Full body length: ${processedBody.length}`);
+      console.log(`[RAW HTTP] Body contains %2B: ${processedBody.includes('%2B')}`);
+      console.log(`[RAW HTTP] Body contains %2F: ${processedBody.includes('%2F')}`);
+      console.log(`[RAW HTTP] Body contains %3D: ${processedBody.includes('%3D')}`);
+
+      const response = await new Promise((resolve, reject) => {
+        const req = httpModule.request(requestOptions, (res) => {
+          let responseBody = '';
+          let chunks = [];
+
+          res.on('data', (chunk) => {
+            chunks.push(chunk);
+          });
+
+          res.on('end', () => {
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+
+            const buffer = Buffer.concat(chunks);
+
+            // Content-Type에서 charset 추출
+            const contentType = res.headers['content-type'] || '';
+            let charset = 'utf-8';
+
+            const charsetMatch = contentType.match(/charset=([^;]+)/i);
+            if (charsetMatch) {
+              charset = charsetMatch[1].toLowerCase();
+            }
+
+            // 응답 디코딩
+            try {
+              if (charset === 'euc-kr' || charset === 'ks_c_5601-1987') {
+                responseBody = iconv.decode(buffer, 'euc-kr');
+              } else {
+                responseBody = buffer.toString('utf-8');
+              }
+            } catch (err) {
+              responseBody = buffer.toString('utf-8');
+            }
+
+            this.log(`[HTTP RESPONSE] Status: ${res.statusCode}`);
+            this.log(`[HTTP RESPONSE BODY] ${responseBody}`);
+
+            resolve({
+              command: 'http_post',
+              cmdString: `POST ${processedUrl}`,
+              exitCode: res.statusCode < 400 ? 0 : 1,
+              stdout: responseBody,
+              stderr: '',
+              duration: duration,
+              timestamp: new Date().toISOString(),
+              parsed: {
+                status: res.statusCode,
+                statusText: res.statusMessage,
+                headers: res.headers,
+                body: responseBody
+              }
+            });
+          });
+        });
+
+        req.on('error', (error) => {
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+
+          this.log(`[HTTP ERROR] ${error.message}`);
+
+          resolve({
+            command: 'http_post',
+            cmdString: `POST ${processedUrl}`,
+            exitCode: 1,
+            stdout: '',
+            stderr: error.message,
+            duration: duration,
+            timestamp: new Date().toISOString(),
+            error: error.message,
+            parsed: {
+              status: 0,
+              statusText: 'Error',
+              headers: {},
+              body: ''
+            }
+          });
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+
+          this.log(`[HTTP TIMEOUT] Request timeout after ${this.timeout}ms`);
+
+          resolve({
+            command: 'http_post',
+            cmdString: `POST ${processedUrl}`,
+            exitCode: 1,
+            stdout: '',
+            stderr: `HTTP request timeout after ${this.timeout}ms`,
+            duration: duration,
+            timestamp: new Date().toISOString(),
+            error: 'Request timeout',
+            parsed: {
+              status: 0,
+              statusText: 'Timeout',
+              headers: {},
+              body: ''
+            }
+          });
+        });
+
+        // HTTP body 전송 - URL 인코딩된 상태 그대로
+        const bodyBuffer = Buffer.from(processedBody, 'utf8');
+        console.log(`[RAW HTTP] Writing ${bodyBuffer.length} bytes`);
+        console.log(`[RAW HTTP] Body hex preview: ${bodyBuffer.toString('hex', 0, 50)}`);
+
+        req.write(bodyBuffer);
+        req.end();
+      });
+
+      return response;
+    } catch (error) {
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      this.log(`[HTTP ERROR] ${error.message}`);
+
+      return {
+        command: 'http_post',
+        cmdString: `POST ${processedUrl}`,
+        exitCode: 1,
+        stdout: '',
+        stderr: error.message,
+        duration: duration,
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        parsed: {
+          status: 0,
+          statusText: 'Error',
+          headers: {},
+          body: ''
+        }
+      };
+    }
+  }
+
+  // JavaScript Sleep 명령 실행 (조건부 대기)
+  async executeSleepCommand(args, description) {
+    const startTime = Date.now();
+    const { duration = 1000, condition = null } = args; // 기본값 1초
+
+    // 이전 단계에서 암호화 성공 여부 확인
+    const encryptionSuccess = this.variables.has('ENCRYPTED_PCANCEL_DATA');
+
+    if (!encryptionSuccess) {
+      this.log(`[JS SLEEP] 암호화 실패로 인한 슬립 건너뛰기`);
+      return {
+        command: 'js_sleep',
+        cmdString: `Skip sleep (encryption failed)`,
+        exitCode: 1,
+        stdout: `Sleep skipped: encryption not completed`,
+        stderr: 'ENCRYPTED_PCANCEL_DATA variable not found',
+        duration: 0,
+        timestamp: new Date().toISOString(),
+        parsed: {
+          duration: 0,
+          requested: duration,
+          status: 'skipped',
+          type: 'conditional',
+          reason: 'encryption_failed'
+        }
+      };
+    }
+
+    this.log(`[JS SLEEP] 암호화 완료 확인됨, ${duration}ms 대기 시작`);
+
+    // JavaScript Promise 기반 슬립
+    await new Promise(resolve => setTimeout(resolve, duration));
+
+    const endTime = Date.now();
+    const actualDuration = endTime - startTime;
+
+    this.log(`[JS SLEEP] ${actualDuration}ms 대기 완료`);
+
+    return {
+      command: 'js_sleep',
+      cmdString: `JavaScript setTimeout(${duration}ms) after encryption`,
+      exitCode: 0,
+      stdout: `Post-encryption sleep: ${actualDuration}ms elapsed`,
+      stderr: '',
+      duration: actualDuration,
+      timestamp: new Date().toISOString(),
+      parsed: {
+        duration: actualDuration,
+        requested: duration,
+        status: 'completed',
+        type: 'conditional',
+        trigger: 'encryption_success'
+      }
+    };
   }
 }
 
@@ -1042,6 +1496,137 @@ export class SClientReportGenerator {
 </body>
 </html>
     `.trim();
+  }
+
+  // curl을 통한 HTTP POST 요청 (+ 기호 보존, 자체 인증서 대응)
+  async executeHttpWithCurl(url, headers, body, startTime) {
+    this.log(`[HTTP CURL] Starting curl request to ${url}`);
+
+    const args = [
+      '-X', 'POST',
+      '-H', `Content-Type: ${headers['Content-Type'] || 'application/x-www-form-urlencoded'}`,
+      '-H', `User-Agent: ${headers['User-Agent'] || '2uknow-api-monitor/1.0.0'}`,
+      '--data', body,
+      '-k', // 자체 인증서 무시
+      '-s', // silent
+      url
+    ];
+
+    this.log(`[CURL CMD] curl ${args.join(' ')}`);
+
+    return new Promise((resolve, reject) => {
+      const curl = spawn('curl', args);
+      let stdout = '';
+      let stderr = '';
+      let resolved = false;
+
+      const finish = (result) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(result);
+        }
+      };
+
+      curl.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      curl.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      curl.on('close', (code) => {
+        const execTime = Date.now() - startTime;
+        this.log(`[CURL RESULT] Code: ${code}, Response: "${stdout.trim()}"`);
+
+        finish({
+          status: code === 0 ? 200 : code,
+          body: stdout.trim() || stderr.trim() || 'No response',
+          executionTime: execTime
+        });
+      });
+
+      curl.on('error', (error) => {
+        this.log(`[CURL ERROR] ${error.message}`);
+        finish({
+          status: 0,
+          body: `CURL_ERROR: ${error.message}`,
+          executionTime: Date.now() - startTime
+        });
+      });
+
+      // 5초 타임아웃
+      setTimeout(() => {
+        if (!resolved) {
+          this.log(`[CURL TIMEOUT] Request timed out`);
+          curl.kill();
+          finish({
+            status: 0,
+            body: 'TIMEOUT',
+            executionTime: Date.now() - startTime
+          });
+        }
+      }, 5000);
+    });
+  }
+
+  // bash를 통한 curl HTTP POST 요청 (+ 기호 보존, 자체 인증서 대응)
+  async executeHttpWithBash(url, headers, body, startTime) {
+    this.log(`[HTTP BASH CURL START] URL: ${url}`);
+    this.log(`[HTTP BASH CURL START] Body: ${body}`);
+    this.log(`[HTTP BASH CURL START] Headers:`, headers);
+
+    try {
+      const executionTime = Date.now() - startTime;
+
+      // curl 명령어 구성 (Windows 환경 고려)
+      const curlCmd = `curl -X POST "${url}" ` +
+        `-H "Content-Type: ${headers['Content-Type'] || 'application/x-www-form-urlencoded'}" ` +
+        `-H "User-Agent: ${headers['User-Agent'] || '2uknow-api-monitor/1.0.0'}" ` +
+        `--data "${body}" -k -s`;
+
+      this.log(`[BASH CURL CMD] ${curlCmd}`);
+
+      return new Promise((resolve, reject) => {
+        const require = createRequire(import.meta.url);
+        const { exec } = require('child_process');
+
+        this.log(`[BASH CURL EXEC] Starting exec...`);
+
+        exec(curlCmd, (error, stdout, stderr) => {
+        const execTime = Date.now() - startTime;
+
+        this.log(`[BASH CURL DEBUG] Error: ${error}, Stdout: "${stdout}", Stderr: "${stderr}"`);
+
+        if (error) {
+          this.log(`[BASH CURL ERROR] ${error.message}`);
+          resolve({
+            status: 0,
+            body: `EXEC_ERROR: ${error.message}`,
+            error: error.message,
+            executionTime: execTime
+          });
+          return;
+        }
+
+        const responseBody = stdout.trim();
+        this.log(`[BASH CURL RESPONSE] Body: ${responseBody}`);
+
+        resolve({
+          status: responseBody ? 200 : 0,
+          body: responseBody,
+          executionTime: execTime
+        });
+      });
+    });
+    } catch (err) {
+      this.log(`[BASH CURL ERROR] Exception: ${err.message}`);
+      return {
+        status: 0,
+        body: `CURL_ERROR: ${err.message}`,
+        executionTime: Date.now() - startTime
+      };
+    }
   }
 }
 
