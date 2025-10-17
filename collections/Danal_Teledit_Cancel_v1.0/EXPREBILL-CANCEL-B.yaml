@@ -1,11 +1,10 @@
 
-name: "EXPREBILL-PART_CANCEL SMS 비점유결제 취소"
-description: "Danal_Taldit_v1.0 자동화 테스트 - KT 알뜰"
+name: "EXPREBILL-CANCEL SMS 비점유결제 취소"
+description: "Danal_Taldit_v1.0 자동화 테스트 - CJH"
 version: "1.0.0"
 
 # 공통 변수 불러오기
 include: Danal_Teledit_Cancel_v1.0/conf.yaml
-
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -126,53 +125,65 @@ steps:
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] PART_CANCEL
+#  * [2차 호출] CANCEL
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "PART_CANCEL"
-    description: "결제 부분 취소 및 환불"
+  - name: "CANCEL"
+    description: "결제 취소 및 환불"
 
     args:
-      Command: "PART_CANCEL"
-      IFVERSION: "V1.2.1"
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      O_TID: "{{TID}}"
-      CAMT: "100"
-
+      OTID: "{{TID}}"
+  
   # 응답 데이터 추출
     extract:
       - name: "Result"
         pattern: "Result"
-        variable: "P_RESULT"
+        variable: "C_RESULT"
+
       - name: "ErrMsg"
         pattern: "ErrMsg"
-        variable: "P_ErrMsg"
+        variable: "C_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "C_OTID"  
+
       - name: "ServerInfo"
         pattern: "ServerInfo"
-        variable: "P_ServerInfo" 
+        variable: "C_ServerInfo" 
+
       - name: DNTID"
         pattern: "DNTID"
-        variable: "P_DNTID"
+        variable: "C_DNTID"
+        
       - name: "Date"
         pattern: "Date"
-        variable: "P_DATE"
-      - name: "O_TID"
-        pattern: "O_TID"
-        variable: "P_O_TID"
+        variable: "C_DATE"
+
+      - name: "원거래 TID 변수 추출"
+        set:
+          EXPECT_OTID: "{{TID}}"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "P_RESULT == 0"
+        assertion: "C_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "P_ErrMsg ==No Information"
+        assertion: "C_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 전체취소 TID와 원거래 TID 일치 확인         
+        assertion: "js: C_OTID && C_OTID == TID"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
-        assertion: "js: P_ServerInfo !== null && P_ServerInfo.trim().length > 0 && typeof P_ServerInfo !== undefined" 
+        assertion: "js: C_ServerInfo !== null && C_ServerInfo.trim().length > 0 && typeof C_ServerInfo !== undefined" 
 
       - name: "거래 번호(DNTID) 정상 출력_1"
-        assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
+        assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
         description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -180,7 +191,7 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DNTID.slice(0, 12) === now12;})()"
+          return C_DNTID.slice(0, 12) === now12;})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -188,10 +199,7 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DATE.slice(0, 12) === now12;})()"
-
-      - name: "원거래 TID(O_TID) 정상 출력"
-        assertion: "js: P_O_TID !== null && P_O_TID.trim().length > 0 && typeof P_O_TID !== undefined" 
+          return C_DATE.slice(0, 12) === now12;})()"
 
 # 시나리오 설정
 options:

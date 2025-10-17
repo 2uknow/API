@@ -123,13 +123,12 @@ steps:
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return DN_TID.slice(0, 12) === now12;})()"
 
-
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] CANCEL
+#  * [2차 호출] CANCEL - 1차 부분 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "CANCEL"
-    description: "결제 취소 및 환불"
+    description: "결제 1차 부분 취소 및 환불"
 
     args:
       Command: "CANCEL"
@@ -137,41 +136,52 @@ steps:
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
       OTID: "{{TID}}"
+      CANCELTYPE: "P"
+      AMOUNT: "100"
   
 
   # 응답 데이터 추출
     extract:
       - name: "Result"
         pattern: "Result"
-        variable: "C_RESULT"
+        variable: "c_RESULT"
+
       - name: "ErrMsg"
         pattern: "ErrMsg"
-        variable: "C_ErrMsg"
+        variable: "c_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "c_OTID"  
+
       - name: "ServerInfo"
         pattern: "ServerInfo"
-        variable: "C_ServerInfo" 
-      - name: DNTID"
+        variable: "c_ServerInfo" 
+
+      - name: "DNTID"
         pattern: "DNTID"
-        variable: "C_DNTID"
+        variable: "c_DNTID"
+        
       - name: "Date"
         pattern: "Date"
-        variable: "C_DATE"
+        variable: "c_DATE"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "C_RESULT == 0"
+        assertion: "c_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "C_ErrMsg ==No Information"
-      
-      - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "C_ErrMsg ==No Information"
+        assertion: "c_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 1차 부분취소 TID와 원거래 TID 일치 확인
+        assertion: "js: c_OTID && c_OTID === TID"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
-        assertion: "js: C_ServerInfo !== null && C_ServerInfo.trim().length > 0 && typeof C_ServerInfo !== undefined" 
+        assertion: "js: c_ServerInfo !== null && c_ServerInfo.trim().length > 0 && typeof c_ServerInfo !== undefined" 
 
       - name: "거래 번호(DNTID) 정상 출력_1"
-        assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
+        assertion: "js: c_DNTID && c_DNTID.trim().length > 0 && /^\\d{22}$/.test(c_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
         description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -179,7 +189,7 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DNTID.slice(0, 12) === now12;})()"
+          return c_DNTID.slice(0, 12) === now12;})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -187,7 +197,85 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DATE.slice(0, 12) === now12;})()"
+          return c_DATE.slice(0, 12) === now12;})()"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [3차 호출] CANCEL - 2차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "CANCEL"
+    description: "결제 2차 부분 취소 및 환불"
+
+    args:
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      OTID: "{{TID}}"
+      CANCELTYPE: "P"
+      AMOUNT: "100"
+  
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "c_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "c_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "c_OTID"  
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "c_ServerInfo" 
+
+      - name: "DNTID"
+        pattern: "DNTID"
+        variable: "c_DNTID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "c_DATE"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "c_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "c_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 2차 부분취소 TID와 원거래 TID 일치 확인
+        assertion: "js: c_OTID && c_OTID === TID"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: c_ServerInfo !== null && c_ServerInfo.trim().length > 0 && typeof c_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: c_DNTID && c_DNTID.trim().length > 0 && /^\\d{22}$/.test(c_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return c_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return c_DATE.slice(0, 12) === now12;})()"
+
 
 
 # 시나리오 설정
