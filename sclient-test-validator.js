@@ -156,11 +156,13 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
                 const existingTest = step.tests && step.tests[testIndex];
                 const finalTestName = existingTest && existingTest.name ? existingTest.name : originalTestName;
                 
-                // 범용 assertion 평가 - YAML 변수들과 추출된 변수들 모두 포함
+                // 범용 assertion 평가 - YAML 변수들, 이전 단계 변수들, 추출된 변수들 모두 포함
                 const allVariables = {
                     // YAML에서 정의된 변수들
                     ...(yamlData && yamlData.variables ? yamlData.variables : {}),
-                    // 추출된 변수들
+                    // 이전 단계에서 축적된 변수들
+                    ...(scenarioResult && scenarioResult.variables ? scenarioResult.variables : {}),
+                    // 추출된 변수들 (가장 우선순위 높음)
                     ...(step.extracted || {})
                 };
                 const evalResult = evaluateAssertion(assertion, allVariables);

@@ -463,18 +463,28 @@ export class SClientYAMLParser {
   static createAdvancedJavaScriptTest(condition, testName, description) {
     const displayName = testName || this.getJavaScriptTestName(condition);
     const testDescription = description ? `\n    // ${description}` : '';
-    
+
     return `pm.test('${displayName}', function() {${testDescription}
     try {
-        // 응답 데이터를 컨텍스트로 제공
+        // 기본 응답 데이터 컨텍스트
         const result = pm.response.result;
         const serverinfo = pm.response.serverinfo;
         const errmsg = pm.response.errmsg;
         const response = pm.response;
-        
-        // 조건식 실행
-        const conditionResult = (${condition});
-        
+
+        // 🎯 이전 단계에서 축적된 모든 변수들을 동적으로 추출
+        // pm.response 객체를 분해하여 각 속성을 개별 변수로 만듦
+        const extractedVars = {};
+        Object.keys(pm.response).forEach(key => {
+            extractedVars[key] = pm.response[key];
+        });
+
+        // 🔧 Function 생성자를 사용하여 조건식 평가 (strict mode 회피)
+        const evalCondition = new Function(...Object.keys(extractedVars),
+            'return (' + ${JSON.stringify(condition)} + ');');
+
+        const conditionResult = evalCondition(...Object.values(extractedVars));
+
         if (!conditionResult) {
             // 실제/예상 결과 표시
             const actualValues = {
@@ -482,15 +492,15 @@ export class SClientYAMLParser {
                 serverinfo: serverinfo,
                 errmsg: errmsg
             };
-            
+
             throw new Error(\`❌ Condition failed: ${condition}\\n\` +
                           \`  📋 Expected: Condition to be true\\n\` +
                           \`  📄 Actual values: \${JSON.stringify(actualValues, null, 2)}\\n\` +
                           \`  🔍 Check if condition matches the actual response data.\`);
         }
-        
+
         // JavaScript test passed (no output for success)
-        
+
     } catch (error) {
         if (error.message.includes('❌ Condition failed')) {
             throw error; // 우리가 만든 에러는 그대로 전달
