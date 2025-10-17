@@ -379,7 +379,9 @@ export class SClientScenarioEngine {
             errmsg: response.parsed.errmsg,
             // 전체 파싱된 응답도 접근 가능하게
             ...response.parsed,
-            // 추출된 변수들도 포함
+            // 이전 단계에서 축적된 모든 변수들 포함
+            ...Object.fromEntries(this.variables),
+            // 현재 단계의 추출된 변수들 (가장 우선순위 높음)
             ...extracted
           }
         };
@@ -512,6 +514,8 @@ export class SClientScenarioEngine {
 
     scenarioResult.endTime = new Date().toISOString();
     scenarioResult.success = scenarioResult.summary.failed === 0;
+    // 축적된 모든 변수들을 포함
+    scenarioResult.variables = Object.fromEntries(this.variables);
 
     this.emit('scenario-end', scenarioResult);
     this.log(`[SCENARIO END] Success: ${scenarioResult.success}, Passed: ${scenarioResult.summary.passed}/${scenarioResult.summary.total}`);
@@ -683,6 +687,20 @@ export class SClientScenarioEngine {
 
           this.log(`[CRYPTO SUCCESS] ${processedData} -> ${finalResult}`);
 
+          // 복호화인 경우 응답을 key=value 형식으로 파싱 (SClient 응답과 동일)
+          let parsedDecryptedData = {};
+          if (operation === 'decrypt' && finalResult) {
+            const lines = finalResult.split(/[|\r\n]+/).filter(line => line.trim());
+            lines.forEach(line => {
+              const match = line.match(/^(\w+)=(.*)$/);
+              if (match) {
+                const [, key, value] = match;
+                parsedDecryptedData[key.toLowerCase()] = value;
+              }
+            });
+            this.log(`[CRYPTO PARSED] Decrypted data parsed: ${Object.keys(parsedDecryptedData).length} fields found`);
+          }
+
           // PCancel 암호화인 경우 자동으로 슬립 추가
           if (operation === 'encrypt' && processedData.includes('CAMT=')) {
             this.log(`[CRYPTO SLEEP] PCancel 암호화 완료, ${configuredSleepDuration/1000}초 대기 시작`);
@@ -705,12 +723,13 @@ export class SClientScenarioEngine {
                   output: finalResult,
                   result: finalResult, // 추출용
                   sleepAdded: true,
-                  sleepDuration: configuredSleepDuration
+                  sleepDuration: configuredSleepDuration,
+                  ...parsedDecryptedData // 파싱된 복호화 데이터 추가
                 }
               });
             }, configuredSleepDuration); // 설정된 시간만큼 대기
           } else {
-            // 일반 암호화 (슬립 없음)
+            // 일반 암호화/복호화 (슬립 없음)
             resolve({
               command: 'dncrypt',
               cmdString: `dncrypt ${operation} ${processedKey} ${processedData}`,
@@ -723,7 +742,8 @@ export class SClientScenarioEngine {
                 operation: operation,
                 input: processedData,
                 output: finalResult,
-                result: finalResult // 추출용
+                result: finalResult, // 추출용
+                ...parsedDecryptedData // 파싱된 복호화 데이터 추가
               }
             });
           }
