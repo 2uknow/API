@@ -1,6 +1,6 @@
 
-name: "EXPREBILL-CANCEL SMS 비점유결제 취소"
-description: "Danal_Taldit_v1.0 자동화 테스트 - CJH"
+name: "EXPREBILL-CANCEL SMS 비점유결제 전체취소"
+description: "Danal_Taldit_Cancel_v1.0 자동화 테스트"
 version: "1.0.0"
 
 # 공통 변수 불러오기
@@ -34,30 +34,39 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "RESULT_CODE"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
+
       - name: "tid"
         pattern: "TID"
         variable: "TID"
+
       - name: "date"
         pattern: "Date"
         variable: "DATE"
+
       - name: "totalAmount"
         pattern: "TotalAmount"
         variable: "TOTAL_AMOUNT"
+
       - name: "cap"
         pattern: "Cap"
         variable: "CAP"
+
       - name: "orderid"
         pattern: "Orderid"
         variable: "ORDER_ID"
+
       - name: "dstAddr"
         pattern: "DstAddr"
         variable: "DSTADDR"
+
       - name: "carrier"
         pattern: "Carrier"
         variable: "CARRIER"
+
       - name: "dntid"
         pattern: "Dntid"
         variable: "DN_TID"
@@ -123,6 +132,13 @@ steps:
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return DN_TID.slice(0, 12) === now12;})()"
 
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const d = new Date();
+          const now12 = String(d.getFullYear());
+          return DN_TID === (now12 + TID);})()"
+
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [2차 호출] CANCEL
@@ -136,7 +152,7 @@ steps:
       IFVERSION: "V0.0.0"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      OTID: "{{TID}}"
+      OTID: "{{TID}}"  # 원거래 TID를 이용
   
   # 응답 데이터 추출
     extract:
@@ -164,10 +180,6 @@ steps:
         pattern: "Date"
         variable: "C_DATE"
 
-      - name: "원거래 TID 변수 추출"
-        set:
-          EXPECT_OTID: "{{TID}}"
-
     test:
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "C_RESULT == 0"
@@ -193,6 +205,13 @@ steps:
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return C_DNTID.slice(0, 12) === now12;})()"
 
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "EXPREBILL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof C_DNTID === 'undefined' || typeof DN_TID === 'undefined') return false;
+          return String(C_DNTID).trim() !== String(DN_TID).trim();})()"
+
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
@@ -200,6 +219,7 @@ steps:
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return C_DATE.slice(0, 12) === now12;})()"
+
 
 # 시나리오 설정
 options:
