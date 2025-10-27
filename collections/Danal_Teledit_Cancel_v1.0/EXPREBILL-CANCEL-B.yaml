@@ -1,6 +1,6 @@
 
-name: "EXPREBILL-BILL_CANCEL SMS 비점유결제 전체취소"
-description: "Danal_Taldit_v1.0 자동화 테스트"
+name: "EXPREBILL-CANCEL SMS 비점유결제 전체취소"
+description: "Danal_Taldit_Cancel_v1.0 자동화 테스트"
 version: "1.0.0"
 
 # 공통 변수 불러오기
@@ -70,7 +70,6 @@ steps:
       - name: "dntid"
         pattern: "Dntid"
         variable: "DN_TID"
-
     
 ####################################################### Assertion ###########################################################
 
@@ -133,55 +132,70 @@ steps:
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return DN_TID.slice(0, 12) === now12;})()"
 
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const d = new Date();
+          const now12 = String(d.getFullYear());
+          return DN_TID === (now12 + TID);})()"
+
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] BILL_CANCEL
+#  * [2차 호출] CANCEL
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "BILL_CANCEL"
+  - name: "CANCEL"
     description: "결제 취소 및 환불"
 
     args:
-      Command: "BILL_CANCEL"
-      IFVERSION: "V1.1.6"
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      TID: "{{TID}}"
-
+      OTID: "{{TID}}"  # 원거래 TID를 이용
+  
   # 응답 데이터 추출
     extract:
       - name: "Result"
         pattern: "Result"
-        variable: "B_RESULT"
+        variable: "C_RESULT"
 
       - name: "ErrMsg"
         pattern: "ErrMsg"
-        variable: "B_ErrMsg"
+        variable: "C_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "C_OTID"  
 
       - name: "ServerInfo"
         pattern: "ServerInfo"
-        variable: "B_ServerInfo" 
+        variable: "C_ServerInfo" 
 
       - name: DNTID"
         pattern: "DNTID"
-        variable: "B_DNTID"
+        variable: "C_DNTID"
         
       - name: "Date"
         pattern: "Date"
-        variable: "B_DATE"
+        variable: "C_DATE"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "B_RESULT == 0"
+        assertion: "C_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "B_ErrMsg ==No Information"
+        assertion: "C_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 전체취소 TID와 원거래 TID 일치 확인         
+        assertion: "js: C_OTID && C_OTID == TID"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
-        assertion: "js: B_ServerInfo !== null && B_ServerInfo.trim().length > 0 && typeof B_ServerInfo !== undefined" 
+        assertion: "js: C_ServerInfo !== null && C_ServerInfo.trim().length > 0 && typeof C_ServerInfo !== undefined" 
 
       - name: "거래 번호(DNTID) 정상 출력_1"
-        assertion: "js: B_DNTID && B_DNTID.trim().length > 0 && /^\\d{22}$/.test(B_DNTID)"
+        assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
         description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -189,11 +203,14 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return B_DNTID.slice(0, 12) === now12;})()"
+          return C_DNTID.slice(0, 12) === now12;})()"
 
       - name: "거래 번호(DNTID) 정상 출력_3"
-        description: "원거래 DNTID와 전체 취소 DNTID 일치 확인"
-        assertion: "js: B_DNTID && B_DNTID === DN_TID"
+        description: "EXPREBILL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof C_DNTID === 'undefined' || typeof DN_TID === 'undefined') return false;
+          return String(C_DNTID).trim() !== String(DN_TID).trim();})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -201,7 +218,7 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return B_DATE.slice(0, 12) === now12;})()"
+          return C_DATE.slice(0, 12) === now12;})()"
 
 
 # 시나리오 설정
