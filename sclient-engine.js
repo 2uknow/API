@@ -599,9 +599,20 @@ export class SClientScenarioEngine {
     const { operation, data, key = 'DEFAULT_KEY', sleepDuration } = args;
 
     // 변수 치환 적용
-    const processedData = this.replaceVariables(data);
+    let processedData = this.replaceVariables(data);
     const processedKey = this.replaceVariables(key);
     const configuredSleepDuration = sleepDuration || 20000; // 기본값 20초
+
+    // 복호화 시 URL 디코딩 시도 (HTTP 응답에서 추출한 데이터 처리)
+    if (operation === 'decrypt' && processedData) {
+      try {
+        processedData = decodeURIComponent(processedData);
+        this.log(`[CRYPTO] URL decoded data before decryption`);
+      } catch (error) {
+        // 이미 디코딩된 데이터거나 인코딩되지 않은 경우 그대로 사용
+        this.log(`[CRYPTO] Data is not URL encoded, using as-is`);
+      }
+    }
 
     this.log(`[CRYPTO] ${operation}: ${processedData}`);
     this.log(`[CRYPTO DEBUG] Raw data before processing: "${data}"`);
