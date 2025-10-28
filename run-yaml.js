@@ -642,6 +642,9 @@ async function main() {
         // 다중 파일 실행
         await runMultipleYamlTests(yamlFiles);
     }
+
+    // 명시적으로 프로세스 종료
+    process.exit(0);
 }
 
 main().catch(error => {

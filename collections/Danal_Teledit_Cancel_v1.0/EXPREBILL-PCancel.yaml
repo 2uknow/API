@@ -213,18 +213,69 @@ steps:
     args:
       operation: "decrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      data: "{{js: decodeURIComponent(SERVER_ENCRYPTED_DATA || '')}}"
+      data: "{{SERVER_ENCRYPTED_DATA}}"
 
-    # 복호화 결과 추출
+    # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
       - name: "result"
         pattern: "result"
-        variable: "DECRYPTED_RESPONSE"
+        variable: "PCANCEL_RESULT"
+      - name: "tid"
+        pattern: "tid"
+        variable: "PCANCEL_TID"
+      - name: "otid"
+        pattern: "otid"
+        variable: "PCANCEL_OTID"
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "PCANCEL_ORDERID"
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "PCANCEL_REMAINAMT"
+      - name: "errmsg"
+        pattern: "errmsg"
+        variable: "PCANCEL_ERRMSG"
+      - name: "date"
+        pattern: "date"
+        variable: "PCANCEL_DATE"
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "PCANCEL_DNTID"
+
+####################################################### Assertion ###########################################################
 
     test:
-      - name: "응답 데이터 분석 완료"
-        description: "복호화 결과가 정상적으로 반환됨"
-        assertion: "DECRYPTED_RESPONSE exists"
+      - name: "복호화 결과(Result) 정상 출력"
+        description: "부분취소 결과 코드가 0(성공)인지 확인"
+        assertion: "PCANCEL_RESULT == 0"
+
+      - name: "취소 거래번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
+        assertion: "js: PCANCEL_TID && PCANCEL_TID.length === 18"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
+        assertion: "js: PCANCEL_OTID && PCANCEL_OTID === TID"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 원본 주문번호와 일치하는지 확인"
+        assertion: "js: PCANCEL_ORDERID && PCANCEL_ORDERID === RESPONSE_ORDER_ID"
+
+      - name: "잔액(REMAINAMT) 정상 출력"
+        description: "부분취소 후 남은 금액이 올바른지 확인 (3001 - 1500 = 1501)"
+        assertion: "PCANCEL_REMAINAMT == 1501"
+
+      - name: "취소 일시(DATE) 정상 출력"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: PCANCEL_DATE && PCANCEL_DATE.length === 14"
+
+      - name: "취소 DNTID 정상 출력"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: PCANCEL_DNTID && PCANCEL_DNTID.length === 22"
+
+      - name: "에러메시지(ErrMsg) 확인"
+        description: "성공 시 에러메시지가 'No Information'인지 확인"
+        assertion: "js: PCANCEL_RESULT == 0 ? PCANCEL_ERRMSG === 'No Information' : PCANCEL_ERRMSG && PCANCEL_ERRMSG.length > 0"
 
 # 시나리오 설정
 options:
