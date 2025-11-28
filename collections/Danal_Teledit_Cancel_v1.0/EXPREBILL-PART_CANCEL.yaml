@@ -145,7 +145,7 @@ steps:
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PART_CANCEL - 1차 부분 취소"
-    description: "결제 부분 취소 및 환불"
+    description: "1차 원거래 TID 사용 부분 취소 및 환불 정상 확인"
 
     args:
       Command: "PART_CANCEL"
@@ -172,6 +172,10 @@ steps:
       - name: DNTID"
         pattern: "DNTID"
         variable: "P_DNTID"
+
+      - name: "DNTID"
+        pattern: "js: String(vars.P_DNTID).slice(4)"
+        variable: "NEW_TID"
 
       - name: "Date"
         pattern: "Date"
@@ -219,14 +223,46 @@ steps:
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PART_CANCEL - 2차 부분 취소"
-    description: "결제 부분 취소 및 환불"
+    description: "2차 원거래 DNTID 사용 부분 취소 및 환불 불가 확인"
 
     args:
       Command: "PART_CANCEL"
       IFVERSION: "V1.2.1"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      O_TID: "{{P_DNTID}}"  # 마지막 부분취소 TID를 사용
+      O_TID: "{{DN_TID}}"  # 원거래 DNTID를 사용 불가 > 재승인 OTID/DNTID 사용 가능
+      CAMT: "100"
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "E_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "E_ErrMsg"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "E_RESULT == 507"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "E_ErrMsg == 이미 취소된 거래 건입니다."
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [4차 호출] PART_CANCEL - 3차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PART_CANCEL - 3차 부분 취소"
+    description: "3차 원거래 OTID 사용 부분 취소 및 환불 불가 확인"
+
+    args:
+      Command: "PART_CANCEL"
+      IFVERSION: "V1.2.1"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      O_TID: "{{P_O_TID}}"  # 원거래 OTID를 사용 불가 > 재승인 OTID/DNTID 사용 가능
       CAMT: "100"
 
   # 응답 데이터 추출
@@ -239,34 +275,66 @@ steps:
         pattern: "ErrMsg"
         variable: "p_ErrMsg"
 
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "p_RESULT == 507"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "p_ErrMsg == 이미 취소된 거래 건입니다."
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [5차 호출] PART_CANCEL - 4차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PART_CANCEL - 4차 부분 취소"
+    description: "4차 재승인 TID 사용 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "PART_CANCEL"
+      IFVERSION: "V1.2.1"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      O_TID: "{{NEW_TID}}"  # 마지막 재승인 TID를 사용
+      CAMT: "100"
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "N_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "N_ErrMsg"
+
       - name: "ServerInfo"
         pattern: "ServerInfo"
-        variable: "p_ServerInfo" 
+        variable: "N_ServerInfo" 
 
       - name: DNTID"
         pattern: "DNTID"
-        variable: "p_DNTID"
+        variable: "N_DNTID"
 
       - name: "Date"
         pattern: "Date"
-        variable: "p_DATE"
+        variable: "N_DATE"
 
       - name: "O_TID"
         pattern: "O_TID"
-        variable: "p_O_TID"
+        variable: "N_O_TID"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "p_RESULT == 0"
+        assertion: "N_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "p_ErrMsg ==No Information"
+        assertion: "N_ErrMsg ==No Information"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
-        assertion: "js: p_ServerInfo !== null && p_ServerInfo.trim().length > 0 && typeof p_ServerInfo !== undefined" 
+        assertion: "js: N_ServerInfo !== null && N_ServerInfo.trim().length > 0 && typeof N_ServerInfo !== undefined" 
 
       - name: "거래 번호(DNTID) 정상 출력_1"
-        assertion: "js: p_DNTID && p_DNTID.trim().length > 0 && /^\\d{22}$/.test(p_DNTID)"
+        assertion: "js: N_DNTID && N_DNTID.trim().length > 0 && /^\\d{22}$/.test(N_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
         description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -274,14 +342,7 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return p_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
-        description: "PART_CANCEL 1차 DNTID와 다른 값 생성 확인"
-        assertion: "js: (() => {
-          'use strict';
-          if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
-          return String(p_DNTID).trim() !== String(P_DNTID).trim();})()"
+          return N_DNTID.slice(0, 12) === now12;})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -289,24 +350,11 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return p_DATE.slice(0, 12) === now12;})()"
+          return N_DATE.slice(0, 12) === now12;})()"
 
-      - name: "원거래 TID(O_TID) 정상 출력_1"
-        description: "PART_CANCEL 1차 O_TID와 다른 값 생성 확인"
-        assertion: "js: (() => {
-          'use strict';
-          if (typeof P_O_TID === 'undefined' || typeof p_O_TID === 'undefined') return false;
-          return String(P_O_TID).trim() !== String(p_O_TID).trim();})()"
-
-      - name: "원거래 TID(O_TID) 정상 출력_2"
-        description: "PART_CANCEL 1차 DNTID 앞 4자리(연도)를 제외한 부분만 추출해서 O_TID와 일치 확인"
-        assertion: "js: (() => {
-          'use strict';
-          if (typeof p_O_TID === 'undefined' || typeof P_DNTID === 'undefined') return false;
-          const actualTidPart = String(P_DNTID).slice(4).trim();
-          const expectedTid = String(p_O_TID).trim();
-          return expectedTid === actualTidPart;})()"
-
+      - name: "원거래 TID(O_TID) 정상 출력"
+        description: 4차 부분취소 TID와 원거래 TID 불일치 확인
+        assertion: "js: N_O_TID && N_O_TID !== TID"
 
 # 시나리오 설정
 options:

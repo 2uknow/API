@@ -96,7 +96,7 @@ steps:
           DATE.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
@@ -146,7 +146,7 @@ steps:
       IFVERSION: "V1.1.6"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      TID: "{{TID}}"
+      TID: "{{TID}}" 
 
   # 응답 데이터 추출
     extract:
