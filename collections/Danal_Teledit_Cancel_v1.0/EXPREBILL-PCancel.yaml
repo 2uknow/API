@@ -144,8 +144,8 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      # 원거래 TID 사용, 부분 취소
-      data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500"
+      # 원거래 TID 사용, 부분 취소, AMTRESOPTION 설정(취소 금액 응답)
+      data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500|AMTRESOPTION=1"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
@@ -267,6 +267,10 @@ steps:
         pattern: "remainamt"
         variable: "PCANCEL_REMAINAMT"
 
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "PCANCEL_CANCELAMT"
+
 
 ####################################################### Assertion ###########################################################
 
@@ -329,9 +333,20 @@ steps:
         description: "복호화된 주문번호가 원본 주문번호와 일치하는지 확인"
         assertion: "js: PCANCEL_ORDERID && PCANCEL_ORDERID === RESPONSE_ORDER_ID"
 
-      - name: "잔액(REMAINAMT) 정상 출력"
-        description: "부분취소 후 남은 금액이 올바른지 확인 (3001 - 1500 = 1501)"
-        assertion: "PCANCEL_REMAINAMT == 1501"
+      - name: "남은 잔액(REMAINAMT) 정상 미출력"
+        description: "AMTRESOPTION=1 설정에 따른 REMAINAMT 미응답 확인"
+        assertion: |
+          js: (() => {
+            if (typeof PCANCEL_REMAINAMT !== 'undefined' && PCANCEL_REMAINAMT !== null && String(PCANCEL_REMAINAMT).trim() !== '') {
+              throw new Error(`REMAINAMT 값이 존재함 (${PCANCEL_REMAINAMT})`);
+            }
+            // 값이 없으면 정상 통과
+            return true;
+          })()
+
+      - name: "취소 금액(REMAINAMT) 정상 출력"
+        description: "AMTRESOPTION = 1 설정에 따른 취소 금액 응답 확인 및 금액 일치 확인"
+        assertion: "js: PCANCEL_CANCELAMT && PCANCEL_CANCELAMT == 1500"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -345,7 +360,7 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      # 원거래 TID 사용, 전체취소(CAMT 미설정)
+      # 원거래 TID 사용, 전체취소(CAMT 미설정), AMTRESOPTION 미설정(취소 후 잔액 응답)
       data: "TID={{PCANCEL_TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
@@ -452,6 +467,9 @@ steps:
         pattern: "remainamt"
         variable: "P_REMAINAMT"
 
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "P_CANCELAMT"
 
 ####################################################### Assertion ###########################################################
 
@@ -510,10 +528,20 @@ steps:
         description: "복호화된 주문번호가 원본 주문번호와 일치하는지 확인"
         assertion: "js: P_ORDERID && P_ORDERID === RESPONSE_ORDER_ID"
 
-      - name: "잔액(REMAINAMT) 정상 출력"
-        description: "전체 취소 후 남은 금액이 올바른지 확인"
-        assertion: "P_REMAINAMT == 0"
+      - name: "남은 잔액(REMAINAMT) 정상 출력"
+        description: "전체 취소 후 남은 잔액이 없는지 확인"
+        assertion: "js: P_REMAINAMT && P_REMAINAMT == 0"
 
+      - name: "취소 금액(CANCELAMT) 정상 미출력"
+        description: "AMTRESOPTION = 0 설정에 따른 CANCELAMT 미응답 확인"
+        assertion: |
+          js: (() => {
+            if (typeof P_CANCELAMT !== 'undefined' && P_CANCELAMT !== null && String(P_CANCELAMT).trim() !== '') {
+              throw new Error(`CANCELAMT 값이 존재함 (${P_CANCELAMT})`);
+            }
+            // 값이 없으면 정상 통과
+            return true;
+          })()
 
 
 ##################################################################################################
@@ -526,7 +554,7 @@ steps:
 
 
   - name: "2차 EXPREBILL"
-    description: "비점유 결제 + AUTHKEY 전송 (7~14 steps)"
+    description: "비점유 결제 + AUTHKEY 전송 (7~13 steps)"
 
     args:
       Command: "EXPREBILL"
@@ -658,7 +686,7 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      # 원거래 TID 사용, 부분 취소, GETMATCHINGTID 설정
+      # 원거래 TID 사용, 부분 취소, GETMATCHINGTID 설정, ISCHGORDERID 설정, AMTRESOPTION 미설정
       data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|CAMT=1800|GETMATCHINGTID=Y|ISCHGORDERID=Y"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
@@ -765,6 +793,11 @@ steps:
         pattern: "remainamt"
         variable: "PCANCEL_REMAINAMT_P"
 
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "PCANCEL_CANCELAMT_P"
+
+
 
 ####################################################### Assertion ###########################################################
 
@@ -827,6 +860,17 @@ steps:
         description: "부분취소 후 남은 금액이 올바른지 확인 (3001 - 1500 = 1501)"
         assertion: "PCANCEL_REMAINAMT_P == 1201"
 
+      - name: "취소 금액(CANCELAMT) 정상 미출력"
+        description: "AMTRESOPTION 미설정에 따른 CANCELAMT 미응답 확인"
+        assertion: |
+          js: (() => {
+            if (typeof PCANCEL_CANCELAMT_P !== 'undefined' && PCANCEL_CANCELAMT_P !== null && String(PCANCEL_CANCELAMT_P).trim() !== '') {
+              throw new Error(`CANCELAMT 값이 존재함 (${PCANCEL_CANCELAMT_P})`);
+            }
+            // 값이 없으면 정상 통과
+            return true;
+          })()
+
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [5차 호출] 전체 취소 - PCancel 데이터 암호화
 #  * ----------------------------------------------------------------------------------------------------------------*
@@ -838,8 +882,8 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      # 원거래 TID 사용, 전체 취소(CAMT 미설정), GETMATCHINGTID 설정
-      data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|GETMATCHINGTID=Y|ISCHGORDERID=Y"
+      # 원거래 TID 사용, 전체 취소(CAMT 미설정), GETMATCHINGTID 설정, ISCHGORDERID 설정, AMTRESOPTION 설정(잔액, 취소 금액 응답)
+      data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|GETMATCHINGTID=Y|ISCHGORDERID=Y|AMTRESOPTION=2"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
@@ -945,6 +989,9 @@ steps:
         pattern: "remainamt"
         variable: "REMAINAMT_GET"
 
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "CANCELAMT_GET"
 
 ####################################################### Assertion ###########################################################
 
@@ -1003,10 +1050,13 @@ steps:
         description: "복호화된 주문번호가 존재하고 원본 주문번호와 불일치하는지 확인"
         assertion: "js: ORDERID_GET && ORDERID_GET !== RESPONSE_ORDER_ID_2"
 
-      - name: "잔액(REMAINAMT) 정상 출력"
-        description: "전체 취소 후 남은 금액이 올바른지 확인"
-        assertion: "REMAINAMT_GET == 0"
+      - name: "남은 잔액(REMAINAMT) 정상 출력"
+        description: "전체 취소 후 남은 금액이 존재하고 올바른지 확인"
+        assertion: "js: REMAINAMT_GET && REMAINAMT_GET == 0"
 
+      - name: "취소 금액(CANCELAMT_GET) 정상 출력"
+        description: "AMTRESOPTION = 2 설정에 따른 취소 금액이 존재하고 올바른지 확인"
+        assertion: "js: CANCELAMT_GET && CANCELAMT_GET == 1201"
 
 
 # 시나리오 설정
