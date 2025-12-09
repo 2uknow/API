@@ -11,8 +11,8 @@ include: Danal_Teledit_Cancel_v1.0/conf.yaml
 #  * ----------------------------------------------------------------------------------------------------------------*
 
 steps:
-  - name: "EXPREBILL"
-    description: "비점유 결제 + AUTHKEY 전송"
+  - name: "1차 EXPREBILL"
+    description: "비점유 결제 + AUTHKEY 전송 (0~6 steps)"
 
     args:
       Command: "EXPREBILL"
@@ -95,7 +95,7 @@ steps:
           DATE.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
@@ -125,7 +125,7 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
@@ -144,6 +144,7 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
+      # 원거래 TID 사용, 부분 취소
       data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
@@ -220,11 +221,11 @@ steps:
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [4차 호출] 부분 취소 - PCancel 응답 복호화
+#  * [4차 호출] 부분 취소 - PCancel 응답 복호화 및 검증
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "부분 취소 - PCancel 응답 복호화"
-    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화"
+  - name: "부분 취소 - PCancel 응답 복호화 및 검증"
+    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 후 검증"
     type: "crypto"
 
     args:
@@ -278,15 +279,47 @@ steps:
 
       - name: "거래 번호(TID) 정상 출력"
         description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
-        assertion: "js: PCANCEL_TID && PCANCEL_TID.length === 18"
+        assertion: "js: (
+          PCANCEL_TID !== null &&
+          typeof PCANCEL_TID !== 'undefined' &&
+          typeof PCANCEL_TID === 'string' &&
+          PCANCEL_TID.trim().length === 18)"
 
-      - name: "취소 DNTID 정상 출력"
+      - name: "거래 번호(DNTID) 정상 출력_1"
         description: "복호화된 DNTID가 존재하고 22자리인지 확인"
-        assertion: "js: PCANCEL_DNTID && PCANCEL_DNTID.length === 22"
+        assertion: "js: PCANCEL_DNTID && PCANCEL_DNTID.trim().length > 0 && /^\\d{22}$/.test(PCANCEL_DNTID)"
 
-      - name: "취소 일시(DATE) 정상 출력"
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "복호화된 DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return PCANCEL_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "복호화된 DNTID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return PCANCEL_DNTID = now12 + TID;})()"
+
+      - name: "취소 일시(DATE) 정상 출력_1"
         description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
-        assertion: "js: PCANCEL_DATE && PCANCEL_DATE.length === 14"
+        assertion: "js: (
+          PCANCEL_DATE !== null &&
+          typeof PCANCEL_DATE !== 'undefined' &&
+          typeof PCANCEL_DATE === 'string' &&
+          PCANCEL_DATE.trim().length === 14)"
+
+      - name: "취소 일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return PCANCEL_DATE.slice(0, 12) === now12;})()"
 
       - name: "원본 거래번호(OTID) 정상 출력"
         description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
@@ -312,29 +345,30 @@ steps:
     args:
       operation: "encrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      data: "TID={{PCANCEL_TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}"  # CAMT 미설정
+      # 원거래 TID 사용, 전체취소(CAMT 미설정)
+      data: "TID={{PCANCEL_TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
       - name: "result"
         pattern: "result"
-        variable: "ENCRYPTED_PCANCEL_DATA_2"
+        variable: "ENCRYPTED_PCANCEL_DATA_C"
 
     test:
       - name: "PCancel 데이터 암호화 성공 확인"
-        assertion: "ENCRYPTED_PCANCEL_DATA_2 exists"
+        assertion: "ENCRYPTED_PCANCEL_DATA_C exists"
 
       - name: "암호화 데이터 길이 확인"
-        assertion: "js: ENCRYPTED_PCANCEL_DATA_2 && ENCRYPTED_PCANCEL_DATA_2.length > 20"
+        assertion: "js: ENCRYPTED_PCANCEL_DATA_C && ENCRYPTED_PCANCEL_DATA_C.length > 20"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [3차 호출] 전체 취소 - PCancel HTTP POST 요청
+#  * [6차 호출] 전체 취소 - PCancel HTTP POST 요청
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "전체 취소 - PCancel HTTP 요청"
-    description: "부분 취소 HTTP POST 요청"
+    description: "전체 취소 HTTP POST 요청"
     type: "http"
 
     args:
@@ -343,46 +377,46 @@ steps:
       headers:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
-      body: "DATA={{ENCRYPTED_PCANCEL_DATA_2}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+      body: "DATA={{ENCRYPTED_PCANCEL_DATA_C}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
 
     # HTTP 응답 데이터 추출
     extract:
       - name: "status"
         pattern: "status"
-        variable: "HTTP_STATUS_2"
+        variable: "HTTP_STATUS_C"
 
       - name: "body"
         pattern: "body"
-        variable: "RESPONSE_BODY_2"
+        variable: "RESPONSE_BODY_C"
 
       - name: "encrypted_data"
         pattern: "DATA=(.+)"
-        variable: "SERVER_ENCRYPTED_DATA_2"
+        variable: "SERVER_ENCRYPTED_DATA_C"
 
     # 테스트 검증
     test:
       - name: "HTTP 응답 상태 확인"
-        assertion: "HTTP_STATUS_2 == 200"
+        assertion: "HTTP_STATUS_C == 200"
 
       - name: "응답 본문 존재 확인"
-        assertion: "RESPONSE_BODY_2 exists"
+        assertion: "RESPONSE_BODY_C exists"
 
       - name: "응답 본문 길이 확인"
-        assertion: "js: RESPONSE_BODY_2 && RESPONSE_BODY_2.length > 0"
+        assertion: "js: RESPONSE_BODY_C && RESPONSE_BODY_C.length > 0"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [4차 호출] 전체 취소 - PCancel 응답 복호화
+#  * [7차 호출] 전체 취소 - PCancel 응답 복호화 및 검증
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "전체 취소 PCancel 응답 복호화"
-    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화"
+  - name: "전체 취소 PCancel 응답 복호화 및 검증"
+    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 및 검증"
     type: "crypto"
 
     args:
       operation: "decrypt"
       key: "{{PCANCEL_CRYPTOKEY}}"
-      data: "{{SERVER_ENCRYPTED_DATA_2}}"
+      data: "{{SERVER_ENCRYPTED_DATA_C}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
@@ -394,6 +428,30 @@ steps:
         pattern: "errmsg"
         variable: "P_ERRMSG"
 
+      - name: "tid"
+        pattern: "tid"
+        variable: "P_TID"
+
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "P_DNTID"
+
+      - name: "date"
+        pattern: "date"
+        variable: "P_DATE"
+
+      - name: "otid"
+        pattern: "otid"
+        variable: "P_OTID"
+
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "P_ORDERID"
+
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "P_REMAINAMT"
+
 
 ####################################################### Assertion ###########################################################
 
@@ -403,6 +461,552 @@ steps:
 
       - name: "에러메시지(ErrMsg) 확인"
         assertion: "P_ERRMSG == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
+        assertion: "js: P_TID && P_TID.length === 18"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return P_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return P_DNTID = now12 + TID;})()"
+
+      - name: "일시(DATE) 정상 출력_1"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: (
+          P_DATE !== null &&
+          typeof P_DATE !== 'undefined' &&
+          typeof P_DATE === 'string' &&
+          P_DATE.trim().length === 14)"
+
+      - name: "일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return P_DATE.slice(0, 12) === now12;})()"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 부분 취소 TID와 일치하는지 확인"
+        assertion: "js: P_OTID && P_OTID === PCANCEL_TID"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 원본 주문번호와 일치하는지 확인"
+        assertion: "js: P_ORDERID && P_ORDERID === RESPONSE_ORDER_ID"
+
+      - name: "잔액(REMAINAMT) 정상 출력"
+        description: "전체 취소 후 남은 금액이 올바른지 확인"
+        assertion: "P_REMAINAMT == 0"
+
+
+
+##################################################################################################
+
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [1차 호출] 2차 EXPREBILL
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+
+  - name: "2차 EXPREBILL"
+    description: "비점유 결제 + AUTHKEY 전송 (7~14 steps)"
+
+    args:
+      Command: "EXPREBILL"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemCount: "1"
+      ItemType: "0"
+      ItemInfo: "2|3001|1|22S0HZ0100|상품명"
+      AUTHKEY: "20250901101636D6FFC6"
+      # AUTHKEY: "20201229093719D4EF17"
+      ORDERID: "{{ORDER_ID_R}}"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      TIDTYPE: "1"
+      IFVERSION: "V1.1.2"
+      BILLTYPE: "1"
+
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE_2"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE_2"
+
+      - name: "tid"
+        pattern: "TID"
+        variable: "TID_2"
+        
+      - name: "date"
+        pattern: "Date"
+        variable: "DATE_2"
+
+      - name: "totalAmount"
+        pattern: "TotalAmount"
+        variable: "TOTAL_AMOUNT_2"
+
+      - name: "cap"
+        pattern: "Cap"
+        variable: "CAP_2"
+
+      - name: "orderid"
+        pattern: "Orderid"
+        variable: "RESPONSE_ORDER_ID_2"
+
+      - name: "dstAddr"
+        pattern: "DstAddr"
+        variable: "DSTADDR_2"
+
+      - name: "carrier"
+        pattern: "Carrier"
+        variable: "CARRIER_2"
+
+      - name: "dntid"
+        pattern: "Dntid"
+        variable: "DN_TID_2"
+
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE_2 == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ERROR_MESSAGE_2 == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        assertion: "js: (
+          TID_2 !== null &&
+          typeof TID_2 !== 'undefined' &&
+          typeof TID_2 === 'string' &&
+          TID_2.trim().length === 18)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: (
+          DATE_2 !== null &&
+          typeof DATE_2 !== 'undefined' &&
+          typeof DATE_2 === 'string' &&
+          DATE_2.trim().length === 14)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DATE_2.slice(0, 12) === now12;})()"
+
+      - name: "전체 결제금액(TotalAmount) 정상 출력"
+        assertion: "TOTAL_AMOUNT_2 == 3001"
+
+      - name: "거래 전 한도 금액(CAP) 정상 출력"
+        assertion: "CAP_2 == 000000"
+
+      - name: "CP 주문번호(ORDERID) 정상 출력"
+        assertion: "js: (
+          typeof RESPONSE_ORDER_ID_2 !== 'undefined' &&
+          typeof RESPONSE_ORDER_ID_2 === 'string' &&
+          RESPONSE_ORDER_ID_2.trim().length > 0 &&
+          RESPONSE_ORDER_ID_2.includes('ORD'))"
+
+      - name: "사용자 전화번호(DstAddr) 정상 출력"
+        assertion: "DSTADDR_2 == 01085402697"
+
+      - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
+        assertion: "CARRIER_2 == KTF"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: DN_TID_2 && DN_TID_2.trim().length > 0 && /^\\d{22}$/.test(DN_TID_2)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DN_TID_2.slice(0, 12) === now12;})()"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [2차 호출] 부분 취소 - PCancel 데이터 암호화
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 PCancel 데이터 암호화"
+    description: "GETMATCHINGTID 설정 값에 따른 부분 취소 요청 데이터를 암호화"
+    type: "crypto"
+
+    args:
+      operation: "encrypt"
+      key: "{{PCANCEL_CRYPTOKEY}}"
+      # 원거래 TID 사용, 부분 취소, GETMATCHINGTID 설정
+      data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|CAMT=1800|GETMATCHINGTID=Y|ISCHGORDERID=Y"
+      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+
+    # 암호화 결과 추출
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "ENCRYPTED_PCANCEL_DATA_P"
+
+    test:
+      - name: "PCancel 데이터 암호화 성공 확인"
+        assertion: "ENCRYPTED_PCANCEL_DATA_P exists"
+
+      - name: "암호화 데이터 길이 확인"
+        assertion: "js: ENCRYPTED_PCANCEL_DATA_P && ENCRYPTED_PCANCEL_DATA_P.length > 20"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [3차 호출] 부분 취소 - PCancel HTTP POST 요청
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 - PCancel HTTP 요청"
+    description: "GETMATCHINGTID 설정 값에 따른 부분 취소 HTTP POST 요청"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{ENCRYPTED_PCANCEL_DATA_P}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    # HTTP 응답 데이터 추출
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "HTTP_STATUS_P"
+
+      - name: "body"
+        pattern: "body"
+        variable: "RESPONSE_BODY_P"
+
+      - name: "encrypted_data"
+        pattern: "DATA=(.+)"
+        variable: "SERVER_ENCRYPTED_DATA_P"
+
+    # 테스트 검증
+    test:
+      - name: "HTTP 응답 상태 확인"
+        assertion: "HTTP_STATUS_P == 200"
+
+      - name: "응답 본문 존재 확인"
+        assertion: "RESPONSE_BODY_P exists"
+
+      - name: "응답 본문 길이 확인"
+        assertion: "js: RESPONSE_BODY_P && RESPONSE_BODY_P.length > 0"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [4차 호출] 부분 취소 - PCancel 응답 복호화 및 검증
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 - PCancel 응답 복호화 및 검증"
+    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 후 검증"
+    type: "crypto"
+
+    args:
+      operation: "decrypt"
+      key: "{{PCANCEL_CRYPTOKEY}}"
+      data: "{{SERVER_ENCRYPTED_DATA_P}}"
+
+    # 복호화 결과 추출 (자동 파싱된 필드들)
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "PCANCEL_RESULT_P"
+
+      - name: "errmsg"
+        pattern: "errmsg"
+        variable: "PCANCEL_ERRMSG_P"
+
+      - name: "tid"
+        pattern: "tid"
+        variable: "PCANCEL_TID_P"
+
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "PCANCEL_DNTID_P"
+
+      - name: "date"
+        pattern: "date"
+        variable: "PCANCEL_DATE_P"
+
+      - name: "otid"
+        pattern: "otid"
+        variable: "PCANCEL_OTID_P"
+
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "PCANCEL_ORDERID_P"
+
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "PCANCEL_REMAINAMT_P"
+
+
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "PCANCEL_RESULT_P == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "PCANCEL_ERRMSG_P == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리 TID + '0'인지 확인"
+        assertion: "js: PCANCEL_TID_P && /^\\d{18}0$/.test(PCANCEL_TID_P.trim())"
+          
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: PCANCEL_DNTID_P && PCANCEL_DNTID_P.trim().length > 0 && /^\\d{22}$/.test(PCANCEL_DNTID_P)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "복호화된 DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return PCANCEL_DNTID_P.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "복호화된 DNTID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return PCANCEL_DNTID_P = now12 + TID_2;})()"
+
+      - name: "취소 일시(DATE) 정상 출력_1"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: (
+          PCANCEL_DATE_P !== null &&
+          typeof PCANCEL_DATE_P !== 'undefined' &&
+          typeof PCANCEL_DATE_P === 'string' &&
+          PCANCEL_DATE_P.trim().length === 14)"
+
+      - name: "취소 일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return PCANCEL_DATE_P.slice(0, 12) === now12;})()"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
+        assertion: "js: PCANCEL_OTID_P && PCANCEL_OTID_P === TID_2"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 존재하고 원본 주문번호와 불일치하는지 확인"
+        assertion: "js: PCANCEL_ORDERID_P && PCANCEL_ORDERID_P !== RESPONSE_ORDER_ID_2"
+
+      - name: "잔액(REMAINAMT) 정상 출력"
+        description: "부분취소 후 남은 금액이 올바른지 확인 (3001 - 1500 = 1501)"
+        assertion: "PCANCEL_REMAINAMT_P == 1201"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [5차 호출] 전체 취소 - PCancel 데이터 암호화
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "전체 취소 - PCancel 데이터 암호화"
+    description: "GETMATCHINGTID 설정 값에 따른 취소 요청 데이터를 암호화"
+    type: "crypto"
+
+    args:
+      operation: "encrypt"
+      key: "{{PCANCEL_CRYPTOKEY}}"
+      # 원거래 TID 사용, 전체 취소(CAMT 미설정), GETMATCHINGTID 설정
+      data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|GETMATCHINGTID=Y|ISCHGORDERID=Y"
+      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+
+    # 암호화 결과 추출
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "ENCRYPTED_PCANCEL_DATA_GET"
+
+    test:
+      - name: "PCancel 데이터 암호화 성공 확인"
+        assertion: "ENCRYPTED_PCANCEL_DATA_GET exists"
+
+      - name: "암호화 데이터 길이 확인"
+        assertion: "js: ENCRYPTED_PCANCEL_DATA_GET && ENCRYPTED_PCANCEL_DATA_GET.length > 20"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [6차 호출] 전체 취소 - PCancel HTTP POST 요청
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "전체 취소 - PCancel HTTP 요청"
+    description: "GETMATCHINGTID 설정 값에 따른 전체 취소 HTTP POST 요청"
+    type: "http"
+
+    args:
+      url: "{{PCANCEL_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{ENCRYPTED_PCANCEL_DATA_GET}}&CPID={{CPID}}&ISCHARSET={{ISCHARSET}}"
+
+    # HTTP 응답 데이터 추출
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "HTTP_STATUS_GET"
+
+      - name: "body"
+        pattern: "body"
+        variable: "RESPONSE_BODY_GET"
+
+      - name: "encrypted_data"
+        pattern: "DATA=(.+)"
+        variable: "SERVER_ENCRYPTED_DATA_GET"
+
+    # 테스트 검증
+    test:
+      - name: "HTTP 응답 상태 확인"
+        assertion: "HTTP_STATUS_GET == 200"
+
+      - name: "응답 본문 존재 확인"
+        assertion: "RESPONSE_BODY_GET exists"
+
+      - name: "응답 본문 길이 확인"
+        assertion: "js: RESPONSE_BODY_GET && RESPONSE_BODY_GET.length > 0"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [7차 호출] 전체 취소 - PCancel 응답 복호화 및 검증
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "전체 취소 PCancel 응답 복호화 및 검증"
+    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 및 검증"
+    type: "crypto"
+
+    args:
+      operation: "decrypt"
+      key: "{{PCANCEL_CRYPTOKEY}}"
+      data: "{{SERVER_ENCRYPTED_DATA_GET}}"
+
+    # 복호화 결과 추출 (자동 파싱된 필드들)
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "RESULT_GET"
+
+      - name: "errmsg"
+        pattern: "errmsg"
+        variable: "ERRMSG_GET"
+
+      - name: "tid"
+        pattern: "tid"
+        variable: "TID_GET"
+
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "DNTID_GET"
+
+      - name: "date"
+        pattern: "date"
+        variable: "DATE_GET"
+
+      - name: "otid"
+        pattern: "otid"
+        variable: "OTID_GET"
+
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "ORDERID_GET"
+
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "REMAINAMT_GET"
+
+
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "복호화 결과(Result) 정상 출력"
+        assertion: "RESULT_GET == 0"
+
+      - name: "에러메시지(ErrMsg) 확인"
+        assertion: "ERRMSG_GET == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리 TID + 'C'인지 확인"
+        assertion: "js: TID_GET && /^\\d{18}C$/.test(TID_GET.trim())"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: DNTID_GET && DNTID_GET.trim().length > 0 && /^\\d{22}$/.test(DNTID_GET)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DNTID_GET.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return DNTID_GET = now12 + PCANCEL_TID_P;})()"
+
+      - name: "일시(DATE) 정상 출력_1"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: (
+          DATE_GET !== null &&
+          typeof DATE_GET !== 'undefined' &&
+          typeof DATE_GET === 'string' &&
+          DATE_GET.trim().length === 14)"
+
+      - name: "일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DATE_GET.slice(0, 12) === now12;})()"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 부분 취소 TID와 일치하는지 확인"
+        assertion: "js: OTID_GET && OTID_GET === PCANCEL_OTID_P"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 존재하고 원본 주문번호와 불일치하는지 확인"
+        assertion: "js: ORDERID_GET && ORDERID_GET !== RESPONSE_ORDER_ID_2"
+
+      - name: "잔액(REMAINAMT) 정상 출력"
+        description: "전체 취소 후 남은 금액이 올바른지 확인"
+        assertion: "REMAINAMT_GET == 0"
+
 
 
 # 시나리오 설정

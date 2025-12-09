@@ -126,7 +126,7 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
@@ -245,7 +245,7 @@ steps:
       IFVERSION: "V0.0.0"
       ID: "{{MERCHANT_ID}}"
       PWD: "{{MERCHANT_PWD}}"
-      OTID: "{{C_OTID}}"  # 원거래 DNTID를 사용
+      OTID: "{{DN_TID}}"  # 원거래 DNTID를 사용
       CANCELTYPE: "P"  # 부분 취소 설정
       AMOUNT: "50"
       CANCELOPTION: "1"  # RAMT 응답 설정
@@ -344,7 +344,7 @@ steps:
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "CANCEL - 3차 부분 취소"
-    description: "원거래 DNTID 사용 3차 부분 취소 및 환불 정상 확인"
+    description: "원거래 TID 사용 3차 부분 취소 및 환불 정상 확인"
 
     args:
       Command: "CANCEL"
@@ -353,7 +353,7 @@ steps:
       PWD: "{{MERCHANT_PWD}}"
       OTID: "{{c_OTID}}"  # 원거래 TID를 이용
       CANCELTYPE: "P"  # 부분 취소 설정
-      AMOUNT: "50"
+      AMOUNT: "10"
       CANCELOPTION: "0"  # RAMT 응답 미설정
       sleepDuration: 5000   # 데이터 적재 대기 시간 (밀리초)
   
@@ -399,7 +399,7 @@ steps:
         assertion: "P_ErrMsg == No Information"
 
       - name: "원거래 번호(OTID) 정상 출력"
-        description: 2차 부분 취소 TID와 1차 부분 취소 TID 일치 확인
+        description: 3차 부분 취소 TID와 2차 부분 취소 TID 일치 확인
         assertion: "js: P_OTID && P_OTID === c_OTID"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
@@ -463,48 +463,48 @@ steps:
     extract:
       - name: "Result"
         pattern: "Result"
-        variable: "P_RESULT"
+        variable: "p_RESULT"
 
       - name: "ErrMsg"
         pattern: "ErrMsg"
-        variable: "P_ErrMsg"
+        variable: "p_ErrMsg"
 
       - name: "OTID"
         pattern: "OTID"
-        variable: "P_OTID"  
+        variable: "p_OTID"  
 
       - name: "ServerInfo"
         pattern: "ServerInfo"
-        variable: "P_ServerInfo" 
+        variable: "p_ServerInfo" 
 
       - name: "DNTID"
         pattern: "DNTID"
-        variable: "P_DNTID"
+        variable: "p_DNTID"
         
       - name: "Date"
         pattern: "Date"
-        variable: "P_DATE"
+        variable: "p_DATE"
 
       - name: "RAMT"
         pattern: "RAMT"
-        variable: "P_RAMT"
+        variable: "p_RAMT"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "P_RESULT == 0"
+        assertion: "p_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "P_ErrMsg == No Information"
+        assertion: "p_ErrMsg == No Information"
 
       - name: "원거래 번호(OTID) 정상 출력"
-        description: 2차 부분 취소 TID와 1차 부분 취소 TID 일치 확인
-        assertion: "js: P_OTID && P_OTID === c_OTID"
+        description: 3차 부분 취소 TID와 4차 부분 취소 TID 일치 확인
+        assertion: "js: p_OTID && p_OTID === P_OTID"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
-        assertion: "js: P_ServerInfo !== null && P_ServerInfo.trim().length > 0 && typeof P_ServerInfo !== undefined" 
+        assertion: "js: p_ServerInfo !== null && p_ServerInfo.trim().length > 0 && typeof p_ServerInfo !== undefined" 
 
       - name: "거래 번호(DNTID) 정상 출력_1"
-        assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
+        assertion: "js: p_DNTID && p_DNTID.trim().length > 0 && /^\\d{22}$/.test(p_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
         description: "DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -512,14 +512,14 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DNTID.slice(0, 12) === now12;})()"
+          return p_DNTID.slice(0, 12) === now12;})()"
 
       - name: "거래 번호(DNTID) 정상 출력_3"
-        description: "2차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
+        description: "3차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
-          if (typeof P_DNTID === 'undefined' || typeof c_DNTID === 'undefined') return false;
-          return String(c_DNTID).trim() !== String(P_DNTID).trim();})()"
+          if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
+          return String(P_DNTID).trim() !== String(p_DNTID).trim();})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -527,14 +527,14 @@ steps:
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DATE.slice(0, 12) === now12;})()"
+          return p_DATE.slice(0, 12) === now12;})()"
 
       - name: "남은 금액(RAMT) 정상 미출력"
         description: "RAMT가 정의되어 있고 값이 존재하면 실패"
         assertion: |
           js: (() => {
-            if (typeof P_RAMT !== 'undefined' && P_RAMT !== null && String(P_RAMT).trim() !== '') {
-              throw new Error(`RAMT 값이 존재함 (${P_RAMT})`);
+            if (typeof p_RAMT !== 'undefined' && p_RAMT !== null && String(p_RAMT).trim() !== '') {
+              throw new Error(`RAMT 값이 존재함 (${p_RAMT})`);
             }
             // 값이 없으면 정상 통과
             return true;
