@@ -1,0 +1,523 @@
+
+name: "EXPREBILL-PARTCANCEL SMS 비점유결제 부분취소 GW - MVNO"
+description: "Danal_Taldit_PARTCANCEL_v1.0 자동화 테스트"
+version: "1.0.0"
+
+# 공통 변수 불러오기
+include: Danal_Teledit_Cancel_v1.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [1차 호출] EXPREBILL
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "EXPREBILL"
+    description: "비점유 결제 + AUTHKEY 전송"
+
+    args:
+      Command: "EXPREBILL"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemCount: "1"
+      ItemType: "0"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      AUTHKEY: "2025072315434029712F"
+      ORDERID: "{{ORDER_ID}}"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      TIDTYPE: "1"
+      IFVERSION: "V1.1.2"
+      BILLTYPE: "1"
+      USERID: "hnkim"
+
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+
+      - name: "tid"
+        pattern: "TID"
+        variable: "TID"
+
+      - name: "date"
+        pattern: "Date"
+        variable: "DATE"
+
+      - name: "totalAmount"
+        pattern: "TotalAmount"
+        variable: "TOTAL_AMOUNT"
+
+      - name: "cap"
+        pattern: "Cap"
+        variable: "CAP"
+
+      - name: "orderid"
+        pattern: "Orderid"
+        variable: "ORDER_ID"
+
+      - name: "dstAddr"
+        pattern: "DstAddr"
+        variable: "DSTADDR"
+
+      - name: "carrier"
+        pattern: "Carrier"
+        variable: "CARRIER"
+
+      - name: "dntid"
+        pattern: "Dntid"
+        variable: "DN_TID"
+    
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력" 
+        assertion: "ERROR_MESSAGE == No Information"
+            
+      - name: "거래 번호(TID) 정상 출력"
+        assertion: "js: (
+          TID !== null &&
+          typeof TID !== 'undefined' &&
+          typeof TID === 'string' &&
+          TID.trim().length === 18)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: (
+          DATE !== null &&
+          typeof DATE !== 'undefined' &&
+          typeof DATE === 'string' &&
+          DATE.trim().length === 14)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DATE.slice(0, 12) === now12;})()"
+
+      - name: "전체 결제금액(TotalAmount) 정상 출력"
+        assertion: "TOTAL_AMOUNT == 301"
+      
+      - name: "거래 전 한도 금액(CAP) 정상 출력"
+        assertion: "CAP == 000000"
+
+      - name: "CP 주문번호(ORDERID) 정상 출력"
+        assertion: "js: (
+          typeof ORDER_ID !== 'undefined' &&
+          typeof ORDER_ID === 'string' &&
+          ORDER_ID.trim().length > 0 &&
+          ORDER_ID.includes('ORD'))"
+
+      - name: "사용자 전화번호(DstAddr) 정상 출력"
+        assertion: "DSTADDR == 01026586634"
+
+      - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
+        assertion: "CARRIER == CJH"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DN_TID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return DN_TID = now12 + TID;})()"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [2차 호출] PARTCANCEL - 전체 취소 시도
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PARTCANCEL - 전체 취소 시도"
+    description: "남은 잔액(RAMT) 0인 경우 취소 불가 확인"
+
+    args:
+      COMMAND: "PARTCANCEL"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      IP: "trans.teledit.com"
+      PORT: "13005"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{TID}}"  # 원거래 TID를 사용
+      RAMT: "0"  # 전체 취소 시도
+      AMTOPTION: "1"  # RAMT만 필수값 설정
+      ORDERID: "{{ORDER_ID}}"
+      ITEMNAME: ""
+      ISPRECANCEL: ""
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "B_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "B_ErrMsg"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "B_RESULT == 891"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "B_ErrMsg == Packet 오류:필요한 정보가 전송 되지 않았습니다. 다시 시도 해 주십시요."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [3차 호출] PARTCANCEL - 1차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PARTCANCEL - 1차 부분 취소"
+    description: "원거래 TID 사용 1차 부분 취소 및 환불"
+
+    args:
+      COMMAND: "PARTCANCEL"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      IP: "trans.teledit.com"
+      PORT: "13005"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{TID}}"  # 원거래 TID를 사용
+      CAMT: "100"
+      RAMT: "201"  # CAMT+RAMT=AMT(원거래금액)
+      AMTOPTION: "0"  # CAMT, RAMT 필수값 설정
+      USERID: ""
+      ORDERID: ""
+      ITEMNAME: ""
+      ISPRECANCEL: ""
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "P_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "P_ErrMsg"
+
+      - name: "TID"
+        pattern: "TID"
+        variable: "P_TID"
+
+      - name: DNTID"
+        pattern: "DNTID"
+        variable: "P_DNTID"
+
+      - name: "Date"
+        pattern: "Date"
+        variable: "P_DATE"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "P_OTID"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "P_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "P_ErrMsg == No Information"
+
+      - name: "거래 번호(TID) 정상 출력_1"
+        assertion: "js: P_TID && P_TID.trim().length > 0 && /^\\d{18}$/.test(P_TID)"
+
+      - name: "거래 번호(TID) 정상 출력_2"
+        description: "EXPREBILL TID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof P_TID === 'undefined' || typeof TID === 'undefined') return false;
+          return String(P_TID).trim() !== String(TID).trim();})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return P_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 1차 PARTCANCEL TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return P_DNTID = now12 + P_TID;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_4"
+        description: "EXPREBILL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof DN_TID === 'undefined' || typeof P_DNTID === 'undefined') return false;
+          return String(DN_TID).trim() !== String(P_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return P_DATE.slice(0, 12) === now12;})()"
+
+      - name: "원거래 TID(OTID) 정상 출력"
+        description: 1차 부분취소 TID와 원거래 TID 일치 확인
+        assertion: "js: P_OTID && P_OTID === TID"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [4차 호출] PARTCANCEL - 2차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PARTCANCEL - 2차 부분 취소"
+    description: "원거래 TID 사용 2차 부분 취소 및 환불"
+
+    args:
+      COMMAND: "PARTCANCEL"
+      IP: "trans.teledit.com"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      PORT: "13005"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{P_TID}}"  # 마지막 부분 취소 TID를 사용
+      RAMT: "151"  # CAMT+RAMT=AMT(원거래금액)
+      AMTOPTION: "1"  # RAMT만 필수값 설정
+      USERID: ""
+      ORDERID: ""
+      ITEMNAME: ""
+      ISPRECANCEL: ""
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "p_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "p_ErrMsg"
+
+      - name: "TID"
+        pattern: "TID"
+        variable: "p_TID"
+
+      - name: DNTID"
+        pattern: "DNTID"
+        variable: "p_DNTID"
+
+      - name: "Date"
+        pattern: "Date"
+        variable: "p_DATE"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "p_OTID"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "p_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "p_ErrMsg == No Information"
+
+      - name: "거래 번호(TID) 정상 출력_1"
+        assertion: "js: p_TID && p_TID.trim().length > 0 && /^\\d{18}$/.test(p_TID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return p_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 1차 PARTCANCEL 부분 취소 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return p_DNTID = now12 + p_TID;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_4"
+        description: "1차 PARTCANCEL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
+          return String(p_DNTID).trim() !== String(P_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return p_DATE.slice(0, 12) === now12;})()"
+
+      - name: "원거래 TID(OTID) 정상 출력"
+        description: 2차 부분 취소 TID와 1차 부분 취소 TID 일치 확인
+        assertion: "js: p_OTID && p_OTID === P_TID"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [5차 호출] PARTCANCEL - 3차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PARTCANCEL - 3차 부분 취소"
+    description: "원거래 TID 사용 3차 부분 취소 불가 확인"
+
+    args:
+      COMMAND: "PARTCANCEL"
+      IP: "trans.teledit.com"
+      PORT: "13005"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{P_OTID}}"  # 원거래 TID를 사용
+      CAMT: "51"
+      RAMT: "100"  # CAMT+RAMT=AMT(원거래금액)
+      AMTOPTION: ""  # Defalt = 0
+      USERID: ""
+      ORDERID: ""
+      ITEMNAME: ""
+      ISPRECANCEL: ""
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "C_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "C_ErrMsg"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "C_RESULT == 893"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "C_ErrMsg == 원거래 금액이 상이합니다."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [6차 호출] PARTCANCEL - 4차 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PARTCANCEL - 4차 부분 취소"
+    description: "재승인 TID 사용 4차 부분 취소 및 환불"
+
+    args:
+      COMMAND: "PARTCANCEL"
+      IP: "trans.teledit.com"
+      PORT: "13005"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{p_TID}}"  # 재승인 TID를 사용
+      CAMT: "51"
+      RAMT: "100"  # CAMT+RAMT=AMT(원거래금액)
+      AMTOPTION: ""  # Defalt = 0
+      USERID: ""
+      ORDERID: ""
+      ITEMNAME: ""
+      ISPRECANCEL: ""
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "c_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "c_ErrMsg"
+
+      - name: "TID"
+        pattern: "TID"
+        variable: "c_TID"
+
+      - name: DNTID"
+        pattern: "DNTID"
+        variable: "c_DNTID"
+
+      - name: "Date"
+        pattern: "Date"
+        variable: "c_DATE"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "c_OTID"
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "c_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "c_ErrMsg == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        assertion: "js: c_TID && c_TID.trim().length > 0 && /^\\d{18}$/.test(c_TID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return c_DNTID.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "DN_TID = yyyy + 1차 PARTCANCEL 부분 취소 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return c_DNTID = now12 + c_TID;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_4"
+        description: "2차 PARTCANCEL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof c_DNTID === 'undefined' || typeof p_DNTID === 'undefined') return false;
+          return String(c_DNTID).trim() !== String(p_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return c_DATE.slice(0, 12) === now12;})()"
+
+      - name: "원거래 TID(OTID) 정상 출력"
+        description: 4차 부분 취소 OTID와 2차 부분 취소 TID 일치 확인
+        assertion: "js: c_OTID && c_OTID === p_TID"
+
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 15000
+  retryCount: 0
