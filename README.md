@@ -1,4 +1,4 @@
-# 2uknow API Monitor
+# Danal External API Monitor
 
 **네이버웍스 알람 통합 API 모니터링 시스템**
 
