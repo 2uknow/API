@@ -31,6 +31,8 @@ Newman(Postman CLI) 및 SClient 바이너리를 지원하는 실시간 API 모�
 
 ## 빠른 시작
 
+> 💡 **처음 설치하시나요?** 아무것도 설치되지 않은 컴퓨터라면 [INSTALL.md](INSTALL.md)의 상세 가이드를 따라주세요.
+
 ### 1. 설치
 
 ```bash
@@ -266,15 +268,62 @@ environments/your_env.postman_environment.json    # 선택사항
 
 ### 6. 실행
 
+#### PM2로 실행 (권장 - 프로덕션)
+
+```bash
+# PM2 ecosystem으로 서버 + 헬스체크 데몬 동시 시작
+pm2 start ecosystem.config.cjs
+
+# 프로세스 목록 저장 (재부팅 후 자동 시작)
+pm2 save
+
+# 상태 확인
+pm2 status
+```
+
+**ecosystem.config.cjs로 시작하면:**
+- ✅ **2uknow-api-monitor**: 메인 API 모니터링 서버 (매일 04:00 자동 재시작)
+- ✅ **pm2-healthcheck**: 좀비 프로세스 감지 및 자동 복구 데몬 (5분 주기)
+
+#### 헬스체크 데몬 기능
+- PM2 좀비 프로세스 자동 감지 (online 상태지만 실제 미실행)
+- HTTP 헬스체크 실패시 자동 재시작
+- 연속 3회 실패시 PM2 데몬 전체 리셋
+- 로그: `logs/pm2-healthcheck.log`
+
+#### 개별 실행 (개발용)
+
 ```bash
 # 개발 모드 (자동 재시작)
 npm run dev
 
-# 프로덕션 모드  
+# 프로덕션 모드 (PM2 없이)
 npm start
 
 # 환경변수와 함께 실행
 npm run start:env
+
+# 헬스체크만 수동 실행
+npm run healthcheck
+```
+
+#### PM2 관리 명령어
+
+```bash
+# 전체 재시작
+pm2 restart ecosystem.config.cjs
+
+# 특정 프로세스만 재시작
+pm2 restart 2uknow-api-monitor
+
+# 로그 확인
+pm2 logs                          # 전체 로그
+pm2 logs 2uknow-api-monitor       # 서버 로그만
+pm2 logs pm2-healthcheck          # 헬스체크 로그만
+
+# 전체 중지 및 삭제
+pm2 stop ecosystem.config.cjs
+pm2 delete ecosystem.config.cjs
 ```
 
 **웹 대시보드**: `http://localhost:3001`
@@ -428,6 +477,26 @@ npm run update-newman
 **Q: 실시간 로그가 보이지 않습니다**
 - 브라우저 개발자 도구에서 SSE 연결 상태 확인
 - 방화벽/프록시가 SSE를 차단하지 않는지 확인
+
+**Q: PM2가 online이지만 서버에 접속이 안됩니다 (좀비 프로세스)**
+
+증상:
+```bash
+pm2 status
+# status: online, pid: N/A, mem: 0b  ← 좀비 상태
+```
+
+원인: Windows에서 PM2 데몬이 `EACCES` 권한 오류로 node spawn 실패
+
+해결:
+```bash
+# PM2 데몬 완전 재시작
+pm2 kill
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+예방: `ecosystem.config.cjs`로 시작하면 `pm2-healthcheck` 데몬이 자동으로 좀비 프로세스를 감지하고 복구합니다.
 
 ### 성능 최적화 기능
 
