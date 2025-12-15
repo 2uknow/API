@@ -313,15 +313,136 @@ export function buildRunStatusFlex(kind, data) {
       size: 'sm',
       color: '#333333',
       weight: 'bold'
-    },
-    {
+    }
+  ];
+
+  // Collection 정보 추가 (있는 경우)
+  if (data.collection) {
+    bodyContents.push({
       type: 'text',
       text: `Collection: ${data.collection}`,
       wrap: true,
       size: 'xs',
       color: '#666666'
+    });
+  }
+
+  // 배치 실행 통계 (yaml_batch 타입인 경우)
+  if (data.type === 'yaml_batch' && data.stats) {
+    bodyContents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+    bodyContents.push({
+      type: 'text',
+      text: `📊 배치 실행 결과: ${data.stats.successFiles}/${data.stats.files} 파일 성공`,
+      wrap: true,
+      size: 'sm',
+      color: data.stats.failedFiles > 0 ? '#C62828' : '#2E7D32',
+      weight: 'bold'
+    });
+
+    // 실패한 파일 목록 표시
+    if (data.result && data.result.results) {
+      const failedResults = data.result.results.filter(r => !r.success);
+      if (failedResults.length > 0) {
+        bodyContents.push({
+          type: 'text',
+          text: '❌ 실패 파일:',
+          wrap: true,
+          size: 'xs',
+          color: '#C62828',
+          margin: 'sm'
+        });
+        // 최대 5개까지만 표시
+        const displayCount = Math.min(failedResults.length, 5);
+        for (let i = 0; i < displayCount; i++) {
+          const failedFile = failedResults[i];
+          bodyContents.push({
+            type: 'text',
+            text: `• ${failedFile.fileName || failedFile.file || failedFile.jobName || 'Unknown'}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666'
+          });
+        }
+        if (failedResults.length > 5) {
+          bodyContents.push({
+            type: 'text',
+            text: `... 외 ${failedResults.length - 5}개 파일`,
+            wrap: true,
+            size: 'xs',
+            color: '#999999'
+          });
+        }
+
+        // 첫 번째 실패의 상세 에러 내용 표시
+        const firstFailure = failedResults[0];
+        let errorDetails = null;
+
+        // scenarioResult에서 실패한 테스트 찾기
+        // result.result.steps 또는 result.steps 둘 다 확인
+        const steps = firstFailure.result?.result?.steps || firstFailure.result?.steps;
+        if (steps) {
+          for (const step of steps) {
+            if (step.tests) {
+              const failedTest = step.tests.find(t => !t.passed);
+              if (failedTest) {
+                errorDetails = {
+                  stepName: step.name,
+                  testName: failedTest.name || failedTest.assertion,
+                  error: failedTest.error || failedTest.actual
+                };
+                break;
+              }
+            }
+          }
+        }
+
+        // 에러 상세 내용 표시
+        if (errorDetails) {
+          bodyContents.push({
+            type: 'separator',
+            margin: 'sm'
+          });
+          bodyContents.push({
+            type: 'text',
+            text: '📋 첫 번째 에러 상세:',
+            wrap: true,
+            size: 'xs',
+            color: '#C62828',
+            weight: 'bold',
+            margin: 'sm'
+          });
+          bodyContents.push({
+            type: 'text',
+            text: `Step: ${errorDetails.stepName}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666'
+          });
+          bodyContents.push({
+            type: 'text',
+            text: `Test: ${errorDetails.testName}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666'
+          });
+          if (errorDetails.error) {
+            // 에러 메시지가 너무 길면 자르기
+            const errorMsg = String(errorDetails.error).substring(0, 100);
+            bodyContents.push({
+              type: 'text',
+              text: `Error: ${errorMsg}${errorDetails.error.length > 100 ? '...' : ''}`,
+              wrap: true,
+              size: 'xs',
+              color: '#C62828'
+            });
+          }
+        }
+      }
     }
-  ];
+  }
 
   // 환경 정보 추가 (있는 경우)
   if (data.environment) {

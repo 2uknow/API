@@ -115,19 +115,18 @@ function evaluateExpression(expression, variables) {
  */
 function getVariableDetails(expression, variables) {
     const details = [];
-    
-    // 변수명 추출 (간단한 패턴 매칭)
-    const varMatches = expression.match(/[A-Z_][A-Z0-9_]*/g) || [];
-    const uniqueVars = [...new Set(varMatches)];
-    
-    for (const varName of uniqueVars) {
-        if (variables.hasOwnProperty(varName)) {
-            const value = variables[varName];
-            const type = typeof value;
-            details.push(`(${varName} = "${value}")`);
-        }
+
+    // variables 객체에 실제로 존재하는 키들만 표시
+    // 이 방식이면 JavaScript 내장 객체 필터링이 필요 없음
+    for (const varName of Object.keys(variables)) {
+        // 표현식에 해당 변수명이 포함되어 있는지 확인
+        const varRegex = new RegExp(`\\b${varName}\\b`);
+        if (!varRegex.test(expression)) continue;
+
+        const value = variables[varName];
+        details.push(`(${varName} = "${value}")`);
     }
-    
+
     return details.length > 0 ? details.join(' ') : '';
 }
 
