@@ -269,22 +269,8 @@ export class SClientToNewmanConverter {
    * Newman HTMLExtra 스타일 HTML 생성
    */
   generateNewmanStyleHTML(run, reportPath, options = {}) {
-    console.log('[HTML DEBUG] SClientToNewmanConverter.generateNewmanStyleHTML called');
-    console.log('[HTML DEBUG] Run type:', typeof run);
-    console.log('[HTML DEBUG] Run is null?', run === null);
-    console.log('[HTML DEBUG] Run is undefined?', run === undefined);
-    console.log('[HTML DEBUG] Run keys:', Object.keys(run || {}));
-    console.log('[HTML DEBUG] Run executions exists?', 'executions' in (run || {}));
-    console.log('[HTML DEBUG] Run executions type:', typeof (run || {}).executions);
-    console.log('[HTML DEBUG] Run executions length:', (run.executions || []).length);
-    console.log('[HTML DEBUG] Run executions array:', run.executions);
-    console.log('[HTML DEBUG] First 100 chars of run:', JSON.stringify(run, null, 2).substring(0, 100));
-    
     const { stats, timings, failures } = run;
     const executions = run.executions || [];
-    
-    console.log('🔍 [HTML_TEMPLATE] About to generate HTML with executions:', executions.length);
-    console.log('🔍 [HTML_TEMPLATE] First execution sample:', executions[0] ? executions[0].item?.name : 'No executions');
     
     // stats와 timings의 각 속성이 없는 경우 기본값 설정
     const requests = stats?.requests || { total: 0, failed: 0 };
@@ -910,10 +896,7 @@ export class SClientToNewmanConverter {
                                     const hasDescription = assertion.description && assertion.description.trim();
                                     const tooltipClass = hasDescription ? 'tooltip' : '';
                                     const tooltipAttr = hasDescription ? `data-tooltip="${assertion.description.replace(/"/g, '&quot;')}"` : '';
-                                    
-                                    // DEBUG: Log tooltip generation
-                                    console.log(`[TOOLTIP DEBUG] Test: "${assertion.assertion}", Description: "${assertion.description}", HasTooltip: ${hasDescription}`);
-                                    
+
                                     return `
                                     <div class="assertion ${assertion.error ? 'assertion-fail' : 'assertion-pass'} ${tooltipClass}" ${tooltipAttr}>
                                         <span class="assertion-icon">${assertion.error ? '✗' : '✓'}</span>
@@ -1493,26 +1476,24 @@ export class SClientToNewmanConverter {
    */
   static getVariableDetails(expression, variables) {
     const details = [];
-    
-    // 변수명 추출 (간단한 패턴 매칭)
-    const varMatches = expression.match(/[A-Z_][A-Z0-9_]*/g) || [];
-    const uniqueVars = [...new Set(varMatches)];
-    
-    for (const varName of uniqueVars) {
-      if (variables.hasOwnProperty(varName)) {
-        const value = variables[varName];
-        if (typeof value === 'string' && value.length > 20) {
-          const shortValue = value.substring(0, 20);
-          const expandId = `expand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          details.push(`(${varName} = "<span class="expandable-value" data-full-value="${value.replace(/"/g, '&quot;')}" onclick="toggleValueExpansion('${expandId}')" id="${expandId}">${shortValue}...</span>")`);
-        } else {
-          details.push(`(${varName} = "${value}")`);
-        }
+
+    // variables 객체에 실제로 존재하는 키들만 표시
+    // 이 방식이면 JavaScript 내장 객체 필터링이 필요 없음
+    for (const varName of Object.keys(variables)) {
+      // 표현식에 해당 변수명이 포함되어 있는지 확인
+      const varRegex = new RegExp(`\\b${varName}\\b`);
+      if (!varRegex.test(expression)) continue;
+
+      const value = variables[varName];
+      if (typeof value === 'string' && value.length > 20) {
+        const shortValue = value.substring(0, 20);
+        const expandId = `expand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        details.push(`(${varName} = "<span class="expandable-value" data-full-value="${value.replace(/"/g, '&quot;')}" onclick="toggleValueExpansion('${expandId}')" id="${expandId}">${shortValue}...</span>")`);
       } else {
-        details.push(`(${varName} = undefined)`);
+        details.push(`(${varName} = "${value}")`);
       }
     }
-    
+
     return details.length > 0 ? details.join(' ') : '';
   }
 

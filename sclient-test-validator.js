@@ -143,6 +143,7 @@ export function evaluateAssertion(assertion, extractedVars) {
 }
 
 // 테스트 검증 함수 - 웹 대시보드 및 run-yaml.js 공통 사용
+// 주의: 이미 엔진에서 통과한 테스트는 다시 평가하지 않음 (시간 기반 테스트 등이 재평가시 실패할 수 있음)
 export function validateTestsWithYamlData(scenarioResult, yamlData) {
     // 모든 스텝에 대해 테스트 검증 수행
     scenarioResult.steps.forEach((step, stepIndex) => {
@@ -151,11 +152,25 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
             const validatedTests = yamlStep.test.map((yamlTest, testIndex) => {
                 const originalTestName = yamlTest.name || yamlTest;
                 const assertion = yamlTest.assertion || yamlTest;
-                
-                // 기존 실행된 테스트에서 변수 치환된 이름 사용 (있으면)
+
+                // 기존 실행된 테스트 결과 가져오기
                 const existingTest = step.tests && step.tests[testIndex];
                 const finalTestName = existingTest && existingTest.name ? existingTest.name : originalTestName;
-                
+
+                // ⚠️ 중요: 이미 통과한 테스트는 재평가하지 않음
+                // 시간 기반 테스트(new Date() 사용)가 재평가 시 분이 바뀌어 실패할 수 있음
+                if (existingTest && existingTest.passed === true) {
+                    return {
+                        name: finalTestName,
+                        assertion: assertion,
+                        passed: true,
+                        expected: existingTest.expected,
+                        actual: existingTest.actual,
+                        error: null
+                    };
+                }
+
+                // 실패했거나 결과가 없는 테스트만 재평가
                 // 범용 assertion 평가 - YAML 변수들, 이전 단계 변수들, 추출된 변수들 모두 포함
                 const allVariables = {
                     // YAML에서 정의된 변수들
@@ -165,8 +180,9 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
                     // 추출된 변수들 (가장 우선순위 높음)
                     ...(step.extracted || {})
                 };
+
                 const evalResult = evaluateAssertion(assertion, allVariables);
-                
+
                 return {
                     name: finalTestName,  // 변수 치환된 이름 사용
                     assertion: assertion,
@@ -176,24 +192,24 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
                     error: evalResult.passed ? null : `Expected: ${evalResult.expected}, Actual: ${evalResult.actual}`
                 };
             });
-            
+
             // 스텝의 테스트 결과 교체
             step.tests = validatedTests;
-            
+
             // 스텝 통과 여부 재계산
             step.passed = validatedTests.every(test => test.passed);
         }
     });
-    
+
     // 전체 성공 여부 재계산
     scenarioResult.success = scenarioResult.steps.every(step => step.passed);
-    
+
     // 요약 정보 업데이트
     if (scenarioResult.summary) {
         scenarioResult.summary.passed = scenarioResult.steps.filter(step => step.passed).length;
         scenarioResult.summary.failed = scenarioResult.steps.length - scenarioResult.summary.passed;
     }
-    
+
     return scenarioResult;
 }
 
