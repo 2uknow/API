@@ -1,13 +1,14 @@
-# 기본적으로 모든 파일 무시
+# Ignore everything
 *
 
-# Danal_Teledit_Cancel_v1.0 폴더만 먼저 허용
-!Danal_Teledit_Cancel_v1.0/
-
-# 필수/예외 파일들
+# But don't ignore these files...
 !README.md
+
+# Essential project files
 !package.json
 !package-lock.json
+
+# Core application files
 !server.js
 !alert.js
 !run-yaml.js
@@ -19,53 +20,82 @@
 !newman-converter.js
 !sclient-test-validator.js
 
-# Config / Collections / Jobs
+!debug-log-collector.js
+# Configuration directories
 !config/
-!config/**/*.json
+!config/*.json
 
+# Collection and job directories
 !collections/
-!collections/**/*.yaml
-!collections/**/*.yml
-!collections/**/*.json
+!collections/*.yaml
+!collections/*.json
 
 !jobs/
-!jobs/**/*.json
-
-# Danal_Teledit_v1.0 (YAML 시나리오 폴더)
-!Danal_Teledit_v1.0/**
-!Danal_Teledit_v1.0/**/*.yaml
-!Danal_Teledit_v1.0/**/*.yml
-
-# Danal_Teledit_Cancel_v1.0 (YAML 시나리오 폴더)
-!Danal_Teledit_Cancel_v1.0/**
-!Danal_Teledit_Cancel_v1.0/**/*.yaml
-!Danal_Teledit_Cancel_v1.0/**/*.yml
-
+!jobs/*.json
 
 # Web interface
 !public/
-!public/**/*.html
-!public/**/*.css
-!public/**/*.js
+!public/*.html
+!public/*.css
+!public/*.js
 
-# Binaries / Scripts / Docs
+# Binary directory
+!binaries/
 !binaries/**
-!scripts/**/*.js
-!sample/**/*.md
 
-# Git 관리 파일
+# Scripts
+!scripts/
+!scripts/*.js
+
+# Documentation
+!sample/
+!sample/*.md
+
+# Markdown documentation files
+!README.md
+!INSTALL.md
+!CLAUDE.md
+!PM2_GUIDE.md
+!PM2_QUICKSTART.md
+!PM2_MULTI_ENV_GUIDE.md
+!PM2_LOGROTATE_GUIDE.md
+!JOB_BATCH_GUIDE.md
+!CONVERSATION_SUMMARY.md
+
+# PM2 ecosystem config files
+!ecosystem.config.cjs
+!ecosystem.multi-env.config.cjs
+!ecosystem.dynamic.config.cjs
+!ecosystem.company-template.config.cjs
+
+# Environment files (Postman)
+!environments/
+!environments/*.json
+
+# Git files
 !.gitignore
+!.git
 
-# 생성/빌드 산출물 무시
+# Directories (allow them to be tracked)
+!/config
+!/collections
+!/environments
+!/jobs
+!/public
+!/binaries
+!/scripts
+!/sample
+
+# Generated files to ignore
 node_modules/
 reports/
 logs/
 temp/
-dist/
-build/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+dist/
+build/
 .env*
 .DS_Store
 Thumbs.db

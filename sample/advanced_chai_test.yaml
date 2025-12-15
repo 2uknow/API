@@ -1,0 +1,222 @@
+# 고급 Chai.js 스타일 검증 시스템 데모
+name: "Advanced Chai.js Style Assertions Demo"
+description: "다양한 Chai.js 스타일 assertion을 보여주는 테스트 시나리오"
+version: "1.0.0"
+
+# 전역 변수
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  TEST_EMAIL: "test@danal.co.kr"
+  EXPECTED_COUNT: 5
+  API_TIMEOUT: 30000
+
+# 테스트 단계
+steps:
+  # 1단계: 기본 Equal/Not Equal 테스트
+  - name: "Basic Equality Tests"
+    description: "기본적인 같음/다름 테스트"
+    command: "CONNECT"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+    
+    extract:
+      - name: "connection_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "CONN_RESULT"
+      - name: "server_status" 
+        pattern: "ServerStatus=([A-Za-z]+)"
+        variable: "SERVER_STATUS"
+    
+    test:
+      # 기본 문법
+      - "CONN_RESULT == 0"
+      - "CONN_RESULT != -1"
+      
+      # Chai.js 스타일 문법
+      - "expect(CONN_RESULT).to.equal(0)"
+      - "expect(CONN_RESULT).to.not.equal(-1)"
+      - "expect(SERVER_STATUS).to.equal('ACTIVE')"
+
+  # 2단계: Existence 테스트
+  - name: "Existence Tests"
+    description: "값의 존재 여부 테스트"
+    command: "AUTH"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      AUTHTYPE: "MERCHANT"
+    
+    extract:
+      - name: "auth_result"
+        pattern: "AuthResult=([0-9-]+)"
+        variable: "AUTH_RESULT"
+      - name: "auth_message"
+        pattern: "AuthMsg=(.+?)[\r\n]"
+        variable: "AUTH_MSG"
+      - name: "session_id"
+        pattern: "SessionId=([A-Za-z0-9]+)"
+        variable: "SESSION_ID"
+    
+    test:
+      # 기본 문법
+      - "AUTH_RESULT exists"
+      - "AUTH_MSG exists"
+      
+      # Chai.js 스타일 문법
+      - "expect(AUTH_RESULT).to.exist"
+      - "expect(AUTH_MSG).to.exist"
+      - "expect(SESSION_ID).to.exist"
+      - "expect(UNDEFINED_VAR).to.not.exist"
+
+  # 3단계: Contains/String 테스트
+  - name: "String Content Tests"
+    description: "문자열 포함 및 내용 테스트"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      ItemInfo: "2|500|1|22S0HZ0100|테스트상품"
+      OUTPUTOPTION: "DEFAULT"
+      EMAIL: "{{TEST_EMAIL}}"
+      IFVERSION: "V1.1.8"
+    
+    extract:
+      - name: "result_code"
+        pattern: "Result=([0-9-]+)"
+        variable: "RESULT_CODE"
+      - name: "error_message"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "ERROR_MSG"
+      - name: "success_message"
+        pattern: "SuccessMsg=(.+?)[\r\n]"
+        variable: "SUCCESS_MSG"
+    
+    test:
+      # 기본 문법
+      - "ERROR_MSG not contains '심각한오류'"
+      - "SUCCESS_MSG contains '성공'"
+      
+      # Chai.js 스타일 문법
+      - "expect(ERROR_MSG).to.not.contain('심각한오류')"
+      - "expect(SUCCESS_MSG).to.contain('성공')"
+      - "expect(ERROR_MSG).to.not.contain('FATAL')"
+
+  # 4단계: Comparison 테스트 (숫자 비교)
+  - name: "Numeric Comparison Tests"
+    description: "숫자 크기 비교 테스트"
+    command: "GETSTATS"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+    
+    extract:
+      - name: "response_time"
+        pattern: "ResponseTime=([0-9]+)"
+        variable: "RESPONSE_TIME"
+      - name: "success_count"
+        pattern: "SuccessCount=([0-9]+)"
+        variable: "SUCCESS_COUNT"
+      - name: "error_count"
+        pattern: "ErrorCount=([0-9]+)"
+        variable: "ERROR_COUNT"
+    
+    test:
+      # 기본 문법
+      - "RESPONSE_TIME < 5000"
+      - "SUCCESS_COUNT > 0"
+      
+      # Chai.js 스타일 문법
+      - "expect(RESPONSE_TIME).to.be.below(5000)"
+      - "expect(SUCCESS_COUNT).to.be.above(0)"
+      - "expect(ERROR_COUNT).to.be.below(100)"
+      - "RESPONSE_TIME >= 100"
+
+  # 5단계: Type 및 Advanced 테스트
+  - name: "Type and Advanced Tests"
+    description: "타입 검사 및 고급 테스트"
+    command: "GETINFO"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+    
+    extract:
+      - name: "server_version"
+        pattern: "Version=([0-9.]+)"
+        variable: "SERVER_VERSION"
+      - name: "api_list"
+        pattern: "ApiList=(.+?)[\r\n]"
+        variable: "API_LIST"
+      - name: "config_data"
+        pattern: "Config=({.+})"
+        variable: "CONFIG_JSON"
+    
+    test:
+      # Chai.js 스타일 고급 문법
+      - "expect(SERVER_VERSION).to.be.a('string')"
+      - "expect(API_LIST).to.match(/CONNECT|AUTH|ITEMSEND/)"
+      - "SERVER_VERSION matches /^[0-9]+\\.[0-9]+/"
+      - "API_LIST.length > 10"
+      - "expect(API_LIST).to.have.lengthOf.above(10)"
+
+  # 6단계: Object Assertion 테스트 (객체 형태)
+  - name: "Object-Style Assertions"
+    description: "객체 형태의 assertion 테스트"
+    command: "FINAL_CHECK"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+    
+    extract:
+      - name: "final_result"
+        pattern: "FinalResult=([0-9-]+)"
+        variable: "FINAL_RESULT"
+      - name: "total_time"
+        pattern: "TotalTime=([0-9]+)"
+        variable: "TOTAL_TIME"
+    
+    test:
+      # 객체 형태의 assertion (YAML에서 지원)
+      - expect: "FINAL_RESULT"
+        to:
+          equal: 0
+      
+      - expect: "TOTAL_TIME"
+        to:
+          be:
+            above: 100
+            below: 60000
+      
+      - expect: "FINAL_RESULT"
+        to:
+          not:
+            equal: -1
+      
+      # 복합 조건
+      - name: "Complex condition check"
+        expect: "TOTAL_TIME"
+        to:
+          be:
+            above: 0
+        and:
+          expect: "FINAL_RESULT"
+          to:
+            equal: 0
+
+# 시나리오 옵션
+options:
+  stopOnError: false
+  timeout: 30000
+  retryCount: 1
+  
+  # 새로운 옵션들
+  assertionEngine: "chai-style"
+  strictMode: true
+  detailedReports: true

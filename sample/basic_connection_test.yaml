@@ -1,0 +1,94 @@
+# SClient 기본 연결 테스트 시나리오
+name: "기본 연결 및 인증 테스트"
+description: "SClient 서버 연결, 인증, 기본 기능 검증"
+version: "1.0.0"
+
+# 전역 변수
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  TEST_EMAIL: "test@danal.co.kr"
+
+# 테스트 단계
+steps:
+  # 1단계: 서버 연결 테스트
+  - name: "서버 연결 확인"
+    description: "SClient 서버와의 기본 연결 상태 확인"
+    command: "CONNECT"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+    
+    extract:
+      - name: "connection_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "CONN_RESULT"
+      - name: "server_status"
+        pattern: "ServerStatus=([A-Za-z]+)"
+        variable: "SERVER_STATUS"
+    
+    test:
+      - "connection_result exists"
+      - "CONN_RESULT == 0"  # 연결 성공
+
+  # 2단계: 인증 테스트
+  - name: "상점 인증 확인"
+    description: "상점 ID/PWD 인증 상태 확인"
+    command: "AUTH"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      AUTHTYPE: "MERCHANT"
+    
+    extract:
+      - name: "auth_result"
+        pattern: "AuthResult=([0-9-]+)"
+        variable: "AUTH_RESULT"
+      - name: "auth_message"
+        pattern: "AuthMsg=(.+?)[\r\n]"
+        variable: "AUTH_MSG"
+    
+    test:
+      - "auth_result exists"
+      - "AUTH_RESULT == 1"  # 인증 성공
+      - "AUTH_MSG not contains 'FAIL'"
+
+  # 3단계: 기본 상품 정보 조회
+  - name: "상품 정보 조회"
+    description: "기본 상품 정보 조회 기능 테스트"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      ItemInfo: "2|500|1|22S0HZ0100|테스트상품"
+      OUTPUTOPTION: "DEFAULT"
+      EMAIL: "{{TEST_EMAIL}}"
+      IFVERSION: "V1.1.8"
+    
+    extract:
+      - name: "item_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "ITEM_RESULT"
+      - name: "error_msg"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "ERROR_MESSAGE"
+      - name: "server_info"
+        pattern: "ServerInfo=([A-Fa-f0-9]+)"
+        variable: "SERVER_INFO"
+    
+    test:
+      - "item_result exists"
+      - "server_info exists"
+      - "ERROR_MESSAGE not contains '오류'"
+
+# 시나리오 옵션
+options:
+  stopOnError: false    # 오류 시 계속 진행
+  timeout: 30000       # 30초 타임아웃
+  retryCount: 0        # 재시도 없음
