@@ -242,36 +242,21 @@ export class SClientScenarioEngine {
       
       try {
         let value = null;
-        if (pattern.trim().startsWith('js:')) {
-          try {
-            const expr = pattern.trim().slice(3).trim(); // "js:" 뒤 부분만
-
-            // response, vars 둘 다 넘길 수 있게 수정
-            const fn = new Function('response', 'vars', `
-              "use strict";
-              return (${expr});
-            `);
-
-            // 이미 추출된 값들이 들어있는 extracted를 vars로 넘김
-            value = fn(response, extracted);
-
-            this.log(`[EXTRACT JS] ${name}: js pattern evaluated, value = ${value}`);
-          } catch (e) {
-            this.log(`[EXTRACT JS ERROR] ${name}: ${e.message}`);
-          }
-        }
-
+        
         // 간단한 키워드 기반 추출 (예: "Result" → response.parsed.result)
-        else if (!pattern.includes('\\') && !pattern.includes('(') && !pattern.includes('[')) {
+        if (!pattern.includes('\\') && !pattern.includes('(') && !pattern.includes('[')) {
+          // 단순 키워드인 경우 parsed 객체에서 직접 가져오기 (대소문자 무관)
           const key = pattern.toLowerCase();
           if (response.parsed && response.parsed[key] !== undefined) {
             value = response.parsed[key];
             this.log(`[EXTRACT SIMPLE] ${name}: Found ${key} = ${value}`);
           } else {
+            // 디버깅을 위해 사용 가능한 키들 출력
             const availableKeys = Object.keys(response.parsed || {});
             this.log(`[EXTRACT DEBUG] ${name}: Pattern '${pattern}' (key: '${key}') not found. Available keys: ${availableKeys.join(', ')}`);
           }
         } else {
+          // 정규표현식 패턴인 경우 기존 방식 사용
           const regex = new RegExp(pattern);
           const match = response.stdout.match(regex);
           
@@ -280,7 +265,6 @@ export class SClientScenarioEngine {
             this.log(`[EXTRACT REGEX] ${name}: Pattern matched = ${value}`);
           }
         }
-
         
         if (value !== null) {
           this.variables.set(variable, value);

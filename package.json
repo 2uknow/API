@@ -23,6 +23,7 @@
     "debug:browser": "node scripts/fix-browser-issues.js",
     "debug:ip": "node scripts/diagnose-ip-access.js",
     "debug:all": "node scripts/test.js all",
+    "healthcheck": "node scripts/pm2-healthcheck.js",
     "fix:ip": "node scripts/fix-ip-access.js",
     "setup": "npm install && npm run create-dirs",
     "create-dirs": "mkdir -p config reports logs jobs scripts && echo '{\"site_port\":3000}' > config/settings.json",
@@ -49,18 +50,15 @@
   "author": "Danal R&D Team",
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "dotenv": "^16.3.1",
     "express": "^4.21.2",
-    "iconv-lite": "^0.7.0",
     "js-yaml": "^4.1.0",
-    "kisa-seed": "^1.0.1",
     "morgan": "^1.10.1",
     "newman": "^6.2.1",
     "newman-reporter-htmlextra": "^1.23.1",
     "node-cron": "^3.0.3",
-    "node-fetch": "^3.3.2",
-    "seed-ecb": "^0.1.0"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

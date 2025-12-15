@@ -1,0 +1,156 @@
+# SClient 결제 플로우 테스트 시나리오
+name: "완전한 결제 플로우 테스트"
+description: "ITEMSEND2 → DELIVER → CONFIRM → BILL 전체 결제 프로세스 테스트"
+version: "1.0.0"
+
+# 결제 관련 변수
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "bbbbb"
+  SERVICE_NAME: "TELEDIT"
+  
+  # 주문 정보
+  ORDER_ID: "TEST_ORDER_{{timestamp}}"
+  USER_ID: "testuser001"
+  USER_EMAIL: "testuser@danal.co.kr"
+  
+  # 상품 정보
+  ITEM_AMOUNT: "1000"
+  ITEM_CODE: "22S0HZ0100"
+  ITEM_NAME: "테스트상품"
+  
+  # 부가 정보
+  SUBCP: "DETEST"
+  IP_ADDRESS: "192.168.210.74"
+  PORT: "5505"
+
+# 결제 플로우 단계
+steps:
+  # 1단계: 결제 요청 (ITEMSEND2)
+  - name: "결제 요청 전송"
+    description: "상품 결제 요청을 서버로 전송"
+    command: "ITEMSEND2"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      Configure: "FAILURE"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ItemInfo: "2|{{ITEM_AMOUNT}}|1|{{ITEM_CODE}}|{{ITEM_NAME}}"
+      IFVERSION: "V1.1.8"
+      SUBCP: "{{SUBCP}}"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      IsSubscript: "N"
+      EMAIL: "{{USER_EMAIL}}"
+      IP: "{{IP_ADDRESS}}"
+      PORT: "{{PORT}}"
+    
+    extract:
+      - name: "payment_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "PAY_RESULT"
+      - name: "auth_key"
+        pattern: "AuthKey=([A-Za-z0-9]+)"
+        variable: "AUTH_KEY"
+      - name: "transaction_id"
+        pattern: "TID=([A-Za-z0-9]+)"
+        variable: "TID"
+      - name: "error_msg"
+        pattern: "ErrMsg=(.+?)[\r\n]"
+        variable: "PAY_ERROR"
+    
+    test:
+      - "payment_result exists"
+      - "PAY_RESULT == 0"  # 결제 요청 성공
+      - "auth_key exists"  # 인증키 발급 확인
+      - "PAY_ERROR not contains 'ERROR'"
+
+  # 2단계: 결제 승인 (DELIVER)
+  - name: "결제 승인 처리"
+    description: "결제 승인 요청 처리"
+    command: "DELIVER"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      AUTHKEY: "{{AUTH_KEY}}"
+      TID: "{{TID}}"
+      ORDERID: "{{ORDER_ID}}"
+      EMAIL: "{{USER_EMAIL}}"
+    
+    extract:
+      - name: "deliver_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "DELIVER_RESULT"
+      - name: "deliver_msg"
+        pattern: "Msg=(.+?)[\r\n]"
+        variable: "DELIVER_MSG"
+    
+    test:
+      - "deliver_result exists"
+      - "DELIVER_RESULT == 0"  # 승인 성공
+      - "DELIVER_MSG not contains 'FAIL'"
+
+  # 3단계: 결제 확정 (CONFIRM)
+  - name: "결제 확정"
+    description: "결제 최종 확정 처리"
+    command: "CONFIRM"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{TID}}"
+      ORDERID: "{{ORDER_ID}}"
+      AMOUNT: "{{ITEM_AMOUNT}}"
+    
+    extract:
+      - name: "confirm_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "CONFIRM_RESULT"
+      - name: "confirm_tid"
+        pattern: "ConfirmTID=([A-Za-z0-9]+)"
+        variable: "CONFIRM_TID"
+    
+    test:
+      - "confirm_result exists"
+      - "CONFIRM_RESULT == 0"  # 확정 성공
+      - "confirm_tid exists"
+
+  # 4단계: 결제 완료 확인 (BILL)
+  - name: "결제 완료 확인"
+    description: "최종 결제 완료 상태 확인"
+    command: "BILL"
+    args:
+      SERVICE: "{{SERVICE_NAME}}"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      TID: "{{CONFIRM_TID}}"
+      ORDERID: "{{ORDER_ID}}"
+    
+    extract:
+      - name: "bill_result"
+        pattern: "Result=([0-9-]+)"
+        variable: "BILL_RESULT"
+      - name: "final_amount"
+        pattern: "Amount=([0-9]+)"
+        variable: "FINAL_AMOUNT"
+      - name: "bill_status"
+        pattern: "Status=([A-Za-z]+)"
+        variable: "BILL_STATUS"
+    
+    test:
+      - "bill_result exists"
+      - "BILL_RESULT == 0"     # 완료 성공
+      - "FINAL_AMOUNT == {{ITEM_AMOUNT}}"  # 금액 일치 확인
+      - "BILL_STATUS == COMPLETE"  # 완료 상태 확인
+
+# 시나리오 옵션
+options:
+  stopOnError: true     # 오류 시 중단
+  timeout: 45000       # 45초 타임아웃 (결제 플로우가 길어서)
+  retryCount: 1        # 1회 재시도
