@@ -511,10 +511,11 @@ pm2 save
 ### 기술 스택
 - **Backend**: Node.js v16+, Express.js
 - **Frontend**: Vanilla JavaScript, Tailwind CSS
-- **테스트 엔진**: Newman (Postman CLI)
+- **테스트 엔진**: Newman (Postman CLI), SClient Binary
 - **실시간 통신**: Server-Sent Events (SSE)
-- **알람**: 네이버웍스 웹훅
+- **알람**: 네이버웍스 웹훅 (Flex/Text)
 - **스케줄링**: node-cron
+- **프로세스 관리**: PM2
 
 ### API 엔드포인트
 
