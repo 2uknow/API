@@ -242,9 +242,25 @@ export class SClientScenarioEngine {
       
       try {
         let value = null;
-        
+
+        // JavaScript 표현식 패턴 (js: 로 시작)
+        if (pattern.startsWith('js:')) {
+          const jsCode = pattern.substring(3).trim();
+          try {
+            // vars 객체에 현재까지 축적된 모든 변수들 포함
+            const vars = Object.fromEntries(this.variables);
+            // response.parsed도 vars에 병합
+            Object.assign(vars, response.parsed || {});
+
+            // JavaScript 표현식 평가
+            const evalFunc = new Function('vars', 'response', `return (${jsCode});`);
+            value = evalFunc(vars, response);
+          } catch (jsErr) {
+            this.log(`[EXTRACT ERROR] ${name}: ${jsErr.message}`);
+          }
+        }
         // 간단한 키워드 기반 추출 (예: "Result" → response.parsed.result)
-        if (!pattern.includes('\\') && !pattern.includes('(') && !pattern.includes('[')) {
+        else if (!pattern.includes('\\') && !pattern.includes('(') && !pattern.includes('[')) {
           // 단순 키워드인 경우 parsed 객체에서 직접 가져오기 (대소문자 무관)
           const key = pattern.toLowerCase();
           if (response.parsed && response.parsed[key] !== undefined) {
@@ -259,7 +275,7 @@ export class SClientScenarioEngine {
           // 정규표현식 패턴인 경우 기존 방식 사용
           const regex = new RegExp(pattern);
           const match = response.stdout.match(regex);
-          
+
           if (match && match[1]) {
             value = match[1];
             this.log(`[EXTRACT REGEX] ${name}: Pattern matched = ${value}`);
@@ -385,6 +401,10 @@ export class SClientScenarioEngine {
             ...extracted
           }
         };
+
+        // 디버그: pm.response에 있는 변수 키들 로그
+        this.log(`[TEST DEBUG] pm.response keys: ${Object.keys(pm.response).join(', ')}`);
+        this.log(`[TEST DEBUG] this.variables keys: ${[...this.variables.keys()].join(', ')}`);
 
         // 스크립트 실행
         eval(script);
@@ -780,7 +800,6 @@ export class SClientScenarioEngine {
   // HTTP POST 명령 실행 (Axios 사용)
   async executeHttpCommand(args, description) {
     const startTime = Date.now();
-    console.log('[DEBUG] executeHttpCommand called with args:', args);
 
     const { url, method = 'POST', headers = {}, body = '' } = args;
 
@@ -796,20 +815,12 @@ export class SClientScenarioEngine {
     // JSP 방식: DATA 파라미터 값에 대해 URL 인코딩 적용
     // JSP에서 urlEncode(encrypt(...))와 동일한 효과
     if (processedBody.includes('DATA=')) {
-      console.log('[DEBUG] Original body:', processedBody);
-
       // DATA= 파라미터의 값만 이중 URL 인코딩 (서버의 자동 디코딩 보상)
       processedBody = processedBody.replace(/DATA=([^&]+)/, (match, dataValue) => {
         const firstEncoding = encodeURIComponent(dataValue);
         const doubleEncoded = encodeURIComponent(firstEncoding);
-        console.log('[DEBUG] Double URL encoding DATA value:');
-        console.log(`  Original: ${dataValue}`);
-        console.log(`  1st Enc:  ${firstEncoding}`);
-        console.log(`  2nd Enc:  ${doubleEncoded}`);
         return `DATA=${doubleEncoded}`;
       });
-
-      console.log('[DEBUG] Final body:', processedBody);
     }
 
     this.log(`[HTTP POST] ${processedUrl}`);
@@ -1209,31 +1220,28 @@ export class SClientReportGenerator {
    */
   static getVariableDetails(expression, variables) {
     const details = [];
-    
-    // 변수명 추출 (간단한 패턴 매칭)
-    const varMatches = expression.match(/[A-Z_][A-Z0-9_]*/g) || [];
-    const uniqueVars = [...new Set(varMatches)];
-    
-    for (const varName of uniqueVars) {
-      if (variables.hasOwnProperty(varName)) {
-        const value = variables[varName];
-        if (typeof value === 'string' && value.length > 20) {
-          const shortValue = value.substring(0, 20);
-          const expandId = `expand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          details.push(`(${varName} = "<span class="expandable-value" data-full-value="${value.replace(/"/g, '&quot;')}" onclick="toggleValueExpansion('${expandId}')" id="${expandId}">${shortValue}...</span>")`);
-        } else {
-          details.push(`(${varName} = "${value}")`);
-        }
+
+    // variables 객체에 실제로 존재하는 키들만 표시
+    // 이 방식이면 JavaScript 내장 객체 필터링이 필요 없음
+    for (const varName of Object.keys(variables)) {
+      // 표현식에 해당 변수명이 포함되어 있는지 확인
+      const varRegex = new RegExp(`\\b${varName}\\b`);
+      if (!varRegex.test(expression)) continue;
+
+      const value = variables[varName];
+      if (typeof value === 'string' && value.length > 20) {
+        const shortValue = value.substring(0, 20);
+        const expandId = `expand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        details.push(`(${varName} = "<span class="expandable-value" data-full-value="${value.replace(/"/g, '&quot;')}" onclick="toggleValueExpansion('${expandId}')" id="${expandId}">${shortValue}...</span>")`);
       } else {
-        details.push(`(${varName} = undefined)`);
+        details.push(`(${varName} = "${value}")`);
       }
     }
-    
+
     return details.length > 0 ? details.join(' ') : '';
   }
 
   static generateHTMLReport(scenarioResult) {
-    console.log('[HTML DEBUG] SClientReportGenerator.generateHTMLReport called');
     const { info, steps, summary, startTime, endTime } = scenarioResult;
     const successRate = ((summary.passed / summary.total) * 100).toFixed(1);
 
