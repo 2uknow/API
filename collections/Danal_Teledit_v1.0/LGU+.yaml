@@ -42,9 +42,11 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "RESULT_CODE"
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "SERVER_INFO"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
@@ -94,33 +96,43 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "ID_RESULT"
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "ID_SERVER_INFO"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ID_ERROR_MSG"
+
       - name: "cap"
         pattern: "CAP"
         variable: "ID_CAP"
+
       - name: "ANSIMMEMBER"
         pattern: "ANSIMMEMBER"
         variable: "ID_ANSIMMEMBER"
+
       - name: "ARSCHANGE"
         pattern: "ARSCHANGE"
         variable: "ID_ARSCHANGE"
+
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
+
       - name: "ISLGPWDUSER"
         pattern: "ISLGPWDUSER"
         variable: "ID_ISLGPWDUSER"
+
       - name: "ISPROM"
         pattern: "ISPROM"
         variable: "ID_ISPROM"
+
       - name: "PROM_AMT"
         pattern: "PROM_AMT"
         variable: "ID_PROM_AMT"
+
       - name: "ISCARRIERPROM"
         pattern: "ISCARRIERPROM"
         variable: "ID_ISCARRIERPROM"
@@ -129,8 +141,13 @@ steps:
 ########################################################### Assertion ###########################################################
 
     test:
-      - name: "거래 인증 key(ServerInfo) 정상 출력"
-        assertion: "js: ID_SERVER_INFO !== null && ID_SERVER_INFO.trim().length > 0 && typeof ID_SERVER_INFO  !== undefined" 
+      - name: "거래 인증 key(ServerInfo) 정상 출력_1"
+        description: "거래 인증 key 존재하거나 이전 시나리오와 일치 확인"
+        assertion: "js: ID_SERVER_INFO && ID_SERVER_INFO == SERVER_INFO"
+
+      - name: "거래 인증 key(ServerInfo) 정상 출력_2"
+        description: "거래 인증 key 영문 + 숫자만 허용, 공백 포함 모든 특수문자 불가 및 UTF-8 기준 128 byte 이하 확인"
+        assertion: "js: ID_SERVER_INFO && /^[A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128"
 
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "ID_RESULT == 0"
@@ -191,9 +208,11 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "IR_RESULT"
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "IR_SERVER_INFO"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "IR_ERROR_MSG"
@@ -229,9 +248,11 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "NC_RESULT"
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "NC_SERVER_INFO"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "NC_ERROR_MSG"
@@ -242,6 +263,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NC_RESULT == 492"
+
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NC_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
@@ -264,9 +286,11 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "NB_RESULT"
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "NB_SERVER_INFO"
+
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "NB_ERROR_MSG"
@@ -277,6 +301,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NB_RESULT == 492"
+
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NB_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
