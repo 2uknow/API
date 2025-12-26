@@ -2,8 +2,9 @@ name: "EXPREBILL-PCancel SMS 비점유결제 부분 취소 및 전체 취소"
 description: "Danal_Teledit_PCANCEL_v1.0 자동화 테스트"
 version: "1.0.0"
 
+
 # 공통 변수 불러오기
-include: Danal_Teledit_Cancel_v1.0/conf.yaml
+include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -160,23 +161,6 @@ steps:
 
       - name: "암호화 데이터 길이 확인"
         assertion: "js: ENCRYPTED_PCANCEL_DATA && ENCRYPTED_PCANCEL_DATA.length > 20"
-
-
-# ** ----------------------------------------------------------------------------------------------------------------
-#  * [대기] 암호화 후 대기 - 암호화 단계에 통합됨
-#  * ----------------------------------------------------------------------------------------------------------------*
-
-#  - name: "암호화 후 대기"
-#    description: "시스템 안정화를 위한 20초 대기 (암호화 단계에 통합됨)"
-#    type: "sleep"
-#
-#    args:
-#      duration: 20000  # 20초 (밀리초)
-#
-#    test:
-#      - name: "대기 완료 확인"
-#        assertion: "js: true"
-
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [3차 호출] 부분 취소 - PCancel HTTP POST 요청
@@ -952,7 +936,7 @@ steps:
 
     args:
       operation: "decrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA_GET}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
