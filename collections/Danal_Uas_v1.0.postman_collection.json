@@ -19789,7 +19789,7 @@
 									"response": []
 								},
 								{
-									"name": "OTP 재전송 (RESENDOTP)",
+									"name": "OTP 재전송 (RESENDOTP) /// 9999 에러",
 									"event": [
 										{
 											"listen": "test",
@@ -19813,11 +19813,11 @@
 													"\r",
 													"// Reponse Data 확인\r",
 													"pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
-													"    pm.expect(parsed.RETURNCODE).to.eql(\"0000\")\r",
+													"    pm.expect(parsed.RETURNCODE).to.eql(\"9999\")\r",
 													"});\r",
 													"\r",
 													"pm.test(\"거래 결과 메시지(RETURNMSG) 정상 출력\", function () {\r",
-													"    pm.expect(parsed.RETURNMSG).to.eql(\"No information\")\r",
+													"    pm.expect(parsed.RETURNMSG).to.eql(\"No Info errormsg\")\r",
 													"});\r",
 													"\r",
 													"pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
@@ -19858,7 +19858,8 @@
 													"value": "{{TID}}"
 												}
 											]
-										}
+										},
+										"description": "2025-12-18 기준 점유인증 > OPT 재전송 API 9999 에러 발생 상태 (REASONKEY=undefined)"
 									},
 									"response": []
 								},

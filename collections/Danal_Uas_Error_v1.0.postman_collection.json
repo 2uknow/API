@@ -163,7 +163,8 @@
 											"});"
 										],
 										"type": "text/javascript",
-										"packages": {}
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -181,7 +182,7 @@
 									"urlencoded": []
 								},
 								"url": {
-									"raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01079266634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김하늘&TID={{TID}}",
+									"raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01079266634&IDEN=9002052&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김태욱&TID={{TID}}",
 									"host": [
 										"{{uas-web}}"
 									],
@@ -196,7 +197,7 @@
 										},
 										{
 											"key": "IDEN",
-											"value": "9002051"
+											"value": "9002052"
 										},
 										{
 											"key": "IPADDR",
@@ -208,7 +209,7 @@
 										},
 										{
 											"key": "NAME",
-											"value": "김하늘"
+											"value": "김태욱"
 										},
 										{
 											"key": "TID",
@@ -7842,7 +7843,7 @@
 											"pm.environment.set(\"RETURNCODE\", parsed.RETURNCODE)\r",
 											"\r",
 											"// Reponse Data 확인\r",
-											"if (parsed.RETURNCODE == 3431) { // 인증번호 불일치인 경우 (이전 시나리오 미완료로 해당 검증 진행)\r",
+											"if (parsed.RETURNCODE == 9997) { // 인증번호 불일치인 경우 (이전 시나리오 미완료로 해당 검증 진행)\r",
 											"    pm.test(\"거래 결과 코드(RETURNCODE) : \" + pm.environment.get(\"RETURNCODE\"), function () {\r",
 											"        pm.expect(parsed.RETURNCODE).to.eql(\"9997\");\r",
 											"    });\r",
