@@ -1,5 +1,5 @@
 
-name: "KCT SMS 정상케이스"
+name: "SKL SMS 정상케이스"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -73,13 +73,13 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{KCT_IDEN}}"
+      IDEN: "{{SKL_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{KCT_DST_ADDR}}"
-      CARRIER: "{{KCT_CARRIER}}"
+      DSTADDR: "{{SKL_DST_ADDR}}"
+      CARRIER: "{{SKL_CARRIER}}"
       WPAGE: "WEB"
       PRCODE: ""
-      AMOUNT: "{{KCT_AMOUNT}}"
+      AMOUNT: "{{SKL_AMOUNT}}"
       TERMSAGREE3: "N"
       IFVERSION: "V1.1.7"      
       TERMSAGREE2: "N|N"
@@ -145,8 +145,8 @@ steps:
         assertion: "js: ID_SERVER_INFO && ID_SERVER_INFO == SERVER_INFO"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력_2"
-        description: "거래 인증 key 영문 + 숫자만 허용, 공백 포함 모든 특수문자 불가 및 UTF-8 기준 128 byte 이하 확인"
-        assertion: "js: ID_SERVER_INFO && /^[A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128"
+        description: "거래 인증 key 영문 + 숫자만 “완전히 배제” 특수문자/한글/공백/이모지 전부 허용, 공백 포함 모든 특수문자 불가 및 UTF-8 기준 128 byte 이하 확인"
+        assertion: "js: ID_SERVER_INFO && /^[^A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128"
 
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "ID_RESULT == 0"
@@ -262,6 +262,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NC_RESULT == 492"
+
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NC_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
@@ -299,7 +300,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NB_RESULT == 492"
-        
+
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NB_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
