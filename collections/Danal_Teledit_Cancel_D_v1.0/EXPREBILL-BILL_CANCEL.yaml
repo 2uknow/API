@@ -3,8 +3,9 @@ name: "EXPREBILL-BILL_CANCEL SMS 비점유결제 전체취소"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
+
 # 공통 변수 불러오기
-include: Danal_Teledit_Cancel_v1.0/conf.yaml
+include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -175,7 +176,7 @@ steps:
         assertion: "B_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "B_ErrMsg ==No Information"
+        assertion: "B_ErrMsg == No Information"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
         assertion: "js: B_ServerInfo !== null && B_ServerInfo.trim().length > 0 && typeof B_ServerInfo !== undefined" 
