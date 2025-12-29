@@ -1,0 +1,217 @@
+
+name: "CJH SMS 정상케이스"
+description: "Danal_Taldit_v1.0 자동화 테스트"
+version: "1.0.0"
+
+# 공통 변수 불러오기
+include: Danal_Teledit_v1.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [1차 호출] ITEMSEND2
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "ITEMSEND2"
+    description: "가맹점 인증 및 상품정보 검증 요청"
+
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+      EMAIL: "{{EMAIL}}"
+          
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "SERVER_INFO"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE == 0"
+
+      - name: "거래 인증 key(ServerInfo) 정상 출력"
+        description: "거래 인증 key 존재하거나 null 값이 아닌지 확인"
+        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO !== undefined" 
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ERROR_MESSAGE == No Information"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [SKT] IDELIVER - 생년월일 오입력 케이스
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "IDELIVER - SKT"
+    description: "사용자정보 인증 및 승인번호 발송 요청"
+
+    args:
+      ServerInfo: "{{SERVER_INFO}}"
+      IDEN: "9012012"  # 생년월일 오입력
+      ISPREOTBILL: "N"
+      DSTADDR: "{{SKT_DST_ADDR}}"
+      CARRIER: "{{SKT_CARRIER}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      AMOUNT: "{{SKT_AMOUNT}}"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"      
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      COMMAND: "IDELIVER"
+      TERMSAGREE1: "Y"
+      IPADDR : "10.10.52.54"
+      SMTOTP: "N"
+      ISCPIN: "N"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "ID_RESULT_1"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ID_ERROR_MSG_1"
+
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "ID_RESULT_1 == 416"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ID_ERROR_MSG_1 == 사용자 인증에 실패하였습니다. 고객센터(114)로 문의 바랍니다."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [2차 호출] ITEMSEND2
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "2차 호출 - ITEMSEND2"
+    description: "가맹점 인증 및 상품정보 검증 요청"
+
+    args:
+      Command: "ITEMSEND2"
+      Configure: "FAILURE"
+      SERVICE: "{{SERVICE_NAME}}"
+      ItemType: "Amount"
+      ItemCount: "1"
+      OUTPUTOPTION: "DEFAULT"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      SUBCP: "DETEST"
+      USERID: "{{USER_ID}}"
+      ORDERID: "{{ORDER_ID}}"
+      IsPreOtbill: "N"
+      IsOpenMarket: "N"
+      SellerName: ""
+      SellerTel: ""
+      IsSubscript: "N"
+      EMAIL: "{{EMAIL}}"
+          
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE_1"
+
+      - name: "serverInfo"
+        pattern: "ServerInfo"
+        variable: "SERVER_INFO_1"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE_1"
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE_1 == 0"
+
+      - name: "거래 인증 key(ServerInfo) 정상 출력"
+        description: "거래 인증 key 존재하거나 null 값이 아닌지 확인"
+        assertion: "js: SERVER_INFO_1 !== null && SERVER_INFO_1.trim().length > 0 && typeof SERVER_INFO_1 !== undefined" 
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ERROR_MESSAGE_1 == No Information"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [LGMVNO] IDELIVER - 생년월일 오입력 케이스
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "IDELIVER - LGMVNO"
+    description: "사용자정보 인증 및 승인번호 발송 요청"
+
+    args:
+      ServerInfo: "{{SERVER_INFO_1}}"
+      IDEN: "9002054"  # 생년월일 오입력
+      ISPREOTBILL: "N"
+      DSTADDR: "{{LGTMVNO_DST_ADDR}}"
+      CARRIER: "{{LGTMVNO_CARRIER}}"
+      WPAGE: "WEB"
+      PRCODE: ""
+      AMOUNT: "{{LGTMVNO_AMOUNT}}"
+      TERMSAGREE3: "N"
+      IFVERSION: "V1.1.7"      
+      TERMSAGREE2: "N|N"
+      OUTPUTOPTION: "1"
+      COMMAND: "IDELIVER"
+      TERMSAGREE1: "Y"
+      IPADDR : "10.10.52.54"
+      SMTOTP: "N"
+      ISCPIN: "N"
+    
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "ID_RESULT_8"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ID_ERROR_MSG_8"
+
+    
+########################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "ID_RESULT_8 == 405"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ID_ERROR_MSG_8 == 통신사를 잘못 선택하셨거나 미등록 휴대."
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 15000
+  retryCount: 0
