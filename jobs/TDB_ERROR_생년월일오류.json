@@ -1,0 +1,25 @@
+{
+  "name": "TDB_ERROR_생년월일오류",
+  "type": "binary",
+  "description": "생년월일 오입력 에러 케이스 테스트 - assertion 버그 수정 검증용",
+  "collection": "collections/Danal_Teledit_Error_v1.0/user_info_mismatch/생년월일_오류.yaml",
+  "environment": "Production",
+  "platforms": {
+    "win32": {
+      "executable": "SClient.exe",
+      "path": "binaries/windows"
+    }
+  },
+  "timeout": 30000,
+  "encoding": "cp949",
+  "parseOutput": {
+    "successPattern": "Result=0|SUCCESS",
+    "failurePattern": "Result=[^0]|ERROR|ErrMsg=",
+    "statsPattern": "Result=([0-9]+)"
+  },
+  "generateHtmlReport": true,
+  "reportOptions": {
+    "title": "생년월일 오입력 에러 케이스 테스트",
+    "browserTitle": "생년월일 오류 테스트 리포트"
+  }
+}

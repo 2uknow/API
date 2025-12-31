@@ -9,6 +9,7 @@ import http from 'http';
 import fetch from 'node-fetch';
 import { SClientToNewmanConverter } from './newman-converter.js';
 import { createRequire } from 'module';
+import { evaluateAssertion } from './sclient-test-validator.js';
 
 /**
  * SClient 시나리오 실행 엔진
@@ -300,13 +301,49 @@ export class SClientScenarioEngine {
   // 테스트 실행 (tests 처리)
   runTests(response, tests = [], extracted = {}) {
     const testResults = [];
-    
+
     tests.forEach(test => {
-      const { name, script, description } = test;
+      const { name, script, description, assertion } = test;
       // test name에도 변수 치환 적용 (추출된 변수들도 포함)
       const resolvedTestName = this.replaceVariables(name || 'Unknown test', extracted);
       // Debug logging removed for production
-      
+
+      // ⚠️ 스크립트가 비어있거나 TODO만 있는 경우, assertion을 직접 평가
+      // 이렇게 하면 첫 실행에서 정확한 결과를 얻어서 validator의 "재평가 안함" 로직이 제대로 동작함
+      const isEmptyScript = !script ||
+                            script.trim() === '' ||
+                            script.includes('// TODO: Implement') ||
+                            !script.includes('pm.expect') && !script.includes('pm.satisfyCondition');
+
+      if (isEmptyScript && assertion) {
+        // 직접 assertion 평가 (evaluateAssertion 사용)
+        const evalResult = evaluateAssertion(assertion, extracted);
+
+        if (evalResult.passed) {
+          testResults.push({
+            name: resolvedTestName,
+            description: description,
+            passed: true,
+            expected: evalResult.expected,
+            actual: evalResult.actual,
+            assertion: assertion
+          });
+          this.log(`[TEST PASS] ${resolvedTestName}`);
+        } else {
+          testResults.push({
+            name: resolvedTestName,
+            description: description,
+            passed: false,
+            error: `Expected: ${evalResult.expected}, Actual: ${evalResult.actual}`,
+            expected: evalResult.expected,
+            actual: evalResult.actual,
+            assertion: assertion
+          });
+          this.log(`[TEST FAIL] ${resolvedTestName}: Expected ${evalResult.expected}, Actual ${evalResult.actual}`);
+        }
+        return; // forEach 다음 항목으로
+      }
+
       try {
         // 간단한 테스트 스크립트 실행 환경 생성
         const pm = {

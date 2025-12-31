@@ -275,7 +275,8 @@ export class SClientYAMLParser {
                   currentStep.tests.push({
                     name: testName,
                     description: description,
-                    script: testScript
+                    script: testScript,
+                    assertion: assertion  // 원본 assertion 보존 (fallback 평가용)
                   });
                 } else {
                   // 일반 테스트 처리 - testName을 스크립트 생성에 전달
@@ -283,7 +284,8 @@ export class SClientYAMLParser {
                   currentStep.tests.push({
                     name: testName,
                     description: description,
-                    script: cleanTestScript
+                    script: cleanTestScript,
+                    assertion: assertion  // 원본 assertion 보존 (fallback 평가용)
                   });
                 }
               }
@@ -299,14 +301,16 @@ export class SClientYAMLParser {
                   const testScript = this.createJavaScriptTest(jsCondition, friendlyName);
                   currentStep.tests.push({
                     name: friendlyName,
-                    script: testScript
+                    script: testScript,
+                    assertion: testExpression  // 원본 assertion 보존 (fallback 평가용)
                   });
                 } else {
                   // 기존 방식 (단순 표현식) - 현재 단계의 arguments 전달
                   const cleanTestScript = this.convertTestToCleanScript(testExpression, currentStep.extractors, currentStep.arguments);
                   currentStep.tests.push({
                     name: this.getCleanTestName(testExpression),
-                    script: cleanTestScript
+                    script: cleanTestScript,
+                    assertion: testExpression  // 원본 assertion 보존 (fallback 평가용)
                   });
                 }
               }

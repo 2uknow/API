@@ -2972,7 +2972,8 @@ app.post('/api/test', (req, res) => {
 
 // GET /api/run/:name (임시로 GET으로 변경)
 app.get('/api/run/:name', async (req,res)=>{
-  const name = req.params.name;
+  // 한글 job 이름 지원: URL 인코딩된 이름을 디코딩
+  const name = decodeURIComponent(req.params.name);
   console.log(`[API] GET /api/run/${name} - Job execution request received`);
 
   try {
@@ -2994,17 +2995,41 @@ app.get('/api/run/:name', async (req,res)=>{
       }
     }
 
-    const jobPath = path.join(root, 'jobs', `${name}.json`);
+    // job 파일 찾기: 파일명 또는 내부 name 필드로 검색
+    let jobPath = path.join(root, 'jobs', `${name}.json`);
+    let actualJobName = name;
+
     if (!fs.existsSync(jobPath)) {
-      console.log(`[API] Job execution rejected - job file not found: ${jobPath}`);
-      return res.status(400).json({ ok: false, reason: 'job_not_found' });
+      // 파일명으로 못 찾으면 내부 name 필드로 검색
+      const jobsDir = path.join(root, 'jobs');
+      const jobFiles = fs.readdirSync(jobsDir).filter(f => f.endsWith('.json'));
+
+      let foundJob = null;
+      for (const file of jobFiles) {
+        try {
+          const jobData = JSON.parse(fs.readFileSync(path.join(jobsDir, file), 'utf-8'));
+          if (jobData.name === name) {
+            foundJob = file;
+            actualJobName = file.replace('.json', '');
+            break;
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      if (foundJob) {
+        jobPath = path.join(jobsDir, foundJob);
+        console.log(`[API] Job found by internal name: ${name} -> ${foundJob}`);
+      } else {
+        console.log(`[API] Job execution rejected - job file not found: ${jobPath}`);
+        return res.status(400).json({ ok: false, reason: 'job_not_found' });
+      }
     }
 
     // 즉시 성공 응답 전송
     res.json({ ok: true, message: `잡 '${name}'이(가) 시작되었습니다.` });
 
-    // 백그라운드에서 비동기 실행
-    runJob(name)
+    // 백그라운드에서 비동기 실행 (실제 파일명 사용)
+    runJob(actualJobName)
       .then(result => {
         console.log(`[API] Job ${name} completed`);
       })
