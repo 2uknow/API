@@ -144,7 +144,7 @@ steps:
 
     args:
       operation: "encrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 부분 취소, AMTRESOPTION 설정(취소 금액 응답)
       data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500|AMTRESOPTION=1"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
@@ -214,7 +214,7 @@ steps:
 
     args:
       operation: "decrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
@@ -343,7 +343,7 @@ steps:
 
     args:
       operation: "encrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 전체취소(CAMT 미설정), AMTRESOPTION 미설정(취소 후 잔액 응답)
       data: "TID={{PCANCEL_TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
@@ -414,7 +414,7 @@ steps:
 
     args:
       operation: "decrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA_C}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
@@ -669,7 +669,7 @@ steps:
 
     args:
       operation: "encrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 부분 취소, GETMATCHINGTID 설정, ISCHGORDERID 설정, AMTRESOPTION 미설정
       data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|CAMT=1800|GETMATCHINGTID=Y|ISCHGORDERID=Y"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
@@ -740,7 +740,7 @@ steps:
 
     args:
       operation: "decrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA_P}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
@@ -865,7 +865,7 @@ steps:
 
     args:
       operation: "encrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 전체 취소(CAMT 미설정), GETMATCHINGTID 설정, ISCHGORDERID 설정, AMTRESOPTION 설정(잔액, 취소 금액 응답)
       data: "TID={{TID_2}}|PWD={{MERCHANT_PWD}}|ORDERID={{ORDER_ID_R}}|GETMATCHINGTID=Y|ISCHGORDERID=Y|AMTRESOPTION=2"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
