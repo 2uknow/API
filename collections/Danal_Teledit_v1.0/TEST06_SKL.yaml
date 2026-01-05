@@ -1,5 +1,5 @@
 
-name: "SKT SMS 정상케이스"
+name: "SKL SMS 정상케이스"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -58,7 +58,7 @@ steps:
         assertion: "RESULT_CODE == 0"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력"
-        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO !== undefined" 
+        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO  !== undefined" 
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE == No Information"
@@ -73,13 +73,13 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{SKT_IDEN}}"
+      IDEN: "{{SKL_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{SKT_DST_ADDR}}"
-      CARRIER: "{{SKT_CARRIER}}"
+      DSTADDR: "{{SKL_DST_ADDR}}"
+      CARRIER: "{{SKL_CARRIER}}"
       WPAGE: "WEB"
       PRCODE: ""
-      AMOUNT: "{{SKT_AMOUNT}}"
+      AMOUNT: "{{SKL_AMOUNT}}"
       TERMSAGREE3: "N"
       IFVERSION: "V1.1.7"      
       TERMSAGREE2: "N|N"
@@ -88,9 +88,8 @@ steps:
       TERMSAGREE1: "Y"
       IPADDR : "10.10.52.54"
       SMTOTP: "N"
-      ISCPIN: "Y"
-      CPIN: "663466"
-
+      ISCPIN: "N"
+    
     # 응답 데이터 추출
     extract:
       - name: "result"
@@ -120,7 +119,7 @@ steps:
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
-        
+
       - name: "ISLGPWDUSER"
         pattern: "ISLGPWDUSER"
         variable: "ID_ISLGPWDUSER"
@@ -208,7 +207,7 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "IR_RESULT"
-        
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "IR_SERVER_INFO"
@@ -248,7 +247,7 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "NC_RESULT"
-        
+
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "NC_SERVER_INFO"

@@ -1,0 +1,331 @@
+name: "EXPREBILL-PCancel SMS 비점유결제 부분 취소 및 전체 취소"
+description: "Danal_Teledit_CPCENCEL_v1.0 자동화 테스트"
+version: "1.0.0"
+
+
+# 공통 변수 불러오기
+include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [1차 호출] EXPREBILL
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "1차 EXPREBILL"
+    description: "비점유 결제 + AUTHKEY 전송 (0~6 steps)"
+
+    args:
+      Command: "EXPREBILL"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemCount: "1"
+      ItemType: "0"
+      ItemInfo: "2|3001|1|22S0HZ0100|상품명"
+      AUTHKEY: "20250901101636D6FFC6"
+      # AUTHKEY: "20201229093719D4EF17"
+      ORDERID: "{{ORDER_ID}}"
+      OUTPUTOPTION: "3"  # 응답 옵션
+      TIDTYPE: "1"
+      IFVERSION: "V1.1.2"
+      BILLTYPE: "1"
+
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+
+      - name: "tid"
+        pattern: "TID"
+        variable: "TID"
+        
+      - name: "date"
+        pattern: "Date"
+        variable: "DATE"
+
+      - name: "totalAmount"
+        pattern: "TotalAmount"
+        variable: "TOTAL_AMOUNT"
+
+      - name: "cap"
+        pattern: "Cap"
+        variable: "CAP"
+
+      - name: "orderid"
+        pattern: "Orderid"
+        variable: "RESPONSE_ORDER_ID"
+
+      - name: "dstAddr"
+        pattern: "DstAddr"
+        variable: "DSTADDR"
+
+      - name: "carrier"
+        pattern: "Carrier"
+        variable: "CARRIER"
+
+      - name: "dntid"
+        pattern: "Dntid"
+        variable: "DN_TID"
+
+
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "RESULT_CODE == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "ERROR_MESSAGE == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        assertion: "js: (
+          TID !== null &&
+          typeof TID !== 'undefined' &&
+          typeof TID === 'string' &&
+          TID.trim().length === 18)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: (
+          DATE !== null &&
+          typeof DATE !== 'undefined' &&
+          typeof DATE === 'string' &&
+          DATE.trim().length === 14)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DATE.slice(0, 12) === now12;})()"
+
+      - name: "전체 결제금액(TotalAmount) 정상 출력"
+        assertion: "TOTAL_AMOUNT == 3001"
+
+      - name: "거래 전 한도 금액(CAP) 정상 출력"
+        assertion: "CAP == 000000"
+
+      - name: "CP 주문번호(ORDERID) 정상 출력"
+        assertion: "js: (
+          typeof RESPONSE_ORDER_ID !== 'undefined' &&
+          typeof RESPONSE_ORDER_ID === 'string' &&
+          RESPONSE_ORDER_ID.trim().length > 0 &&
+          RESPONSE_ORDER_ID.includes('ORD'))"
+
+      - name: "사용자 전화번호(DstAddr) 정상 출력"
+        assertion: "DSTADDR == 01085402697"
+
+      - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
+        assertion: "CARRIER == KTF"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return DN_TID.slice(0, 12) === now12;})()"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [2차 호출] 부분 취소 - COUPANG Cancel 데이터 암호화
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 COUPANG Cancel 데이터 암호화"
+    description: "부분 취소 요청 데이터를 암호화"
+    type: "crypto"
+
+    args:
+      operation: "encrypt"
+      key: "{{CRYPTOKEY}}"
+      data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
+      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+
+    # 암호화 결과 추출
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "ENCRYPTED_CPCENCEL_DATA"
+
+    test:
+      - name: "PCancel 데이터 암호화 성공 확인"
+        assertion: "ENCRYPTED_CPCENCEL_DATA exists"
+
+      - name: "암호화 데이터 길이 확인"
+        assertion: "js: ENCRYPTED_CPCENCEL_DATA && ENCRYPTED_CPCENCEL_DATA.length > 20"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [3차 호출] 부분 취소 - COUPANG_CANCEL HTTP POST 요청
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 - PCancel HTTP 요청"
+    description: "부분 취소 HTTP POST 요청"
+    type: "http"
+
+    args:
+      url: "{{COUPANG_URL}}"
+      method: "POST"
+      headers:
+        Content-Type: "application/x-www-form-urlencoded"
+        User-Agent: "2uknow-api-monitor/1.0.0"
+      body: "DATA={{ENCRYPTED_CPCENCEL_DATA}}&CIPHERTYPE=0"
+      sleepDuration: 10000   # 암호화 후 대기 시간 (밀리초)
+
+    # HTTP 응답 데이터 추출
+    extract:
+      - name: "status"
+        pattern: "status"
+        variable: "HTTP_STATUS"
+
+      - name: "body"
+        pattern: "body"
+        variable: "RESPONSE_BODY"
+
+      - name: "encrypted_data"
+        pattern: "DATA=(.+)"
+        variable: "SERVER_ENCRYPTED_DATA"
+
+    # 테스트 검증
+    test:
+      - name: "HTTP 응답 상태 확인"
+        assertion: "HTTP_STATUS == 200"
+
+      - name: "응답 본문 존재 확인"
+        assertion: "RESPONSE_BODY exists"
+
+      - name: "응답 본문 길이 확인"
+        assertion: "js: RESPONSE_BODY && RESPONSE_BODY.length > 0"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * [4차 호출] 부분 취소 - COUPANG_CANCEL 응답 복호화 및 검증
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "부분 취소 - COUPANG_CANCEL 응답 복호화 및 검증"
+    description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 후 검증"
+    type: "crypto"
+
+    args:
+      operation: "decrypt"
+      key: "{{CRYPTOKEY}}"
+      data: "{{SERVER_ENCRYPTED_DATA}}"
+
+    # 복호화 결과 추출 (자동 파싱된 필드들)
+    extract:
+      - name: "result"
+        pattern: "result"
+        variable: "CPCENCEL_RESULT"
+
+      - name: "errmsg"
+        pattern: "errmsg"
+        variable: "CPCENCEL_ERRMSG"
+
+      - name: "tid"
+        pattern: "tid"
+        variable: "CPCENCEL_TID"
+
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "CPCENCEL_DNTID"
+
+      - name: "date"
+        pattern: "date"
+        variable: "CPCENCEL_DATE"
+
+      - name: "otid"
+        pattern: "otid"
+        variable: "CPCENCEL_OTID"
+
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "CPCENCEL_ORDERID"
+
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "CPCENCEL_REMAINAMT"
+
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "CPCENCEL_CANCELAMT"
+
+
+####################################################### Assertion ###########################################################
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "CPCENCEL_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "CPCENCEL_ERRMSG == No Information"
+
+      - name: "거래 번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
+        assertion: "js: (
+          CPCENCEL_TID !== null &&
+          typeof CPCENCEL_TID !== 'undefined' &&
+          typeof CPCENCEL_TID === 'string' &&
+          CPCENCEL_TID.trim().length === 18)"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: CPCENCEL_DNTID && CPCENCEL_DNTID.trim().length > 0 && /^\\d{22}$/.test(CPCENCEL_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "복호화된 DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return CPCENCEL_DNTID.slice(0, 12) === now12;})()"
+        
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "복호화된 DNTID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return CPCENCEL_DNTID = now12 + TID;})()"
+
+      - name: "취소 일시(DATE) 정상 출력_1"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: (
+          CPCENCEL_DATE !== null &&
+          typeof CPCENCEL_DATE !== 'undefined' &&
+          typeof CPCENCEL_DATE === 'string' &&
+          CPCENCEL_DATE.trim().length === 14)"
+
+      - name: "취소 일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return CPCENCEL_DATE.slice(0, 12) === now12;})()"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
+        assertion: "js: CPCENCEL_OTID && CPCENCEL_OTID === TID"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 원본 주문번호 + 추가 문구 확인"
+        assertion: "js: (
+          typeof CPCENCEL_ORDERID !== 'undefined' &&
+          typeof CPCENCEL_ORDERID === 'string' &&
+          CPCENCEL_ORDERID.trim().length > 0 &&
+          CPCENCEL_ORDERID.includes(RESPONSE_ORDER_ID))"
+
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 15000
+  retryCount: 0
