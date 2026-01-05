@@ -28,7 +28,7 @@ module.exports = {
       // === 자동 재시작 설정 ===
       autorestart: true,
       watch: false, // 프로덕션에서는 false
-      max_restarts: 10, // 1분 내 10회 재시작 제한
+      max_restarts: 60, // 1분 내 10회 재시작 제한
       min_uptime: '10s', // 최소 10초 정상 구동
       restart_delay: 3000, // 재시작 시 3초 대기
 
