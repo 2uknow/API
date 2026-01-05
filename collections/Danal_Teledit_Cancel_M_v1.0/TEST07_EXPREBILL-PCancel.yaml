@@ -143,7 +143,7 @@ steps:
 
     args:
       operation: "encrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 부분 취소, AMTRESOPTION 설정(취소 금액 응답)
       data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500|AMTRESOPTION=1"
       sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
@@ -230,7 +230,7 @@ steps:
 
     args:
       operation: "decrypt"
-      key: "{{PCANCEL_CRYPTOKEY}}"
+      key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA}}"
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
