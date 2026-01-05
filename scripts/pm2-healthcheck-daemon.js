@@ -164,8 +164,8 @@ async function performHealthCheck() {
     const memory = processInfo.monit?.memory || 0;
     const status = processInfo.pm2_env?.status;
 
-    // 좀비 상태: online이지만 PID가 없거나 메모리가 0
-    const isZombie = (status === 'online' && (!pid || pid === 0 || memory === 0));
+    // 좀비 상태: online이지만 PID가 없음 (Windows에서 memory는 wmic 오류로 항상 0이므로 체크 제외)
+    const isZombie = (status === 'online' && (!pid || pid === 0));
 
     if (isZombie) {
         log(`좀비 프로세스 감지! status=${status}, pid=${pid}, memory=${memory}`, 'ERROR');
