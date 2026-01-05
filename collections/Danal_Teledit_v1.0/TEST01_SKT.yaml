@@ -1,5 +1,5 @@
 
-name: "LGU+ SMS 정상케이스"
+name: "SKT SMS 정상케이스"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -18,6 +18,7 @@ steps:
 
     args:
       Command: "ITEMSEND2"
+      IFVERSION: "V1.1.2"
       Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
       ItemType: "Amount"
@@ -58,7 +59,7 @@ steps:
         assertion: "RESULT_CODE == 0"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력"
-        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO  !== undefined" 
+        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO !== undefined" 
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE == No Information"
@@ -73,13 +74,13 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{LGT_IDEN}}"
+      IDEN: "{{SKT_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{LGT_DST_ADDR}}"
-      CARRIER: "{{LGT_CARRIER}}"
+      DSTADDR: "{{SKT_DST_ADDR}}"
+      CARRIER: "{{SKT_CARRIER}}"
       WPAGE: "WEB"
       PRCODE: ""
-      AMOUNT: "{{LGT_AMOUNT}}"
+      AMOUNT: "{{SKT_AMOUNT}}"
       TERMSAGREE3: "N"
       IFVERSION: "V1.1.7"      
       TERMSAGREE2: "N|N"
@@ -89,8 +90,8 @@ steps:
       IPADDR : "10.10.52.54"
       SMTOTP: "N"
       ISCPIN: "Y"
-       : "663466"
-    
+      CPIN: "663466"
+
     # 응답 데이터 추출
     extract:
       - name: "result"
@@ -120,7 +121,7 @@ steps:
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
-
+        
       - name: "ISLGPWDUSER"
         pattern: "ISLGPWDUSER"
         variable: "ID_ISLGPWDUSER"
@@ -160,7 +161,7 @@ steps:
         assertion: "ID_CAP == 000000"
 
       - name: "안심결제 회원 여부(ANSIMMEMBER) 정상 출력"
-        assertion: "ID_ANSIMMEMBER == Y"
+        assertion: "ID_ANSIMMEMBER == N"
 
       - name: "ARS 전환 지원(ARSCHANGE) 정상 출력"
         assertion: "ID_ARSCHANGE == N"
@@ -199,8 +200,8 @@ steps:
       IFVERSION: "V1.0.5"
       TERMSAGREE2: "N"
       WPRCODE: "0000"
-      ANSIMPASS: "6634"
-      ANSIMMEMBER: "Y"
+      ANSIMPASS: ""
+      ANSIMMEMBER: "N"
       OTP: "000000"
     
     # 응답 데이터 추출
@@ -208,7 +209,7 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "IR_RESULT"
-
+        
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "IR_SERVER_INFO"
@@ -248,7 +249,7 @@ steps:
       - name: "result"
         pattern: "Result"
         variable: "NC_RESULT"
-
+        
       - name: "serverInfo"
         pattern: "ServerInfo"
         variable: "NC_SERVER_INFO"

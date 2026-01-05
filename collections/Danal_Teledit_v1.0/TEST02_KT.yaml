@@ -1,5 +1,5 @@
 
-name: "SKL SMS 정상케이스"
+name: "KT 알뜰 SMS 정상케이스"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -73,13 +73,13 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{SKL_IDEN}}"
+      IDEN: "{{KT_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{SKL_DST_ADDR}}"
-      CARRIER: "{{SKL_CARRIER}}"
+      DSTADDR: "{{KT_DST_ADDR}}"
+      CARRIER: "{{KT_CARRIER}}"
       WPAGE: "WEB"
       PRCODE: ""
-      AMOUNT: "{{SKL_AMOUNT}}"
+      AMOUNT: "{{KT_AMOUNT}}"
       TERMSAGREE3: "N"
       IFVERSION: "V1.1.7"      
       TERMSAGREE2: "N|N"
@@ -88,8 +88,8 @@ steps:
       TERMSAGREE1: "Y"
       IPADDR : "10.10.52.54"
       SMTOTP: "N"
-      ISCPIN: "Y"
-      CPIN: "663466"
+      ISCPIN: "N"  # 휴대폰 결제 비밀번호 사용
+      CPIN: "663466"  # 휴대폰 결제 비밀번호
     
     # 응답 데이터 추출
     extract:
@@ -116,7 +116,7 @@ steps:
       - name: "ARSCHANGE"
         pattern: "ARSCHANGE"
         variable: "ID_ARSCHANGE"
-
+        
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
@@ -160,7 +160,8 @@ steps:
         assertion: "ID_CAP == 000000"
 
       - name: "안심결제 회원 여부(ANSIMMEMBER) 정상 출력"
-        assertion: "ID_ANSIMMEMBER == N"
+        description: "안심 결제 회원 확인"
+        assertion: "ID_ANSIMMEMBER == Y"
 
       - name: "ARS 전환 지원(ARSCHANGE) 정상 출력"
         assertion: "ID_ARSCHANGE == N"
@@ -199,9 +200,9 @@ steps:
       IFVERSION: "V1.0.5"
       TERMSAGREE2: "N"
       WPRCODE: "0000"
-      ANSIMPASS: ""
-      ANSIMMEMBER: "N"
-      OTP: "000000"
+      ANSIMMEMBER: "Y"  # 안심결제 가입
+      ANSIMPASS: "5857"  # 안심결제 비밀번호
+      OTP: "123456"
     
     # 응답 데이터 추출
     extract:
@@ -301,7 +302,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NB_RESULT == 492"
-
+        
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NB_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
