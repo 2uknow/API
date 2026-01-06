@@ -145,8 +145,8 @@ steps:
         assertion: "js: ID_SERVER_INFO && ID_SERVER_INFO == SERVER_INFO"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력_2"
-        description: "거래 인증 key 영문 + 숫자만 “완전히 배제” 특수문자/한글/공백/이모지 전부 허용, 공백 포함 모든 특수문자 불가 및 UTF-8 기준 128 byte 이하 확인"
-        assertion: "js: ID_SERVER_INFO && /^[^A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128"
+        description: "거래 인증 key 영문 + 숫자만 허용 (특수문자/한글/공백/이모지 완전히 배제) 및 UTF-8 기준 128 byte 이하 확인"
+        assertion: "js: ID_SERVER_INFO && /^[A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128"
 
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "ID_RESULT == 0"
