@@ -377,11 +377,13 @@ function broadcastLog(line, jobName = '') {
   
   // unifiedClients에도 전송
   const deadUnifiedClients = new Set();
+  let unifiedSuccessCount = 0;
 
   for (const client of unifiedClients) {
     try {
       if (!client.destroyed && !client.finished && client.writable) {
         client.write(data);
+        unifiedSuccessCount++;
       } else {
         deadUnifiedClients.add(client);
       }
@@ -3919,7 +3921,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       totalRequests: yamlFiles.length,
       passedRequests: successFiles,
       failedRequests: failedFiles,
-      reportUrl: batchReportPath ? `${readCfg().dashboard_url || 'http://localhost:3000'}/reports/${path.basename(batchReportPath)}` : null
+      reportPath: batchReportPath  // alert.js에서 사용하는 필드명
     });
 
     // 배치 실행 결과를 히스토리에 저장
