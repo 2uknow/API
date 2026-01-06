@@ -147,6 +147,7 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
+      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -351,7 +352,8 @@ steps:
       key: "{{CRYPTOKEY}}"
       # 최초 원거래 TID 사용 부분취소
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_OTID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
-
+      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+      
     # 암호화 결과 추출
     extract:
       - name: "result"
