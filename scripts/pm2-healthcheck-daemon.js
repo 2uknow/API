@@ -83,46 +83,47 @@ async function checkHttpHealth() {
 }
 
 async function restartPM2Daemon() {
-    log('PM2 데몬 재시작 시도 (전체 리셋)...', 'WARN');
+    log('PM2 상태 복구 시도 (pm2 update 사용)...', 'WARN');
 
     try {
-        // 현재 헬스체크 프로세스 이름 저장
-        const healthcheckName = 'pm2-healthcheck';
-
-        // PM2 kill (모든 프로세스 중지)
+        // pm2 update로 내부 상태 리프레시 (kill보다 안전)
         try {
+            await execAsync('pm2 update');
+            log('PM2 상태 업데이트 완료');
+        } catch (e) {
+            log(`PM2 update 경고: ${e.message}`, 'WARN');
+
+            // update 실패 시에만 kill 사용
             await execAsync('pm2 kill');
             log('PM2 데몬 종료됨');
-        } catch (e) {
-            log(`PM2 kill 경고: ${e.message}`, 'WARN');
+
+            // 잠시 대기
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // ecosystem.config.cjs로 전체 시작
+            const ecosystemPath = path.join(projectDir, 'ecosystem.config.cjs');
+
+            if (fs.existsSync(ecosystemPath)) {
+                await execAsync(`pm2 start "${ecosystemPath}"`, { cwd: projectDir });
+                log('PM2 ecosystem 시작됨');
+            } else {
+                // ecosystem 파일이 없으면 개별 시작
+                await execAsync(
+                    `pm2 start "${path.join(projectDir, CONFIG.serverScript)}" --name ${CONFIG.processName} --cron-restart="${CONFIG.cronRestart}"`,
+                    { cwd: projectDir }
+                );
+                log('PM2 프로세스 개별 시작됨');
+            }
+
+            // PM2 save
+            await execAsync('pm2 save');
+            log('PM2 프로세스 목록 저장됨');
         }
-
-        // 잠시 대기
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // ecosystem.config.cjs로 전체 시작
-        const ecosystemPath = path.join(projectDir, 'ecosystem.config.cjs');
-
-        if (fs.existsSync(ecosystemPath)) {
-            const { stdout } = await execAsync(`pm2 start "${ecosystemPath}"`, { cwd: projectDir });
-            log('PM2 ecosystem 시작됨');
-        } else {
-            // ecosystem 파일이 없으면 개별 시작
-            await execAsync(
-                `pm2 start "${path.join(projectDir, CONFIG.serverScript)}" --name ${CONFIG.processName} --cron-restart="${CONFIG.cronRestart}"`,
-                { cwd: projectDir }
-            );
-            log('PM2 프로세스 개별 시작됨');
-        }
-
-        // PM2 save
-        await execAsync('pm2 save');
-        log('PM2 프로세스 목록 저장됨');
 
         totalFixes++;
         return true;
     } catch (error) {
-        log(`PM2 데몬 재시작 실패: ${error.message}`, 'ERROR');
+        log(`PM2 복구 실패: ${error.message}`, 'ERROR');
         return false;
     }
 }
@@ -136,8 +137,19 @@ async function restartTargetProcess() {
         totalFixes++;
         return true;
     } catch (error) {
-        log(`프로세스 재시작 실패: ${error.message}`, 'ERROR');
-        return false;
+        log(`프로세스 재시작 실패: ${error.message}, PM2 상태 복구 시도...`, 'ERROR');
+
+        // restart 실패 시 pm2 update로 상태 복구 후 재시도
+        try {
+            await execAsync('pm2 update');
+            await execAsync(`pm2 restart ${CONFIG.processName}`);
+            log(`PM2 상태 복구 후 ${CONFIG.processName} 재시작 성공`);
+            totalFixes++;
+            return true;
+        } catch (retryError) {
+            log(`재시도도 실패: ${retryError.message}`, 'ERROR');
+            return false;
+        }
     }
 }
 
