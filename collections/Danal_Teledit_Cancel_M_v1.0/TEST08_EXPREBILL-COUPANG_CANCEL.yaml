@@ -147,7 +147,7 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
-      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 10000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -167,7 +167,7 @@ steps:
 #  * [3차 호출] 부분 취소 - COUPANG_CANCEL HTTP POST 요청
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "부분 취소 - PCancel HTTP 요청"
+  - name: "부분 취소 - COUPANG Cancel HTTP 요청"
     description: "부분 취소 HTTP POST 요청"
     type: "http"
 
@@ -210,7 +210,7 @@ steps:
 #  * [4차 호출] 부분 취소 - COUPANG_CANCEL 응답 복호화 및 검증
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "부분 취소 - COUPANG_CANCEL 응답 복호화 및 검증"
+  - name: "부분 취소 - COUPANG CANCEL 응답 복호화 및 검증"
     description: "HTTP 응답에서 받은 실제 암호화된 데이터를 복호화 후 검증"
     type: "crypto"
 
@@ -218,6 +218,7 @@ steps:
       operation: "decrypt"
       key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA}}"
+      sleepDuration: 10000   # 암호화 후 대기 시간 (밀리초)
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
