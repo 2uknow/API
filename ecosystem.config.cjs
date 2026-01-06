@@ -83,7 +83,7 @@ module.exports = {
       // 환경설정
       env: {
         NODE_ENV: 'production',
-        HEALTHCHECK_INTERVAL: '300000',     // 5분 (밀리초)
+        HEALTHCHECK_INTERVAL: '10800000',   // 3시간 (밀리초)
         TARGET_PROCESS: '2uknow-api-monitor'
       },
 
