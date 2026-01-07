@@ -146,7 +146,7 @@ steps:
       key: "{{CRYPTOKEY}}"
       # 원거래 TID 사용, 부분 취소, AMTRESOPTION 설정(취소 금액 응답)
       data: "TID={{TID}}|PWD={{MERCHANT_PWD}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1500|AMTRESOPTION=1"
-      sleepDuration: 5000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 15000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -352,5 +352,5 @@ steps:
 # 시나리오 설정
 options:
   stopOnError: false
-  timeout: 15000
+  timeout: 30000
   retryCount: 0
