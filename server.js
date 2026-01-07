@@ -1154,7 +1154,7 @@ function spawnNewmanCLI(args){
     argv=['-lc', ['npx', ...args].join(' ')]; 
   }
   console.log('[SPAWN]', cmd, argv);
-  return spawn(cmd, argv, { cwd: root });
+  return spawn(cmd, argv, { cwd: root, windowsHide: true });
 }
 
 // 바이너리 경로 확인 함수
@@ -1211,9 +1211,10 @@ function spawnBinaryCLI(binaryPath, args = [], options = {}) {
   }
   
   console.log('[BINARY SPAWN]', cmd, argv);
-  return spawn(cmd, argv, { 
+  return spawn(cmd, argv, {
     cwd: options.cwd || root,
-    ...options 
+    windowsHide: true,
+    ...options
   });
 }
 

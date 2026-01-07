@@ -1591,7 +1591,7 @@ export class SClientReportGenerator {
     this.log(`[CURL CMD] curl ${args.join(' ')}`);
 
     return new Promise((resolve, reject) => {
-      const curl = spawn('curl', args);
+      const curl = spawn('curl', args, { windowsHide: true });
       let stdout = '';
       let stderr = '';
       let resolved = false;
