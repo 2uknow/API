@@ -1181,7 +1181,7 @@ export function buildTextMessage(kind, data) {
 export function buildBasicStatusText(kind, data) {
   const baseUrl = getBaseUrl();
   let message = '';
-  
+
   if (kind === 'start') {
     message = `API 테스트 실행 시작\n`;
     message += `Job: ${data.jobName}\n`;
@@ -1194,7 +1194,7 @@ export function buildBasicStatusText(kind, data) {
     message = `API 테스트 실행 성공\n`;
     message += `Job: ${data.jobName}\n`;
     message += `Duration: ${data.duration}초\n`;
-    
+
     // Newman 통계 추가
     if (data.newmanStats) {
       const stats = data.newmanStats;
@@ -1202,14 +1202,14 @@ export function buildBasicStatusText(kind, data) {
       message += `• 요청: ${stats.requests.executed}건 (실패: ${stats.requests.failed}건)\n`;
       message += `• 테스트: ${stats.assertions.executed}건 (실패: ${stats.assertions.failed}건)\n`;
     }
-    
+
     message += `\n종료시간: ${data.endTime}\n`;
     message += `대시보드: ${baseUrl}`;
   } else if (kind === 'error') {
     message = `API 테스트 실행 실패\n`;
     message += `잡: ${data.jobName}\n`;
     message += `실행시간: ${data.duration}초\n`;
-    
+
     // Newman 통계 추가 (실패 케이스)
     if (data.newmanStats) {
       const stats = data.newmanStats;
@@ -1217,18 +1217,183 @@ export function buildBasicStatusText(kind, data) {
       message += `• 요청: ${stats.requests.executed}건 (실패: ${stats.requests.failed}건)\n`;
       message += `• 테스트: ${stats.assertions.executed}건 (실패: ${stats.assertions.failed}건)\n`;
     }
-    
+
     message += `\n종료시간: ${data.endTime}\n`;
     message += `대시보드: ${baseUrl}\n`;
-    
+
     if (data.reportPath) {
       message += `상세 리포트: ${baseUrl}/reports/${path.basename(data.reportPath)}\n`;
     }
-    
+
     if (data.errorSummary) {
       message += `\n 오류내용:\n${data.errorSummary}`;
     }
   }
-  
+
   return message;
+}
+
+/** 일일 통계 리포트 텍스트 메시지 생성 */
+export function buildDailyReportText(stats) {
+  const baseUrl = getBaseUrl();
+  const today = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+    timeZone: 'Asia/Seoul'
+  });
+
+  let message = `📊 일일 실행 통계 리포트\n`;
+  message += `${today}\n\n`;
+  message += `• 총 실행: ${stats.totalExecutions}건\n`;
+  message += `• 성공률: ${stats.successRate}%\n`;
+  message += `• 실패 건수: ${stats.failedTests}건\n`;
+  message += `• 평균 응답시간: ${Math.round(stats.avgResponseTime || 0)}ms\n\n`;
+  message += `대시보드: ${baseUrl}`;
+
+  return message;
+}
+
+/** 일일 통계 리포트 Flex 메시지 생성 */
+export function buildDailyReportFlex(stats) {
+  const baseUrl = getBaseUrl();
+  const today = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+    timeZone: 'Asia/Seoul'
+  });
+
+  const successRate = parseFloat(stats.successRate) || 0;
+  const rateColor = successRate >= 95 ? '#2E7D32' : successRate >= 80 ? '#F57C00' : '#C62828';
+
+  return {
+    content: {
+      type: 'flex',
+      altText: `일일 실행 통계 리포트 - ${today}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '📊 일일 실행 통계',
+              weight: 'bold',
+              size: 'lg',
+              color: '#FFFFFF'
+            },
+            {
+              type: 'text',
+              text: today,
+              size: 'sm',
+              color: '#E0E0E0'
+            }
+          ],
+          backgroundColor: '#1976D2',
+          paddingAll: '15px'
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'md',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: '총 실행',
+                  size: 'sm',
+                  color: '#666666',
+                  flex: 2
+                },
+                {
+                  type: 'text',
+                  text: `${stats.totalExecutions}건`,
+                  size: 'sm',
+                  color: '#333333',
+                  weight: 'bold',
+                  flex: 3,
+                  align: 'end'
+                }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: '성공률',
+                  size: 'sm',
+                  color: '#666666',
+                  flex: 2
+                },
+                {
+                  type: 'text',
+                  text: `${stats.successRate}%`,
+                  size: 'sm',
+                  color: rateColor,
+                  weight: 'bold',
+                  flex: 3,
+                  align: 'end'
+                }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: '실패 건수',
+                  size: 'sm',
+                  color: '#666666',
+                  flex: 2
+                },
+                {
+                  type: 'text',
+                  text: `${stats.failedTests}건`,
+                  size: 'sm',
+                  color: stats.failedTests > 0 ? '#C62828' : '#333333',
+                  weight: 'bold',
+                  flex: 3,
+                  align: 'end'
+                }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                {
+                  type: 'text',
+                  text: '평균 응답시간',
+                  size: 'sm',
+                  color: '#666666',
+                  flex: 2
+                },
+                {
+                  type: 'text',
+                  text: `${Math.round(stats.avgResponseTime || 0)}ms`,
+                  size: 'sm',
+                  color: '#333333',
+                  weight: 'bold',
+                  flex: 3,
+                  align: 'end'
+                }
+              ]
+            }
+          ],
+          paddingAll: '15px'
+        }
+      }
+    }
+  };
 }
