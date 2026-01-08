@@ -1,0 +1,1662 @@
+[0mnewman[0m
+
+[0mDanal_Uas_Error_v1.0[0m
+
+□ [0mERROR01. 이름 오류 / TEST_01_정보 불일치[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 100ms [90mtime[39m [90m★[39m 358B[90m↑[39m 302B[90m↓[39m [90msize[39m [90m★[39m 8[90m↑[39m 6[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613078172247011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m4ms[39m       [90m17ms[39m   [90m33ms[39m         [90m3ms[39m             [90m12ms[39m            [90m27ms[39m             [90m4ms[39m        [90m198µs[39m     [90m103ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01079266634&IDEN=9002052&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김태욱&TID=202601061613078172247011[39m  
+  200 OK [90m★[39m 116ms [90mtime[39m [90m★[39m 486B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=1110&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613078172247011&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m782µs[39m     [90m1ms[39m    [90m62µs[39m         [90m3ms[39m             [90m9ms[39m             [90m99ms[39m             [90m1ms[39m        [90m35µs[39m      [90m116ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613078172247011&OTP=432846[39m  
+  200 OK [90m★[39m 56ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613078172247011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m549µs[39m     [90m1ms[39m    [90m143µs[39m        [90m2ms[39m             [90m7ms[39m             [90m42ms[39m             [90m1ms[39m        [90m38µs[39m      [90m55ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613078172247011[39m  
+  200 OK [90m★[39m 53ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613078172247011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m480µs[39m     [90m1ms[39m    [90m72µs[39m         [90m3ms[39m             [90m9ms[39m             [90m36ms[39m             [90m719µs[39m      [90m31µs[39m      [90m52ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR01. 이름 오류 / TEST_02_특수문자 포함[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 40ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613087522277011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m525µs[39m     [90m899µs[39m   [90m46µs[39m         [90m3ms[39m             [90m9ms[39m             [90m24ms[39m             [90m569µs[39m      [90m32µs[39m      [90m39ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01079266634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김태*&TID=202601061613087522277011[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 478B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613087522277011&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m563µs[39m     [90m934µs[39m   [90m52µs[39m         [90m3ms[39m             [90m8ms[39m             [90m45ms[39m             [90m668µs[39m      [90m31µs[39m      [90m60ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613087522277011&OTP=432846[39m  
+  200 OK [90m★[39m 52ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613087522277011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m438µs[39m     [90m1ms[39m    [90m121µs[39m        [90m3ms[39m             [90m9ms[39m             [90m36ms[39m             [90m659µs[39m      [90m33µs[39m      [90m51ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613087522277011[39m  
+  200 OK [90m★[39m 53ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613087522277011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m802µs[39m     [90m996µs[39m   [90m104µs[39m        [90m3ms[39m             [90m9ms[39m             [90m37ms[39m             [90m1ms[39m        [90m33µs[39m      [90m53ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR01. 이름 오류 / TEST_03_빈 값 전달[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 41ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613096269286011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m779µs[39m     [90m1ms[39m    [90m49µs[39m         [90m3ms[39m             [90m10ms[39m            [90m25ms[39m             [90m740µs[39m      [90m28µs[39m      [90m41ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01097966634&IDEN=9707172&IPADDR=10.10.52.70&CARRIER=KT&NAME=&TID=202601061613096269286011[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 458B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613096269286011&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m553µs[39m     [90m1ms[39m    [90m55µs[39m         [90m3ms[39m             [90m10ms[39m            [90m44ms[39m             [90m651µs[39m      [90m53µs[39m      [90m60ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613096269286011&OTP=109274[39m  
+  200 OK [90m★[39m 48ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613096269286011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m605µs[39m     [90m1ms[39m    [90m50µs[39m         [90m2ms[39m             [90m9ms[39m             [90m33ms[39m             [90m748µs[39m      [90m61µs[39m      [90m47ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613096269286011[39m  
+  200 OK [90m★[39m 56ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613096269286011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m586µs[39m     [90m1ms[39m    [90m77µs[39m         [90m3ms[39m             [90m9ms[39m             [90m40ms[39m             [90m713µs[39m      [90m30µs[39m      [90m55ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR01. 이름 오류 / TEST_04_영어 입력[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 41ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613104796694010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m614µs[39m     [90m1ms[39m    [90m53µs[39m         [90m3ms[39m             [90m9ms[39m             [90m26ms[39m             [90m759µs[39m      [90m25µs[39m      [90m41ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01076746635&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=LGT&NAME=KIMTAEUK&TID=202601061613104796694010[39m  
+  200 OK [90m★[39m 170ms [90mtime[39m [90m★[39m 467B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=5101&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613104796694010&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m581µs[39m     [90m1ms[39m    [90m63µs[39m         [90m3ms[39m             [90m9ms[39m             [90m155ms[39m            [90m670µs[39m      [90m27µs[39m      [90m170ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613104796694010&OTP=188585[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613104796694010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m557µs[39m     [90m1ms[39m    [90m64µs[39m         [90m3ms[39m             [90m9ms[39m             [90m45ms[39m             [90m463µs[39m      [90m24µs[39m      [90m60ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613104796694010[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613104796694010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m548µs[39m     [90m958µs[39m   [90m1ms[39m          [90m3ms[39m             [90m9ms[39m             [90m37ms[39m             [90m725µs[39m      [90m29µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR02. 주민등록번호 오류 / TEST_01_정보 불일치[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 46ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613114302317011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m561µs[39m     [90m1ms[39m    [90m81µs[39m         [90m3ms[39m             [90m10ms[39m            [90m29ms[39m             [90m755µs[39m      [90m27µs[39m      [90m45ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01097966634&IDEN=9707172&IPADDR=10.10.52.70&CARRIER=KT&NAME=김효연&TID=202601061613114302317011[39m  
+  200 OK [90m★[39m 265ms [90mtime[39m [90m★[39m 485B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=3066&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613114302317011&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m582µs[39m     [90m1ms[39m    [90m46µs[39m         [90m3ms[39m             [90m13ms[39m            [90m246ms[39m            [90m547µs[39m      [90m21µs[39m      [90m264ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613114302317011&OTP=109274[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613114302317011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m561µs[39m     [90m1ms[39m    [90m1ms[39m          [90m3ms[39m             [90m9ms[39m             [90m42ms[39m             [90m707µs[39m      [90m19µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613114302317011[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613114302317011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m451µs[39m     [90m1ms[39m    [90m1ms[39m          [90m3ms[39m             [90m10ms[39m            [90m40ms[39m             [90m653µs[39m      [90m23µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR02. 주민등록번호 오류 / TEST_02_자릿수 부족[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 86ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613125381578011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m902µs[39m     [90m995µs[39m   [90m33ms[39m         [90m3ms[39m             [90m8ms[39m             [90m38ms[39m             [90m465µs[39m      [90m17µs[39m      [90m86ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01097966634&IDEN=970712&IPADDR=10.10.52.70&CARRIER=KT&NAME=김효연&TID=202601061613125381578011[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 484B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613125381578011&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m604µs[39m     [90m848µs[39m   [90m216µs[39m        [90m3ms[39m             [90m9ms[39m             [90m42ms[39m             [90m476µs[39m      [90m17µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613125381578011&OTP=109274[39m  
+  200 OK [90m★[39m 53ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613125381578011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m440µs[39m     [90m981µs[39m   [90m76µs[39m         [90m3ms[39m             [90m8ms[39m             [90m38ms[39m             [90m544µs[39m      [90m38µs[39m      [90m53ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613125381578011[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613125381578011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m375µs[39m     [90m928µs[39m   [90m3ms[39m          [90m3ms[39m             [90m9ms[39m             [90m39ms[39m             [90m488µs[39m      [90m17µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR02. 주민등록번호 오류 / TEST_03_자릿수 초과[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 41ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613133777373010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m640µs[39m     [90m1ms[39m    [90m60µs[39m         [90m3ms[39m             [90m10ms[39m            [90m25ms[39m             [90m481µs[39m      [90m18µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (DELIVER/MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=LGT&NAME=김태욱&PHONE=01081896634&IDEN=9002051&TID=202601061613133777373010[39m  
+  200 OK [90m★[39m 151ms [90mtime[39m [90m★[39m 499B[90m↑[39m 278B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 127B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613133777373010&INFOAGREE=Y&MVNONAME=(주)미디어로그(U+유모바일)[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m471µs[39m     [90m1ms[39m    [90m49µs[39m         [90m2ms[39m             [90m9ms[39m             [90m136ms[39m            [90m499µs[39m      [90m16µs[39m      [90m150ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과에 대한 메세지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m정보제공 동의 여부(INFOAGREE) 정상 출력[39m
+[32m  √ [39m [90m알뜰폰 업체명(MVNONAME) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01081896634&IDEN=90020512&IPADDR=10.10.52.70&CARRIER=LGT&NAME=김태욱&TID=202601061613133777373010&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 70ms [90mtime[39m [90m★[39m 509B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613133777373010&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m544µs[39m     [90m934µs[39m   [90m103µs[39m        [90m3ms[39m             [90m9ms[39m             [90m54ms[39m             [90m671µs[39m      [90m30µs[39m      [90m70ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613133777373010&OTP=109274[39m  
+  200 OK [90m★[39m 121ms [90mtime[39m [90m★[39m 337B[90m↑[39m 315B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 164B
+[90m  [37m│[90m RETURNCODE=5401&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613133777373010&TARGETURL=[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m498µs[39m     [90m1ms[39m    [90m64µs[39m         [90m3ms[39m             [90m9ms[39m             [90m106ms[39m            [90m623µs[39m      [90m15µs[39m      [90m121ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613133777373010[39m  
+  200 OK [90m★[39m 60ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613133777373010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m443µs[39m     [90m963µs[39m   [90m80µs[39m         [90m3ms[39m             [90m9ms[39m             [90m44ms[39m             [90m570µs[39m      [90m22µs[39m      [90m59ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR02. 주민등록번호 오류 / TEST_04_앞자리 비정상 값[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 47ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613146282407011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m471µs[39m     [90m919µs[39m   [90m211µs[39m        [90m4ms[39m             [90m10ms[39m            [90m30ms[39m             [90m396µs[39m      [90m19µs[39m      [90m47ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김태욱&PHONE=01026116634&IDEN=9013321&TID=202601061613146282407011[39m  
+  200 OK [90m★[39m 171ms [90mtime[39m [90m★[39m 480B[90m↑[39m 221B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 71B
+[90m  [37m│[90m RETURNCODE=9999&RETURNMSG=No Info errormsg&TID=2026010[39m
+[90m  [37m│[90m 61613146282407011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m500µs[39m     [90m933µs[39m   [90m57µs[39m         [90m3ms[39m             [90m10ms[39m            [90m154ms[39m            [90m696µs[39m      [90m41µs[39m      [90m170ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613146282407011&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 507B[90m↑[39m 355B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 204B
+[90m  [37m│[90m RETURNCODE=9032&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613146282407011&TARG[39m
+[90m  [37m│[90m ETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m521µs[39m     [90m1ms[39m    [90m79µs[39m         [90m3ms[39m             [90m9ms[39m             [90m38ms[39m             [90m607µs[39m      [90m25µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 정상 출력[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 정상 출력[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613146282407011&OTP=944784[39m  
+  200 OK [90m★[39m 57ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613146282407011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m610µs[39m     [90m1ms[39m    [90m119µs[39m        [90m3ms[39m             [90m8ms[39m             [90m43ms[39m             [90m482µs[39m      [90m17µs[39m      [90m56ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613146282407011[39m  
+  200 OK [90m★[39m 57ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613146282407011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m729µs[39m     [90m1ms[39m    [90m70µs[39m         [90m3ms[39m             [90m9ms[39m             [90m41ms[39m             [90m669µs[39m      [90m49µs[39m      [90m56ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR02. 주민등록번호 오류 / TEST_05_뒷자리 성별코드 오류[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 46ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613157767145010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m529µs[39m     [90m983µs[39m   [90m101µs[39m        [90m3ms[39m             [90m9ms[39m             [90m30ms[39m             [90m463µs[39m      [90m15µs[39m      [90m46ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김태욱&PHONE=01026116634&IDEN=9002052&TID=202601061613157767145010[39m  
+  200 OK [90m★[39m 238ms [90mtime[39m [90m★[39m 480B[90m↑[39m 221B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 71B
+[90m  [37m│[90m RETURNCODE=9999&RETURNMSG=No Info errormsg&TID=2026010[39m
+[90m  [37m│[90m 61613157767145010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m459µs[39m     [90m888µs[39m   [90m106µs[39m        [90m6ms[39m             [90m8ms[39m             [90m221ms[39m            [90m646µs[39m      [90m42µs[39m      [90m237ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613157767145010&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 64ms [90mtime[39m [90m★[39m 507B[90m↑[39m 355B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 204B
+[90m  [37m│[90m RETURNCODE=9032&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613157767145010&TARG[39m
+[90m  [37m│[90m ETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m651µs[39m     [90m1ms[39m    [90m113µs[39m        [90m3ms[39m             [90m8ms[39m             [90m49ms[39m             [90m466µs[39m      [90m18µs[39m      [90m64ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 정상 출력[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 정상 출력[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613157767145010&OTP=944784[39m  
+  200 OK [90m★[39m 64ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613157767145010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m574µs[39m     [90m1ms[39m    [90m69µs[39m         [90m5ms[39m             [90m10ms[39m            [90m45ms[39m             [90m457µs[39m      [90m18µs[39m      [90m64ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613157767145010[39m  
+  200 OK [90m★[39m 59ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613157767145010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m543µs[39m     [90m1ms[39m    [90m104µs[39m        [90m3ms[39m             [90m11ms[39m            [90m42ms[39m             [90m490µs[39m      [90m18µs[39m      [90m59ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR03. 휴대폰번호 오류 / TEST_01_정보 불일치[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 41ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613170377413010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m462µs[39m     [90m1ms[39m    [90m69µs[39m         [90m3ms[39m             [90m9ms[39m             [90m25ms[39m             [90m431µs[39m      [90m20µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01085402697&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=LGT&NAME=김태욱&TID=202601061613170377413010[39m  
+  200 OK [90m★[39m 237ms [90mtime[39m [90m★[39m 486B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=5101&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613170377413010&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m428µs[39m     [90m1ms[39m    [90m117µs[39m        [90m3ms[39m             [90m9ms[39m             [90m221ms[39m            [90m562µs[39m      [90m19µs[39m      [90m236ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613170377413010&OTP=188585[39m  
+  200 OK [90m★[39m 52ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613170377413010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m455µs[39m     [90m912µs[39m   [90m111µs[39m        [90m3ms[39m             [90m9ms[39m             [90m36ms[39m             [90m568µs[39m      [90m24µs[39m      [90m51ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613170377413010[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613170377413010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m451µs[39m     [90m926µs[39m   [90m99µs[39m         [90m3ms[39m             [90m7ms[39m             [90m43ms[39m             [90m578µs[39m      [90m18µs[39m      [90m57ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR03. 휴대폰번호 오류 / TEST_02_자릿수 부족[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 42ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613180477205010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m398µs[39m     [90m876µs[39m   [90m100µs[39m        [90m2ms[39m             [90m7ms[39m             [90m29ms[39m             [90m419µs[39m      [90m15µs[39m      [90m42ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김태욱&PHONE=0102611663&IDEN=9002051&TID=202601061613180477205010&IPADDR=172.16.5.152[39m  
+  200 OK [90m★[39m 294ms [90mtime[39m [90m★[39m 499B[90m↑[39m 320B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 169B
+[90m  [37m│[90m RETURNCODE=3662&RETURNMSG=[인증실패] 입력하신 휴대폰번호 형식이 올바르지 않[39m
+[90m  [37m│[90m 습니다. 다시 입력하여 주십시오.&TID=202601061613180477205010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m462µs[39m     [90m937µs[39m   [90m98µs[39m         [90m3ms[39m             [90m9ms[39m             [90m279ms[39m            [90m556µs[39m      [90m19µs[39m      [90m293ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613180477205010[39m  
+  200 OK [90m★[39m 267ms [90mtime[39m [90m★[39m 485B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=3066&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613180477205010&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m499µs[39m     [90m825µs[39m   [90m190µs[39m        [90m2ms[39m             [90m9ms[39m             [90m252ms[39m            [90m497µs[39m      [90m18µs[39m      [90m266ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613180477205010&OTP=188585[39m  
+  200 OK [90m★[39m 52ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613180477205010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m341µs[39m     [90m999µs[39m   [90m74µs[39m         [90m3ms[39m             [90m9ms[39m             [90m36ms[39m             [90m524µs[39m      [90m18µs[39m      [90m52ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613180477205010[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613180477205010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m384µs[39m     [90m1ms[39m    [90m77µs[39m         [90m3ms[39m             [90m9ms[39m             [90m45ms[39m             [90m485µs[39m      [90m19µs[39m      [90m60ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR03. 휴대폰번호 오류 / TEST_03_자릿수 초과[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 39ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613195572487011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m399µs[39m     [90m991µs[39m   [90m91µs[39m         [90m3ms[39m             [90m9ms[39m             [90m25ms[39m             [90m484µs[39m      [90m21µs[39m      [90m39ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (DELIVER/MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=KT&NAME=김태욱&PHONE=010261166345&IDEN=9002051&TID=202601061613195572487011[39m  
+  200 OK [90m★[39m 229ms [90mtime[39m [90m★[39m 499B[90m↑[39m 221B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 71B
+[90m  [37m│[90m RETURNCODE=9999&RETURNMSG=No Info errormsg&TID=2026010[39m
+[90m  [37m│[90m 61613195572487011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m489µs[39m     [90m925µs[39m   [90m97µs[39m         [90m3ms[39m             [90m9ms[39m             [90m214ms[39m            [90m594µs[39m      [90m18µs[39m      [90m229ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613195572487011[39m  
+  200 OK [90m★[39m 326ms [90mtime[39m [90m★[39m 485B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=3066&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613195572487011&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m614µs[39m     [90m911µs[39m   [90m89µs[39m         [90m2ms[39m             [90m8ms[39m             [90m312ms[39m            [90m522µs[39m      [90m20µs[39m      [90m326ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613195572487011&OTP=188585[39m  
+  200 OK [90m★[39m 49ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613195572487011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m495µs[39m     [90m1ms[39m    [90m50µs[39m         [90m3ms[39m             [90m10ms[39m            [90m32ms[39m             [90m604µs[39m      [90m23µs[39m      [90m49ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 미출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613195572487011[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613195572487011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m474µs[39m     [90m1ms[39m    [90m73µs[39m         [90m3ms[39m             [90m10ms[39m            [90m44ms[39m             [90m579µs[39m      [90m22µs[39m      [90m61ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR03. 휴대폰번호 오류 / TEST_04_앞자리 식별번호 오류[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 45ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613210476944010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m564µs[39m     [90m902µs[39m   [90m97µs[39m         [90m4ms[39m             [90m12ms[39m            [90m25ms[39m             [90m573µs[39m      [90m21µs[39m      [90m45ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01976746634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=LGT&NAME=김태욱&TID=202601061613210476944010[39m  
+  200 OK [90m★[39m 189ms [90mtime[39m [90m★[39m 486B[90m↑[39m 337B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 186B
+[90m  [37m│[90m RETURNCODE=5101&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613210476944010&TARGETURL=&C[39m
+[90m  [37m│[90m PURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m540µs[39m     [90m986µs[39m   [90m88µs[39m         [90m3ms[39m             [90m10ms[39m            [90m172ms[39m            [90m492µs[39m      [90m26µs[39m      [90m188ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613210476944010&OTP=188585[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613210476944010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m419µs[39m     [90m913µs[39m   [90m99µs[39m         [90m3ms[39m             [90m9ms[39m             [90m45ms[39m             [90m632µs[39m      [90m50µs[39m      [90m60ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613210476944010[39m  
+  200 OK [90m★[39m 59ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613210476944010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m552µs[39m     [90m1ms[39m    [90m60µs[39m         [90m3ms[39m             [90m8ms[39m             [90m45ms[39m             [90m477µs[39m      [90m25µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR03. 휴대폰번호 오류 / TEST_05_문자 포함[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 39ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613220686964010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m498µs[39m     [90m1ms[39m    [90m90µs[39m         [90m3ms[39m             [90m9ms[39m             [90m23ms[39m             [90m452µs[39m      [90m15µs[39m      [90m38ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01097966634ㅇ&IDEN=970712&IPADDR=10.10.52.70&CARRIER=KT&NAME=김효연&TID=202601061613220686964010[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 493B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613220686964010&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m564µs[39m     [90m925µs[39m   [90m76µs[39m         [90m3ms[39m             [90m6ms[39m             [90m42ms[39m             [90m550µs[39m      [90m18µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613220686964010&OTP=109274[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613220686964010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m442µs[39m     [90m914µs[39m   [90m103µs[39m        [90m3ms[39m             [90m9ms[39m             [90m38ms[39m             [90m638µs[39m      [90m31µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613220686964010[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613220686964010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m463µs[39m     [90m990µs[39m   [90m113µs[39m        [90m3ms[39m             [90m10ms[39m            [90m38ms[39m             [90m589µs[39m      [90m23µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR04. 통신사 오류 / TEST_01_정보 불일치[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 50ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613229091748011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m572µs[39m     [90m962µs[39m   [90m98µs[39m         [90m3ms[39m             [90m8ms[39m             [90m35ms[39m             [90m542µs[39m      [90m16µs[39m      [90m50ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&CARRIER=SKT&NAME=김태욱&PHONE=01026116634&IDEN=9002051&TID=202601061613229091748011[39m  
+  200 OK [90m★[39m 57ms [90mtime[39m [90m★[39m 469B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613229091748011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m424µs[39m     [90m907µs[39m   [90m58µs[39m         [90m3ms[39m             [90m10ms[39m            [90m40ms[39m             [90m469µs[39m      [90m19µs[39m      [90m56ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과에 대한 메세지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m정보제공 동의 여부(INFOAGREE) 미출력[39m
+[32m  √ [39m [90m알뜰폰 업체명(MVNONAME) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613229091748011&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 218ms [90mtime[39m [90m★[39m 507B[90m↑[39m 255B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 104B
+[90m  [37m│[90m RETURNCODE=9999&RETURNMSG=No Info errormsg&TID=2026010[39m
+[90m  [37m│[90m 61613229091748011&TARGETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m614µs[39m     [90m1ms[39m    [90m125µs[39m        [90m3ms[39m             [90m9ms[39m             [90m202ms[39m            [90m604µs[39m      [90m18µs[39m      [90m218ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 정상 출력[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 정상 출력[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613229091748011&OTP=944784[39m  
+  200 OK [90m★[39m 46ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613229091748011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m365µs[39m     [90m912µs[39m   [90m91µs[39m         [90m3ms[39m             [90m7ms[39m             [90m33ms[39m             [90m479µs[39m      [90m23µs[39m      [90m45ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613229091748011[39m  
+  200 OK [90m★[39m 53ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613229091748011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m452µs[39m     [90m991µs[39m   [90m124µs[39m        [90m3ms[39m             [90m6ms[39m             [90m41ms[39m             [90m484µs[39m      [90m19µs[39m      [90m53ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR04. 통신사 오류 / TEST_02_대소문자 구분 오류[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 40ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613241697295010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m498µs[39m     [90m1ms[39m    [90m92µs[39m         [90m3ms[39m             [90m7ms[39m             [90m27ms[39m             [90m420µs[39m      [90m21µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&CARRIER=kt&NAME=김태욱&PHONE=01026116634&IDEN=9002051&TID=202601061613241697295010[39m  
+  200 OK [90m★[39m 56ms [90mtime[39m [90m★[39m 468B[90m↑[39m 305B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 154B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613241697295010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m497µs[39m     [90m908µs[39m   [90m103µs[39m        [90m3ms[39m             [90m9ms[39m             [90m41ms[39m             [90m507µs[39m      [90m18µs[39m      [90m56ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과에 대한 메세지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m정보제공 동의 여부(INFOAGREE) 미출력[39m
+[32m  √ [39m [90m알뜰폰 업체명(MVNONAME) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01026116634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=KT&NAME=김태욱&TID=202601061613241697295010&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 67ms [90mtime[39m [90m★[39m 507B[90m↑[39m 355B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 204B
+[90m  [37m│[90m RETURNCODE=9032&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613241697295010&TARG[39m
+[90m  [37m│[90m ETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m523µs[39m     [90m1ms[39m    [90m44µs[39m         [90m3ms[39m             [90m9ms[39m             [90m52ms[39m             [90m473µs[39m      [90m18µs[39m      [90m66ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 정상 출력[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 정상 출력[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613241697295010&OTP=944784[39m  
+  200 OK [90m★[39m 53ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613241697295010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m649µs[39m     [90m1ms[39m    [90m126µs[39m        [90m3ms[39m             [90m10ms[39m            [90m37ms[39m             [90m586µs[39m      [90m22µs[39m      [90m53ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613241697295010[39m  
+  200 OK [90m★[39m 56ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613241697295010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m359µs[39m     [90m889µs[39m   [90m105µs[39m        [90m3ms[39m             [90m9ms[39m             [90m41ms[39m             [90m520µs[39m      [90m21µs[39m      [90m56ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR04. 통신사 오류 / TEST_03_존재하지 않는 코드 입력[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 40ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613251942577011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m545µs[39m     [90m959µs[39m   [90m43µs[39m         [90m3ms[39m             [90m9ms[39m             [90m25ms[39m             [90m442µs[39m      [90m16µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01058616634&IDEN=9707172&IPADDR=10.10.52.70&CARRIER=SKL&NAME=김효연&TID=202601061613251942577011[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 486B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613251942577011&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m442µs[39m     [90m982µs[39m   [90m125µs[39m        [90m3ms[39m             [90m9ms[39m             [90m38ms[39m             [90m584µs[39m      [90m27µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613251942577011&OTP=109274[39m  
+  200 OK [90m★[39m 50ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613251942577011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m404µs[39m     [90m932µs[39m   [90m128µs[39m        [90m3ms[39m             [90m9ms[39m             [90m34ms[39m             [90m537µs[39m      [90m21µs[39m      [90m49ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613251942577011[39m  
+  200 OK [90m★[39m 58ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613251942577011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m273µs[39m     [90m938µs[39m   [90m104µs[39m        [90m3ms[39m             [90m11ms[39m            [90m40ms[39m             [90m565µs[39m      [90m23µs[39m      [90m57ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR05. 시스템/네트워크 오류 / TEST_01_필수 파라미터 누락[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 52ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613260421798011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m491µs[39m     [90m907µs[39m   [90m123µs[39m        [90m3ms[39m             [90m9ms[39m             [90m36ms[39m             [90m502µs[39m      [90m17µs[39m      [90m52ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (DELIVER/MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=LGT&NAME=김태욱&PHONE=01081896634&IDEN=9002051&TID=202601061613260421798011[39m  
+  200 OK [90m★[39m 129ms [90mtime[39m [90m★[39m 499B[90m↑[39m 278B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 127B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613260421798011&INFOAGREE=Y&MVNONAME=(주)미디어로그(U+유모바일)[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m452µs[39m     [90m949µs[39m   [90m93µs[39m         [90m3ms[39m             [90m9ms[39m             [90m113ms[39m            [90m575µs[39m      [90m15µs[39m      [90m128ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과에 대한 메세지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m정보제공 동의 여부(INFOAGREE) 정상 출력[39m
+[32m  √ [39m [90m알뜰폰 업체명(MVNONAME) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01081896634&IDEN=9002051&IPADDR=10.10.52.70&NAME=김태욱&TID=202601061613260421798011&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 496B[90m↑[39m 338B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 187B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613260421798011&TARGE[39m
+[90m  [37m│[90m TURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m392µs[39m     [90m901µs[39m   [90m98µs[39m         [90m3ms[39m             [90m8ms[39m             [90m41ms[39m             [90m440µs[39m      [90m21µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613260421798011&OTP=475103[39m  
+  200 OK [90m★[39m 128ms [90mtime[39m [90m★[39m 337B[90m↑[39m 315B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 164B
+[90m  [37m│[90m RETURNCODE=5401&RETURNMSG=[인증실패] 입력하신 정보가 올바르지 않습니다. 다[39m
+[90m  [37m│[90m 시 입력하여 주십시오.&TID=202601061613260421798011&TARGETURL=[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m481µs[39m     [90m931µs[39m   [90m115µs[39m        [90m3ms[39m             [90m9ms[39m             [90m112ms[39m            [90m507µs[39m      [90m18µs[39m      [90m127ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613260421798011[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613260421798011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m286µs[39m     [90m1ms[39m    [90m57µs[39m         [90m3ms[39m             [90m8ms[39m             [90m40ms[39m             [90m534µs[39m      [90m23µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR05. 시스템/네트워크 오류 / TEST_02_MVNO 미인증[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID&USERID&AGELIMIT[39m  
+  200 OK [90m★[39m 51ms [90mtime[39m [90m★[39m 390B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613272591838011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m360µs[39m     [90m1ms[39m    [90m116µs[39m        [90m3ms[39m             [90m8ms[39m             [90m37ms[39m             [90m526µs[39m      [90m21µs[39m      [90m51ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01081896634&IDEN=9002051&IPADDR=10.10.52.70&NAME=김태욱&TID=202601061613272591838011&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 59ms [90mtime[39m [90m★[39m 496B[90m↑[39m 355B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 204B
+[90m  [37m│[90m RETURNCODE=9032&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613272591838011&TARG[39m
+[90m  [37m│[90m ETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m465µs[39m     [90m996µs[39m   [90m126µs[39m        [90m3ms[39m             [90m9ms[39m             [90m43ms[39m             [90m581µs[39m      [90m25µs[39m      [90m58ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613272591838011&OTP=475103[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613272591838011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m318µs[39m     [90m1ms[39m    [90m100µs[39m        [90m3ms[39m             [90m10ms[39m            [90m38ms[39m             [90m596µs[39m      [90m19µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613272591838011[39m  
+  200 OK [90m★[39m 51ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613272591838011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m359µs[39m     [90m922µs[39m   [90m79µs[39m         [90m3ms[39m             [90m7ms[39m             [90m38ms[39m             [90m406µs[39m      [90m20µs[39m      [90m50ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR06. 나이 제한 오류 / TEST_01_일반 인증 (2way)[0m
+└ [0m가맹점 정보 확인 (SIMDELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=SIMDELIVER&PHONE=01097966634&IDEN=9707162&IPADDR=10.10.52.70&CARRIER=KTF&SERVICE=UAS&AUTHTYPE=36&CPID=B010010334&CPPWD=teleditcom&NAME=김효연&AGELIMIT=30[39m  
+  200 OK [90m★[39m 46ms [90mtime[39m [90m★[39m 529B[90m↑[39m 318B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 167B
+[90m  [37m│[90m RETURNCODE=9016&RETURNMSG=[인증실패] 해당 업체에서 인증을 허용하지 않는 나[39m
+[90m  [37m│[90m 이입니다. (다날고객센터 1566-3355)&TID=202601061613281087563010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m474µs[39m     [90m1ms[39m    [90m3ms[39m          [90m3ms[39m             [90m9ms[39m             [90m27ms[39m             [90m428µs[39m      [90m16µs[39m      [90m46ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mOTP 인증 및 확인 (SIMCONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=SIMCONFIRM&TID=202601061613281087563010&OTP=776056[39m  
+  200 OK [90m★[39m 55ms [90mtime[39m [90m★[39m 341B[90m↑[39m 328B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 177B
+[90m  [37m│[90m RETURNCODE=9997&RETURNMSG=[인증실패] 내부오류로 인증 실패되었습니다. 다시 [39m
+[90m  [37m│[90m 시도해 주십시오. (다날고객센터 1566-3355)&TID=202601061613281087563[39m
+[90m  [37m│[90m 010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m486µs[39m     [90m1ms[39m    [90m66µs[39m         [90m3ms[39m             [90m8ms[39m             [90m39ms[39m             [90m621µs[39m      [90m47µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) : 9997[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) : [인증실패] 내부오류로 인증 실패되었습니다. 다시 시도해 주십시오. (다날고객센터 1566-3355)[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR06. 나이 제한 오류 / TEST_02_일반 인증 (4way)[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234&USERID=hnkim&AGELIMIT=40&TARGETURL[39m  
+  200 OK [90m★[39m 39ms [90mtime[39m [90m★[39m 404B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613284952647011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m374µs[39m     [90m839µs[39m   [90m31µs[39m         [90m3ms[39m             [90m9ms[39m             [90m25ms[39m             [90m463µs[39m      [90m16µs[39m      [90m39ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m본인정보 확인 (EXTDELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=EXTDELIVER&PHONE=01076746634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=LGT&NAME=김태욱&TID=202601061613284952647011[39m  
+  200 OK [90m★[39m 65ms [90mtime[39m [90m★[39m 489B[90m↑[39m 332B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 181B
+[90m  [37m│[90m RETURNCODE=9016&RETURNMSG=[인증실패] 해당 업체에서 인증을 허용하지 않는 나[39m
+[90m  [37m│[90m 이입니다. (다날고객센터 1566-3355)&TID=202601061613284952647011&[39m
+[90m  [37m│[90m SKAPS=N&PNS=N[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m475µs[39m     [90m921µs[39m   [90m110µs[39m        [90m3ms[39m             [90m8ms[39m             [90m50ms[39m             [90m597µs[39m      [90m22µs[39m      [90m64ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90mSK 인증 보호 서비스 가입자 여부(SKAPS) 미출력 확인[39m
+[32m  √ [39m [90m휴대폰 번호 보호 서비스 가입자 여부(PNS) 미출력 확인[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613284952647011&OTP=432846[39m  
+  200 OK [90m★[39m 57ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613284952647011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m458µs[39m     [90m856µs[39m   [90m201µs[39m        [90m3ms[39m             [90m9ms[39m             [90m42ms[39m             [90m478µs[39m      [90m16µs[39m      [90m57ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) : 9992[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) : [인증실패] 인증 절차를 모두 거치지 않아 자동 취소되었습니다. 다시 시도해 주십시오.[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[31m[1m  1.[22m[39m [31m[1m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[22m[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613284952647011[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613284952647011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m253µs[39m     [90m894µs[39m   [90m60µs[39m         [90m3ms[39m             [90m8ms[39m             [90m40ms[39m             [90m611µs[39m      [90m26µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) : 9992[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) : [인증실패] 인증 절차를 모두 거치지 않아 자동 취소되었습니다. 다시 시도해 주십시오.[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR06. 나이 제한 오류 / TEST_03_일반 인증 / KT_MVNO[0m
+└ [0m가맹점 정보 확인 (ITEMSEND)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=ITEMSEND&SERVICE=UAS&AUTHTYPE=36&TARGETURL&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234567&USERID=hnkim&AGELIMIT=30[39m  
+  200 OK [90m★[39m 40ms [90mtime[39m [90m★[39m 407B[90m↑[39m 219B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 69B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613293647044010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m457µs[39m     [90m1ms[39m    [90m88µs[39m         [90m3ms[39m             [90m8ms[39m             [90m25ms[39m             [90m434µs[39m      [90m17µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0mMVNO 확인 (MVNOCHECK)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=MVNOCHECK&CARRIER=KT&NAME=김하늘&PHONE=01085402607&IDEN=0001174&TID=202601061613293647044010&IPADDR=172.16.5.152[39m  
+  200 OK [90m★[39m 208ms [90mtime[39m [90m★[39m 488B[90m↑[39m 242B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 92B
+[90m  [37m│[90m RETURNCODE=0000&RETURNMSG=No information&TID=202601061[39m
+[90m  [37m│[90m 613293647044010&MVNONAME=kt M모바일[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m504µs[39m     [90m1ms[39m    [90m44µs[39m         [90m3ms[39m             [90m9ms[39m             [90m192ms[39m            [90m511µs[39m      [90m18µs[39m      [90m207ms[39m 
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과에 대한 메세지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m알뜰폰 업체명(MVNONAME) 정상 출력[39m
+
+└ [0m본인정보 확인 (DELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=DELIVER&PHONE=01058616634&IDEN=9707162&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김효연&TID=202601061613293647044010&SUBTXTYPE=MVNODELIVER[39m  
+  200 OK [90m★[39m 70ms [90mtime[39m [90m★[39m 508B[90m↑[39m 351B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 200B
+[90m  [37m│[90m RETURNCODE=9016&RETURNMSG=[인증실패] 해당 업체에서 인증을 허용하지 않는 나[39m
+[90m  [37m│[90m 이입니다. (다날고객센터 1566-3355)&TID=202601061613293647044010&[39m
+[90m  [37m│[90m TARGETURL=&CPURL=www.teledit.com[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m458µs[39m     [90m893µs[39m   [90m117µs[39m        [90m3ms[39m             [90m9ms[39m             [90m55ms[39m             [90m476µs[39m      [90m17µs[39m      [90m70ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+[32m  √ [39m [90m가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력[39m
+[32m  √ [39m [90m가맹점 URL(CPURL) 정상 출력[39m
+
+└ [0mOTP 인증 (REPORT)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=REPORT&TID=202601061613293647044010&OTP=475103[39m  
+  200 OK [90m★[39m 54ms [90mtime[39m [90m★[39m 337B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613293647044010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m383µs[39m     [90m939µs[39m   [90m86µs[39m         [90m4ms[39m             [90m11ms[39m            [90m36ms[39m             [90m453µs[39m      [90m16µs[39m      [90m54ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[31m[1m  2⠄ Error in test-script[22m[39m
+
+└ [0m확인 (CONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=CONFIRM&TID=202601061613293647044010[39m  
+  200 OK [90m★[39m 61ms [90mtime[39m [90m★[39m 327B[90m↑[39m 322B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 171B
+[90m  [37m│[90m RETURNCODE=9992&RETURNMSG=[인증실패] 인증 절차를 모두 거치지 않아 자동 취[39m
+[90m  [37m│[90m 소되었습니다. 다시 시도해 주십시오.&TID=202601061613293647044010[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m333µs[39m     [90m896µs[39m   [90m86µs[39m         [90m3ms[39m             [90m9ms[39m             [90m46ms[39m             [90m455µs[39m      [90m16µs[39m      [90m61ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) : 9992[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) : [인증실패] 인증 절차를 모두 거치지 않아 자동 취소되었습니다. 다시 시도해 주십시오.[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+□ [0mERROR06. 나이 제한 오류 / TEST_04_간편 인증[0m
+└ [0m가맹점 정보 및 사용자 정보 확인 (APPDELIVER)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=APPDELIVER&PHONE=01079266634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=SKT&NAME=김태욱&SERVICE=UAS&AUTHTYPE=40&CPID=B010010334&CPPWD=teleditcom[39m  
+  200 OK [90m★[39m 41ms [90mtime[39m [90m★[39m 517B[90m↑[39m 305B[90m↓[39m [90msize[39m [90m★[39m 10[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 154B
+[90m  [37m│[90m RETURNCODE=9010&RETURNMSG=[인증실패] 잘못된 값이 입력된 필드가 존재합니다.[39m
+[90m  [37m│[90m  (다날고객센터 1566-3355)&TID=202601061613305422687011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m    [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m368µs[39m     [90m922µs[39m   [90m127µs[39m        [90m3ms[39m             [90m10ms[39m            [90m25ms[39m             [90m584µs[39m      [90m23µs[39m      [90m40ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) 정상 출력[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) 정상 출력[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+└ [0m사용자 정보 전달 요청 (APPCONFIRM)[0m
+  [90mPOST[39m [90mhttps://uas.teledit.com/uas/?TXTYPE=APPCONFIRM&TID=202601061613305422687011[39m  
+  200 OK [90m★[39m 51ms [90mtime[39m [90m★[39m 330B[90m↑[39m 328B[90m↓[39m [90msize[39m [90m★[39m 9[90m↑[39m 5[90m↓[39m [90mheaders[39m [90m★[39m 0 [90mcookies[39m
+  [37m┌[39m [37m↓[39m text/plain [90m★[39m text [90m★[39m plain [90m★[39m utf8 [90m★[39m 177B
+[90m  [37m│[90m RETURNCODE=9997&RETURNMSG=[인증실패] 내부오류로 인증 실패되었습니다. 다시 [39m
+[90m  [37m│[90m 시도해 주십시오. (다날고객센터 1566-3355)&TID=202601061613305422687[39m
+[90m  [37m│[90m 011[39m
+[90m[39m[37m  └[39m
+  [37mprepare[39m   [37mwait[39m   [37mdns-lookup[39m   [37mtcp-handshake[39m   [37mssl-handshake[39m   [37mtransfer-start[39m   [37mdownload[39m   [37mprocess[39m   [37mtotal[39m 
+  [90m451µs[39m     [90m1ms[39m    [90m114µs[39m        [90m3ms[39m             [90m10ms[39m            [90m35ms[39m             [90m538µs[39m      [90m25µs[39m      [90m51ms[39m  
+
+[32m  √ [39m [90mStatus code is 200[39m
+[32m  √ [39m [90m거래 결과 코드(RETURNCODE) : 9997[39m
+[32m  √ [39m [90m거래 결과 메시지(RETURNMSG) : [인증실패] 내부오류로 인증 실패되었습니다. 다시 시도해 주십시오. (다날고객센터 1566-3355)[39m
+[32m  √ [39m [90m거래 TID(TID) 정상 출력[39m
+
+[90m┌─────────────────────────[39m[90m┬────────────────────[39m[90m┬────────────────────┐[39m
+[90m│[39m                         [90m│[39m           executed [90m│[39m             failed [90m│[39m
+[90m├─────────────────────────[39m[90m┼────────────────────[39m[90m┼────────────────────┤[39m
+[90m│[39m              [32miterations[39m [90m│[39m                  1 [90m│[39m                  0 [90m│[39m
+[90m├─────────────────────────[39m[90m┼────────────────────[39m[90m┼────────────────────┤[39m
+[90m│[39m                [32mrequests[39m [90m│[39m                 97 [90m│[39m                  0 [90m│[39m
+[90m├─────────────────────────[39m[90m┼────────────────────[39m[90m┼────────────────────┤[39m
+[90m│[39m            [31mtest-scripts[39m [90m│[39m                 97 [90m│[39m                  [31m1[39m [90m│[39m
+[90m├─────────────────────────[39m[90m┼────────────────────[39m[90m┼────────────────────┤[39m
+[90m│[39m      [32mprerequest-scripts[39m [90m│[39m                  1 [90m│[39m                  0 [90m│[39m
+[90m├─────────────────────────[39m[90m┼────────────────────[39m[90m┼────────────────────┤[39m
+[90m│[39m              [31massertions[39m [90m│[39m                510 [90m│[39m                  [31m1[39m [90m│[39m
+[90m├─────────────────────────┴────────────────────┴────────────────────┤[39m
+[90m│[39m total run duration: 23.1s                                         [90m│[39m
+[90m├───────────────────────────────────────────────────────────────────┤[39m
+[90m│[39m total data received: 14.16kB (approx)                             [90m│[39m
+[90m├───────────────────────────────────────────────────────────────────┤[39m
+[90m│[39m average response time: 80ms [min: 39ms, max: 326ms, s.d.: 63ms]   [90m│[39m
+[90m├───────────────────────────────────────────────────────────────────┤[39m
+[90m│[39m average DNS lookup time: 905µs [min: 31µs, max: 33ms, s.d.: 4ms]  [90m│[39m
+[90m├───────────────────────────────────────────────────────────────────┤[39m
+[90m│[39m average first byte time: 64ms [min: 23ms, max: 312ms, s.d.: 63ms] [90m│[39m
+[90m└───────────────────────────────────────────────────────────────────┘[39m
+
+[31m  [31m[4m#[24m[31m [39m[31m [31m[4mfailure[24m[31m        [39m[31m [31m[4mdetail[24m[31m                                                                             [39m
+[90m    [39m[90m                [39m[90m                                                                                    [39m
+ 1.  AssertionError  가맹점 인증 완료(CPCGI) 페이지 URL(TARGETURL) 정상 출력                            
+                     [90m.empty was passed non-string primitive undefined[39m                                   
+                     [90mat assertion:4 in test-script[39m[90m[39m                                                      
+                     [90minside "ERROR06. 나이 제한 오류 / TEST_02_일반 인증 (4way) / OTP 인증 (REPORT)"[39m    
+[90m    [39m[90m                [39m[90m                                                                                    [39m
+ 2.  Error                                                                                              
+                     [90m기타 오류 발생 : 거래 결과 코드(RETURNCODE)가 9992입니다.[39m                          
+                     [90mat test-script[39m[90m[39m                                                                     
+                     [90minside "ERROR06. 나이 제한 오류 / TEST_03_일반 인증 / KT_MVNO / OTP 인증 (REPORT)"[39m 
