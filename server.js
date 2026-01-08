@@ -1533,9 +1533,9 @@ app.get('/api/statistics/today', (req, res) => {
       else if (item.newmanStats && item.newmanStats.timings && item.newmanStats.timings.responseAverage > 0) {
         validResponseTimes.push(item.newmanStats.timings.responseAverage);
       }
-      // Newman Job만 백업으로 duration 사용 (Binary Job은 전체 실행시간이므로 제외)
-      else if (item.type === 'newman' && item.duration && item.duration > 0) {
-        validResponseTimes.push(item.duration * 1000); // Newman의 경우만 초를 밀리초로 변환
+      // duration 사용 (newman, binary 모두 포함)
+      else if (item.duration && item.duration > 0) {
+        validResponseTimes.push(item.duration * 1000);
       }
     });
     
@@ -3221,7 +3221,7 @@ function getTodayStatsInternal() {
   const failedTests = totalExecutions - successCount;
   const successRate = totalExecutions > 0 ? Math.round((successCount / totalExecutions) * 100) : 0;
 
-  // 평균 응답시간 계산 (기존 /api/statistics/today와 동일한 로직)
+  // 평균 응답시간 계산
   const validResponseTimes = [];
   todayHistory.forEach(item => {
     // detailedStats에서 avgResponseTime 사용 (우선순위 1)
@@ -3232,8 +3232,8 @@ function getTodayStatsInternal() {
     else if (item.newmanStats && item.newmanStats.timings && item.newmanStats.timings.responseAverage > 0) {
       validResponseTimes.push(item.newmanStats.timings.responseAverage);
     }
-    // Newman Job만 duration 사용 (우선순위 3)
-    else if (item.type === 'newman' && item.duration && item.duration > 0) {
+    // duration 사용 (newman, binary 모두 포함)
+    else if (item.duration && item.duration > 0) {
       validResponseTimes.push(item.duration * 1000);
     }
   });
