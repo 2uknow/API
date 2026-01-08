@@ -3242,12 +3242,54 @@ function getTodayStatsInternal() {
     ? validResponseTimes.reduce((a, b) => a + b, 0) / validResponseTimes.length
     : 0;
 
+  // 서비스별 통계 계산
+  const serviceStats = {};
+  const jobServiceMap = getJobServiceMap();
+
+  todayHistory.forEach(item => {
+    const jobName = item.job || item.jobName;
+    const service = jobServiceMap[jobName] || '기타';
+
+    if (!serviceStats[service]) {
+      serviceStats[service] = { total: 0, success: 0, failed: 0 };
+    }
+
+    serviceStats[service].total++;
+    if (item.exitCode === 0) {
+      serviceStats[service].success++;
+    } else {
+      serviceStats[service].failed++;
+    }
+  });
+
   return {
     totalExecutions,
     successRate,
     failedTests,
-    avgResponseTime
+    avgResponseTime,
+    serviceStats
   };
+}
+
+// Job별 서비스 매핑 정보 가져오기
+function getJobServiceMap() {
+  const jobServiceMap = {};
+  const jobsDirPath = path.join(root, 'jobs');
+
+  try {
+    const jobFiles = fs.readdirSync(jobsDirPath).filter(f => f.endsWith('.json'));
+
+    for (const file of jobFiles) {
+      try {
+        const jobConfig = JSON.parse(fs.readFileSync(path.join(jobsDirPath, file), 'utf-8'));
+        if (jobConfig.name && jobConfig.service) {
+          jobServiceMap[jobConfig.name] = jobConfig.service;
+        }
+      } catch {}
+    }
+  } catch {}
+
+  return jobServiceMap;
 }
 
 // 정기 리포트 스케줄러 변수 (여러 시간 지원을 위해 배열로 변경)
