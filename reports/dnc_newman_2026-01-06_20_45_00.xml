@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Danal_CreditRebill_v1.0" tests="21" time="26.227">
+  <testsuite name="CP 및 정기결제 요청 전송 / READY - BATCH" id="97796b15-2e46-487f-a104-a127719b7db0" timestamp="2026-01-06T11:45:02.724Z" tests="7" failures="0" errors="0" time="0.291">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="결과메시지(RETURNMSG) 정상출력" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="정기결제 초기인증 표준페이지 시작 URL(STARTURL) 정상출력" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="위 표준페이지 시작 URL 전송 파라미터(STARTPARAMS) 정상출력" time="0.291" classname="CpReadyBatch"/>
+    <testcase name="결제금액(AMOUNT) 정상출력" time="0.291" classname="CpReadyBatch"/>
+  </testsuite>
+  <testsuite name="CP 및 정기결제 요청 전송 / READY - DANALCARD" id="cb7a5eb1-1255-4803-925c-8750ae12f861" timestamp="2026-01-06T11:45:02.724Z" tests="7" failures="0" errors="0" time="0.033">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="결과메시지(RETURNMSG) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="정기결제 초기인증 표준페이지 시작 URL(STARTURL) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="위 표준페이지 시작 URL 전송 파라미터(STARTPARAMS) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+    <testcase name="결제금액(AMOUNT) 정상출력" time="0.033" classname="CpReadyDanalcard"/>
+  </testsuite>
+  <testsuite name="초기 인증 결제 요청 / ISSUEBILLKEY" id="87a26bfa-0527-4dba-8420-d9514ce52be9" timestamp="2026-01-06T11:45:02.724Z" tests="2" failures="0" errors="0" time="0.027">
+    <testcase name="결과코드(RETURNCODE) : 1104 출력" time="0.027" classname="Issuebillkey"/>
+    <testcase name="결과메세지(RETURNMSG) : 존재하지 않는 거래입니다. 출력" time="0.027" classname="Issuebillkey"/>
+  </testsuite>
+  <testsuite name="삼성카드 / 정기결제 요청 (OTBILL)" id="376c5447-06c2-4da3-8f64-3d356155c00f" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.499">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.499" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.499" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.499" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.499" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.499" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="삼성카드 / 카드 승인 취소 (BILLCANCEL)" id="46756615-62c4-46f0-bb79-22aee3b11d00" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.394">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.394" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.394" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.394" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="현대카드 / 정기결제 요청 (OTBILL)" id="471df609-3385-47aa-ac68-d88e7e198627" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.289">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.289" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.289" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.289" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.289" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.289" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="현대카드 / 카드 승인 취소 (BILLCANCEL)" id="463a00da-3c41-4493-8772-fd3eea33717e" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.297">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.297" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.297" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.297" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="신한카드 / 정기결제 요청 (OTBILL)" id="61956563-0fd0-4a1b-bfa8-07e775ce3c33" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.462">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.462" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.462" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.462" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.462" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.462" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="신한카드 / 카드 승인 취소 (BILLCANCEL)" id="7c86d39f-84c5-4aab-888e-e61c828536ed" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.382">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.382" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.382" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.382" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="농협카드 / 정기결제 요청 (OTBILL)" id="1e15f813-1be1-44df-b1cd-0527d0237c04" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.716">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.716" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.716" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.716" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.716" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.716" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="농협카드 / 카드 승인 취소 (BILLCANCEL)" id="0bfdd1bd-a3f5-47c5-b3ef-1481e324a569" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.446">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.446" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.446" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.446" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="국민카드 / 정기결제 요청 (OTBILL)" id="8682d867-e557-4efc-ad8e-0c4197899229" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.294">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.294" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.294" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="보증금 금액(DEPOSIT_AMT) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.294" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.294" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.294" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="국민카드 / 카드 승인 취소 (BILLCANCEL)" id="95715309-8437-474b-a0d8-f47189566d59" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.434">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.434" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.434" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.434" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="우리BC카드 / 정기결제 요청 (OTBILL)" id="384a28fd-fbe9-41a1-acee-0171325c3829" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.861">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.861" classname="BcOtbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.861" classname="BcOtbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="보증금 금액(DEPOSIT_AMT) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.861" classname="BcOtbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.861" classname="BcOtbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.861" classname="BcOtbill"/>
+  </testsuite>
+  <testsuite name="우리BC카드 / 카드 승인 취소 (BILLCANCEL)" id="773be2af-69e2-453a-a56d-617908c766c0" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.348">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.348" classname="BcBillcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.348" classname="BcBillcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.348" classname="BcBillcancel"/>
+  </testsuite>
+  <testsuite name="우리독자카드 / 정기결제 요청 (OTBILL)" id="1046f3da-228e-406b-9952-4d663b7dfc1b" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.272">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.272" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.272" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="보증금 금액(DEPOSIT_AMT) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.272" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.272" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.272" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="우리독자카드 / 카드 승인 취소 (BILLCANCEL)" id="cbe821f0-c2c0-4f6b-8118-0c6d5499f691" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.321">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.321" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.321" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.321" classname="Billcancel"/>
+  </testsuite>
+  <testsuite name="Kbank카드 / 정기결제 요청 (OTBILL)" id="361b8382-4fc0-45f3-9e5d-b147141baf50" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.640">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.640" classname="KbankOtbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.640" classname="KbankOtbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="보증금 금액(DEPOSIT_AMT) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.640" classname="KbankOtbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.640" classname="KbankOtbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.640" classname="KbankOtbill"/>
+  </testsuite>
+  <testsuite name="Kbank카드 / 카드 승인 취소 (BILLCANCEL)" id="b4dc09b6-00c7-43f6-8a50-3b82fdf00cc0" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.367">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.367" classname="KbankBillcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.367" classname="KbankBillcancel"/>
+  </testsuite>
+  <testsuite name="롯데카드 / 정기결제 요청 (OTBILL)" id="9cb80a1c-938a-4f29-baf9-b5697d2051a1" timestamp="2026-01-06T11:45:02.724Z" tests="17" failures="0" errors="0" time="1.506">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="카드사 코드(CARDCODE 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="구매자 전화번호(USERPHONE) 빈값 확인" time="1.506" classname="Otbill"/>
+    <testcase name="할부 개월 수(QUOTA) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="매출 발생시간(TRANTIME) ±5초 이내 검증" time="1.506" classname="Otbill"/>
+    <testcase name="매출 발생일자(TRANDATE) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="승인금액(AMOUNT) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="상품명(ITEMNAME) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="보증금 금액(DEPOSIT_AMT) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="가맹점 주문번호(ORDERID) 빈값 확인" time="1.506" classname="Otbill"/>
+    <testcase name="카드번호(CARDNO) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="거래 승인 번호(CARDAUTHNO) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="카드사 명(CARDNAME) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="구매자 이름(USERNAME) 정상출력" time="1.506" classname="Otbill"/>
+    <testcase name="구매자 ID(USERID) 정상출력" time="1.506" classname="Otbill"/>
+  </testsuite>
+  <testsuite name="롯데카드 / 카드 승인 취소 (BILLCANCEL)" id="4052765d-cb9a-4af7-b7da-45f2f42d7921" timestamp="2026-01-06T11:45:02.724Z" tests="9" failures="0" errors="0" time="1.348">
+    <testcase name="결과코드(RETURNCODE) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="결과메세지(RETURNMSG) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="취소 후 잔액(BALANCE) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="다날 원 거래 키(O_TID) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="다날 거래 키(TID) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="승인 발생시간(TRANTIME) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="승인 발생일자(TRANDATE)" time="1.348" classname="Billcancel"/>
+    <testcase name="승인 취소 금액(AMOUNT) 정상출력" time="1.348" classname="Billcancel"/>
+    <testcase name="컵 보증금(DEPOSIT_AMT) 정상출력" time="1.348" classname="Billcancel"/>
+  </testsuite>
+</testsuites>

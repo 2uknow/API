@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KT 알뜰 SMS 정상케이스 - Newman Report</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%25%22 stop-color=%22%237c3aed%22/><stop offset=%22100%25%22 stop-color=%22%233b82f6%22/></linearGradient></defs><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22url(%23g)%22/><path d=%22M30 35h40v8H30zM30 47h30v8H30zM30 59h35v8H30z%22 fill=%22white%22/><circle cx=%2275%22 cy=%2228%22 r=%228%22 fill=%22%2328a745%22/></svg>">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAADZ0lEQVRYhe2Xa0iTcRjGf+/2uc1t5nRzXsqyQrPSsguRlRGRFxItLSIqKCEhgiAiKChCpQ+RH/rQhy4fCqKgD0UfCrqQkRUVdKEPURZlF8wsb3Nq2+Y293beDwGRCprO9qGBHzz/533+/+d5/u/zPuMlmUySZFkmSdK/7ReMAv8fwP8esCzL8vJsucJstkBGRBP/A6PfvwlKzWG/yDzWmGPjU4gYHe2B6q3YlKqFVJLB3tUbuM/XoGnkPXb/bT5FLH7l9/Ni+OTLqWPLKCH7OOlNJHY3EvddR+PAa4wFhuE1eWE2m2B6D2GJCNx8W4XW3kac0+1gGIaBZGhArJ8j9n17CfKgXrR1v8TWy3fFGi5nZjA4MoV4R0eCb/8+7K6pxNWGN6hcuwUCwwMA0P9dD4V+NW49r4Qj7YSQYUFZh3L9DfF3KZXX4JkNxzSyKLM3Ilt9K8SyNb9Zqm5l+nQ5t3Irlna1ek1H83vkLM/GjbfNaOz8jMrXH1Fc+wYp/hJExHph3/VynL/3AlazBfe7+pA5Y7IVv3OKy+ePKKk7TfcsOY2XZdtI51QwKyWoq0lStZfyFlNp3VkKXp2HiJhwZM2YjqRYOXjBa/HHKIyOQ2RUKhZNnglv75XY3ZSDg3VtuNPZDyPPY/f9Dhxrfg+73Q6r1QqHwwGO42A2m8U1PoaFpY3BwZaHFOz7VJfS6+6xAo0qByEe2wg5pjfpyOJfZCPd7dBOe3L85k+mfY4TLx04xzHm+YEL7RpXk0LTKLXwVhOJSKTN7Qv8/FdXnYZcLJWF4/6nr/jlyPDTyPRRjmJRCOa6YGZGh+F7aBAMwzwwm822p10fqSJjqj2A4MDbZPJZK5w29g21H2+oGjrrR2qhd8Vq6BNiRG6oBBaOg9Oqx9XGTjT0j5ItJ68jM2uKSZcKbz9/XKj6g1GjyaRdHO42E5w9HKJXJyJCGYAIvAKPexox6LXg4x2ot/bL3zbvDtSN4E9kGVnq4fMkm8FNMiYyaBCqLbFyB8+nYNy+dPEgYxcKOYSrv7gFz3WVWMv7u6u/vAb8PXAcB5vNJq4Jh8MBhmHgdDrBMAykUil4nofZbIbJZILD4YDNZgMgbiIYhAISwzBI7HMBYFkW4uNgIjxnLEV+Ayjqv7lKQ4WLAAAAAElFTkSuQmCC">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Light theme colors */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --bg-elevated: #ffffff;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-muted: #adb5bd;
+            --border-color: #dee2e6;
+            --border-hover: #007bff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #28a745;
+            --success-bg: rgba(40, 167, 69, 0.1);
+            --success-border: rgba(40, 167, 69, 0.3);
+            --error-color: #dc3545;
+            --error-bg: rgba(220, 53, 69, 0.1);
+            --error-border: rgba(220, 53, 69, 0.3);
+            --info-color: #007bff;
+            --warning-color: #ffc107;
+            --hover-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --code-bg: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme colors */
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-elevated: #161b22;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --border-color: #30363d;
+            --border-hover: #58a6ff;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+            --success-color: #238636;
+            --success-bg: rgba(35, 134, 54, 0.2);
+            --success-border: rgba(35, 134, 54, 0.4);
+            --error-color: #da3633;
+            --error-bg: rgba(218, 54, 51, 0.2);
+            --error-border: rgba(218, 54, 51, 0.4);
+            --info-color: #58a6ff;
+            --warning-color: #d29922;
+            --hover-bg: #21262d;
+            --card-bg: #161b22;
+            --code-bg: #161b22;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background: var(--bg-primary); 
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        .theme-toggle:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px var(--shadow-color);
+        }
+        .theme-toggle::before {
+            content: '🌙';
+            margin-right: 8px;
+        }
+        [data-theme="light"] .theme-toggle::before {
+            content: '☀️';
+        }
+        
+        /* Header */
+        .header { 
+            background: var(--gradient-primary);
+            color: white; 
+            padding: 40px 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+        .header h1 { 
+            font-size: 2.5rem; 
+            font-weight: 300; 
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .header .subtitle { 
+            font-size: 1.1rem; 
+            opacity: 0.9; 
+            font-weight: 300;
+        }
+        .header .meta {
+            margin-top: 20px;
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+        
+        /* Dashboard Cards */
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 30px; 
+        }
+        .metric-card { 
+            background: var(--card-bg); 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px var(--shadow-color);
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow-color);
+            border-color: var(--border-hover);
+        }
+        .metric-number { 
+            font-size: 2.8rem; 
+            font-weight: 700; 
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .metric-label { 
+            color: var(--text-secondary); 
+            font-size: 0.9rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+        .metric-pass { color: var(--success-color); }
+        .metric-fail { color: var(--error-color); }
+        .metric-warning { color: var(--warning-color); }
+        
+        /* Progress Ring */
+        .progress-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+        }
+        .progress-ring svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 8;
+        }
+        .progress-ring .bg {
+            stroke: var(--border-color);
+        }
+        .progress-ring .progress {
+            stroke: var(--success-color);
+            stroke-dasharray: 283;
+            stroke-dashoffset: 113.19999999999999;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--success-color);
+        }
+        
+        /* Test Results */
+        .test-results { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px var(--shadow-color);
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+        .section-header {
+            background: linear-gradient(135deg, var(--bg-tertiary), var(--border-color));
+            padding: 20px 30px;
+            border-radius: 12px 12px 0 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Request Items */
+        .request-item { 
+            border-bottom: 1px solid var(--border-color); 
+            transition: background-color 0.2s ease;
+        }
+        .request-item:last-child { border-bottom: none; }
+        .request-item:hover { background-color: var(--hover-bg); }
+        
+        .request-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 25px 30px;
+            cursor: pointer;
+        }
+        .request-name { 
+            font-weight: 500; 
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+        .request-method {
+            background: var(--info-color);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-right: 15px;
+        }
+        .request-status { 
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .status-badge { 
+            padding: 6px 16px; 
+            border-radius: 20px; 
+            font-size: 0.85rem; 
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-pass { 
+            background: var(--success-bg); 
+            color: var(--success-color); 
+            border: 1px solid var(--success-border);
+        }
+        .status-fail { 
+            background: var(--error-bg); 
+            color: var(--error-color); 
+            border: 1px solid var(--error-border);
+        }
+        .response-time {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        /* Request Details */
+        .request-details { 
+            padding: 0 30px 25px 30px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .detail-item {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .detail-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .detail-value {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            background: var(--code-bg);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-primary);
+        }
+        
+        /* Assertions */
+        .assertions {
+            margin-top: 20px;
+        }
+        .assertion {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .assertion-pass {
+            background: var(--success-bg);
+            border-left: 4px solid var(--success-color);
+            color: var(--success-color);
+        }
+        .assertion-fail {
+            background: var(--error-bg);
+            border-left: 4px solid var(--error-color);
+            color: var(--error-color);
+        }
+        .assertion-icon {
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .assertion-pass .assertion-icon { color: var(--success-color); }
+        .assertion-fail .assertion-icon { color: var(--error-color); }
+        
+        /* Summary Stats */
+        .summary-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Footer */
+        .footer { 
+            text-align: center; 
+            margin-top: 40px; 
+            padding: 20px;
+            color: var(--text-secondary); 
+            font-size: 0.9rem;
+        }
+        .footer a {
+            color: var(--info-color);
+            text-decoration: none;
+        }
+        .footer a:hover {
+            color: var(--border-hover);
+        }
+        
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+        
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: pre-line;
+            max-width: 300px;
+            min-width: 150px;
+            text-align: left;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-primary);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::before,
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Ensure tooltip doesn't get cut off on the right side */
+        .assertion.tooltip:last-child::before {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        
+        .assertion.tooltip:last-child::after {
+            left: auto;
+            right: 15px;
+            transform: none;
+        }
+        
+        /* Expandable Values */
+        .expandable-value {
+            color: var(--info-color);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: rgba(88, 166, 255, 0.1);
+            transition: all 0.3s ease;
+            display: inline-block;
+            position: relative;
+            max-width: 100%;
+            word-break: break-all;
+        }
+        
+        .expandable-value:hover {
+            background: rgba(88, 166, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .expandable-value.expanded {
+            background: rgba(88, 166, 255, 0.15);
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+        
+        .expandable-value::after {
+            content: '🔍';
+            position: absolute;
+            right: -2px;
+            top: -2px;
+            font-size: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        
+        .expandable-value:hover::after {
+            opacity: 1;
+        }
+        
+        .expandable-value.expanded::after {
+            content: '🔄';
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .dashboard { grid-template-columns: repeat(2, 1fr); }
+            .details-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()">Dark Mode</button>
+    
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>KT 알뜰 SMS 정상케이스</h1>
+            <div class="subtitle">Danal_Taldit_v1.0 자동화 테스트</div>
+            <div class="meta">
+                Generated on 2026. 1. 7. 오전 11:55:04 • 
+                Duration: 496ms
+            </div>
+        </div>
+
+        <!-- Dashboard Metrics -->
+        <div class="dashboard">
+            <div class="metric-card">
+                <div class="progress-ring">
+                    <svg>
+                        <circle class="bg" cx="60" cy="60" r="45"></circle>
+                        <circle class="progress" cx="60" cy="60" r="45"></circle>
+                    </svg>
+                    <div class="progress-text">60.0%</div>
+                </div>
+                <div class="metric-label">Success Rate</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">5</div>
+                <div class="metric-label">Total Requests</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number metric-pass">3</div>
+                <div class="metric-label">Passed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number metric-fail">2</div>
+                <div class="metric-label">Failed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-number">99ms</div>
+                <div class="metric-label">Avg Response</div>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="test-results">
+            <div class="section-header">
+                <div class="section-title">Request Results</div>
+                <div class="section-subtitle">5 requests executed</div>
+            </div>
+            
+            
+                <div class="request-item">
+                    <div class="request-header" onclick="toggleDetails('request-0')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="request-method">SClient</span>
+                            <span class="request-name">ITEMSEND2</span>
+                        </div>
+                        <div class="request-status">
+                            <span class="response-time">110ms</span>
+                            <span class="status-badge status-pass">
+                                PASS
+                            </span>
+                        </div>
+                    </div>
+                    <div class="request-details" id="request-0" style="display: none;">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Status Code</div>
+                                <div class="detail-value">N/A</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Response Size</div>
+                                <div class="detail-value">174 bytes</div>
+                            </div>
+                        </div>
+                        
+                        
+                            <div class="assertions">
+                                <div class="detail-label">Test Results</div>
+                                
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 코드(RESULT) 정상 출력
+                                        
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        거래 인증 key(ServerInfo) 정상 출력
+                                        
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 메시지(ErrMsg) 정상 출력
+                                        
+                                        
+                                    </div>
+                                    
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">Command=ITEMSEND2;\nConfigure=FAILURE;\nSERVICE=TELEDIT;\nItemType=Amount;\nItemCount=1;\nOUTPUTOPTION=DEFAULT;\nID=A010002002;\nPWD=bbbbb;\nItemInfo=2|301|1|22S0HZ0100|상품명;\nSUBCP=DETEST;\nUSERID=clienttest;\nORDERID=ORD1767754504211_601;\nIsPreOtbill=N;\nIsOpenMarket=N;\nSellerName=;\nSellerTel=;\nIsSubscript=N;\nEMAIL=2uknow@danal.co.kr</div>
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Response Body</div>
+                                <div class="detail-value">Result=0
+ServerInfo=642e12b33b7004d6eb57628f509826dbb60ee0911fcf3927970eda41091fac2bcbb94dd0be5a9e63c7f3229d5338c3a29038c92696c4aed6a137f47efebdafe7
+ErrMsg=No Information
+</div>
+                            </div>
+                        
+                    </div>
+                </div>
+                
+                <div class="request-item">
+                    <div class="request-header" onclick="toggleDetails('request-1')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="request-method">SClient</span>
+                            <span class="request-name">IDELIVER</span>
+                        </div>
+                        <div class="request-status">
+                            <span class="response-time">107ms</span>
+                            <span class="status-badge status-fail">
+                                FAIL
+                            </span>
+                        </div>
+                    </div>
+                    <div class="request-details" id="request-1" style="display: none;">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Status Code</div>
+                                <div class="detail-value">1</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Response Size</div>
+                                <div class="detail-value">66 bytes</div>
+                            </div>
+                        </div>
+                        
+                        
+                            <div class="assertions">
+                                <div class="detail-label">Test Results</div>
+                                
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        거래 인증 key(ServerInfo) 정상 출력_1
+                                        <br><small>Expected: truthy, Actual: false (boolean)</small>
+                                        
+                                        <div style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.1); border-left: 3px solid #dc3545; font-size: 12px;">
+                                            <strong>JavaScript Condition Analysis:</strong><br>
+                                            <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">ID_SERVER_INFO && ID_SERVER_INFO == SERVER_INFO</code><br>
+                                            &nbsp;&nbsp;❌ <code>ID_SERVER_INFO</code> → false <br>&nbsp;&nbsp;❌ <code>ID_SERVER_INFO == SERVER_INFO</code> → false <br><strong>Overall Result:</strong> false
+                                        </div>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        거래 인증 key(ServerInfo) 정상 출력_2
+                                        <br><small>Expected: truthy, Actual: false (boolean)</small>
+                                        
+                                        <div style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.1); border-left: 3px solid #dc3545; font-size: 12px;">
+                                            <strong>JavaScript Condition Analysis:</strong><br>
+                                            <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">ID_SERVER_INFO && /^[A-Za-z0-9]+$/.test(ID_SERVER_INFO) && new TextEncoder().encode(ID_SERVER_INFO).length <= 128</code><br>
+                                            &nbsp;&nbsp;❌ <code>ID_SERVER_INFO</code> → false <br>&nbsp;&nbsp;❌ <code>/^[A-Za-z0-9]+$/.test(ID_SERVER_INFO)</code> → false <br>&nbsp;&nbsp;❌ <code>new TextEncoder().encode(ID_SERVER_INFO).length <= 128</code> → false <br><strong>Overall Result:</strong> false
+                                        </div>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        결과 코드(RESULT) 정상 출력
+                                        <br><small>Expected: 0, Actual: 907</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        결과 메시지(ErrMsg) 정상 출력
+                                        <br><small>Expected: No Information, Actual: 결제 정책상 해당 결제 서비스 이용이 제한됩니다 (다날고객센터 1566-3355)</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        잔여한도 금액(CAP) 정상 출력
+                                        <br><small>Expected: 000000, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        안심결제 회원 여부(ANSIMMEMBER) 정상 출력
+                                        <br><small>Expected: Y, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        ARS 전환 지원(ARSCHANGE) 정상 출력
+                                        <br><small>Expected: N, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        인증 방식(UAM) 정상 출력
+                                        <br><small>Expected: 0, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        LGU+ 휴대폰결제 비밀번호 사용 여부(ISLGPWDUSER) 정상 출력
+                                        <br><small>Expected: N, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        즉시 할인용(ISPROM) 정상 출력
+                                        <br><small>Expected: N, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        프로모션 할인금액(PROM_AMT) 정상 출력
+                                        <br><small>Expected: 0, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        통신사 프로모션 적용 여부(ISCARRIERPROM) 정상 출력
+                                        <br><small>Expected: N, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        인증 방식(UAM) 정상 출력
+                                        <br><small>Expected: 0, Actual: undefined</small>
+                                        
+                                    </div>
+                                    
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">ServerInfo=642e12b33b7004d6eb57628f509826dbb60ee0911fcf3927970eda41091fac2bcbb94dd0be5a9e63c7f3229d5338c3a29038c92696c4aed6a137f47efebdafe7;\nIDEN=9707162;\nISPREOTBILL=N;\nDSTADDR=01097966634;\nCARRIER=KTF;\nWPAGE=WEB;\nPRCODE=;\nAMOUNT=301;\nTERMSAGREE3=N;\nIFVERSION=V1.1.7;\nTERMSAGREE2=N|N;\nOUTPUTOPTION=1;\nCOMMAND=IDELIVER;\nTERMSAGREE1=Y;\nIPADDR=10.10.52.54;\nSMTOTP=N;\nISCPIN=N;\nCPIN=663466</div>
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Response Body</div>
+                                <div class="detail-value">Result=907
+ErrMsg=결제 정책상 해당 결제 서비스 이용이 제한됩니다 (다날고객센터 1566-3355)
+</div>
+                            </div>
+                        
+                    </div>
+                </div>
+                
+                <div class="request-item">
+                    <div class="request-header" onclick="toggleDetails('request-2')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="request-method">SClient</span>
+                            <span class="request-name">IREPORT</span>
+                        </div>
+                        <div class="request-status">
+                            <span class="response-time">92ms</span>
+                            <span class="status-badge status-fail">
+                                FAIL
+                            </span>
+                        </div>
+                    </div>
+                    <div class="request-details" id="request-2" style="display: none;">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Status Code</div>
+                                <div class="detail-value">1</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Response Size</div>
+                                <div class="detail-value">63 bytes</div>
+                            </div>
+                        </div>
+                        
+                        
+                            <div class="assertions">
+                                <div class="detail-label">Test Results</div>
+                                
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        결과 코드(RESULT) 482 출력 확인
+                                        <br><small>Expected: 482, Actual: 492</small>
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-fail " >
+                                        <span class="assertion-icon">✗</span>
+                                        결과 메시지(ErrMsg) 불일치 출력 확인
+                                        <br><small>Expected: 승인 번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오., Actual: 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오.</small>
+                                        
+                                    </div>
+                                    
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">ServerInfo=642e12b33b7004d6eb57628f509826dbb60ee0911fcf3927970eda41091fac2bcbb94dd0be5a9e63c7f3229d5338c3a29038c92696c4aed6a137f47efebdafe7;\nCommand=IREPORT;\nConfigure=FAILURE;\nIFVERSION=V1.0.5;\nTERMSAGREE2=N;\nWPRCODE=0000;\nANSIMMEMBER=Y;\nANSIMPASS=5857;\nOTP=123456</div>
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Response Body</div>
+                                <div class="detail-value">Result=492
+ErrMsg=승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오.
+</div>
+                            </div>
+                        
+                    </div>
+                </div>
+                
+                <div class="request-item">
+                    <div class="request-header" onclick="toggleDetails('request-3')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="request-method">SClient</span>
+                            <span class="request-name">NCONFIRM</span>
+                        </div>
+                        <div class="request-status">
+                            <span class="response-time">95ms</span>
+                            <span class="status-badge status-pass">
+                                PASS
+                            </span>
+                        </div>
+                    </div>
+                    <div class="request-details" id="request-3" style="display: none;">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Status Code</div>
+                                <div class="detail-value">N/A</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Response Size</div>
+                                <div class="detail-value">63 bytes</div>
+                            </div>
+                        </div>
+                        
+                        
+                            <div class="assertions">
+                                <div class="detail-label">Test Results</div>
+                                
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 코드(RESULT) 492 출력 확인
+                                        
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인
+                                        
+                                        
+                                    </div>
+                                    
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">ServerInfo=642e12b33b7004d6eb57628f509826dbb60ee0911fcf3927970eda41091fac2bcbb94dd0be5a9e63c7f3229d5338c3a29038c92696c4aed6a137f47efebdafe7;\nCommand=NCONFIRM;\nOUTPUTOPTION=DEFAULT;\nConfirmOption=1;\nCPID=A010002002;\nAMOUNT=301</div>
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Response Body</div>
+                                <div class="detail-value">Result=492
+ErrMsg=승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오.
+</div>
+                            </div>
+                        
+                    </div>
+                </div>
+                
+                <div class="request-item">
+                    <div class="request-header" onclick="toggleDetails('request-4')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="request-method">SClient</span>
+                            <span class="request-name">NBILL</span>
+                        </div>
+                        <div class="request-status">
+                            <span class="response-time">91ms</span>
+                            <span class="status-badge status-pass">
+                                PASS
+                            </span>
+                        </div>
+                    </div>
+                    <div class="request-details" id="request-4" style="display: none;">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="detail-label">Status Code</div>
+                                <div class="detail-value">N/A</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Response Size</div>
+                                <div class="detail-value">63 bytes</div>
+                            </div>
+                        </div>
+                        
+                        
+                            <div class="assertions">
+                                <div class="detail-label">Test Results</div>
+                                
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 코드(RESULT) 492 출력 확인
+                                        
+                                        
+                                    </div>
+                                    
+                                    <div class="assertion assertion-pass " >
+                                        <span class="assertion-icon">✓</span>
+                                        결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인
+                                        
+                                        
+                                    </div>
+                                    
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Request Command</div>
+                                <div class="detail-value">ServerInfo=642e12b33b7004d6eb57628f509826dbb60ee0911fcf3927970eda41091fac2bcbb94dd0be5a9e63c7f3229d5338c3a29038c92696c4aed6a137f47efebdafe7;\nBillOption=1;\nCommand=NBILL;\nOUTPUTOPTION=DEFAULT</div>
+                            </div>
+                        
+                        
+                        
+                            <div style="margin-top: 20px;">
+                                <div class="detail-label">Response Body</div>
+                                <div class="detail-value">Result=492
+ErrMsg=승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오.
+</div>
+                            </div>
+                        
+                    </div>
+                </div>
+                
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-section">
+            <div class="section-title" style="text-align: center; margin-bottom: 20px;">Execution Summary</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">22</div>
+                    <div class="stat-label">Total Tests</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">15</div>
+                    <div class="stat-label">Failed Tests</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">91ms</div>
+                    <div class="stat-label">Min Response</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">110ms</div>
+                    <div class="stat-label">Max Response</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Generated by <a href="https://github.com/postmanlabs/newman" target="_blank">Newman</a> HTMLExtra Reporter</p>
+            <p>Powered by 2uknow API Monitor - SClient Integration</p>
+        </div>
+    </div>
+
+    <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeButton(savedTheme);
+        }
+        
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeButton(newTheme);
+        }
+        
+        function updateThemeButton(theme) {
+            const button = document.querySelector('.theme-toggle');
+            if (button) {
+                button.textContent = theme === 'dark' ? 'Light Mode' : 'Dark Mode';
+            }
+        }
+        
+        // Request details toggle
+        function toggleDetails(id) {
+            const element = document.getElementById(id);
+            if (element.style.display === 'none') {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
+            }
+        }
+        
+        // Toggle expandable value expansion
+        function toggleValueExpansion(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const isExpanded = element.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Collapse: show shortened value
+                const fullValue = element.getAttribute('data-full-value');
+                const shortValue = fullValue.substring(0, 20);
+                element.textContent = shortValue + '...';
+                element.classList.remove('expanded');
+            } else {
+                // Expand: show full value
+                const fullValue = element.getAttribute('data-full-value');
+                element.textContent = fullValue;
+                element.classList.add('expanded');
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', initTheme);
+    </script>
+</body>
+</html>
