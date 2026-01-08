@@ -6,12 +6,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import cron from 'node-cron';
-import { 
-  sendTextMessage, 
-  sendFlexMessage, 
+import {
+  sendTextMessage,
+  sendFlexMessage,
   buildBasicRunStatusFlex,
   buildBasicStatusText,
-  buildRunStatusFlex
+  buildRunStatusFlex,
+  buildDailyReportText,
+  buildDailyReportFlex
 } from './alert.js';
 import iconv from 'iconv-lite';
 import { SClientScenarioEngine, SClientReportGenerator } from './sclient-engine.js';
@@ -3060,7 +3062,10 @@ app.get('/api/alert/config', (req, res) => {
       alert_on_success: config.alert_on_success || false,
       alert_on_error: config.alert_on_error || false,
       alert_method: config.alert_method || 'text',
-      webhook_url: config.webhook_url ? '설정됨' : '미설정'
+      webhook_url: config.webhook_url ? '설정됨' : '미설정',
+      daily_report_enabled: config.daily_report_enabled || false,
+      daily_report_times: config.daily_report_times || ['18:00'],
+      daily_report_days: config.daily_report_days || [1, 2, 3, 4, 5]
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3071,14 +3076,18 @@ app.post('/api/alert/config', (req, res) => {
   try {
     const currentConfig = readCfg();
     const newConfig = { ...currentConfig, ...req.body };
-    
+
     // config 디렉토리가 없으면 생성
     const configDir = path.dirname(cfgPath);
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }
-    
+
     fs.writeFileSync(cfgPath, JSON.stringify(newConfig, null, 2));
+
+    // 정기 리포트 스케줄러 재설정
+    setupDailyReportScheduler();
+
     res.json({ ok: true, message: '설정이 저장되었습니다.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3148,6 +3157,164 @@ app.post('/api/alert/test', async (req, res) => {
     res.status(500).json({ ok:false, status:0, body:e.message });
   }
 });
+
+// 정기 리포트 테스트 발송 API
+app.post('/api/alert/daily-report/test', async (req, res) => {
+  try {
+    const stats = await getTodayStatsInternal();
+    const config = readCfg();
+
+    let result;
+    if (config.alert_method === 'flex') {
+      const flexMsg = buildDailyReportFlex(stats);
+      result = await sendFlexMessage(flexMsg);
+    } else {
+      const textMsg = buildDailyReportText(stats);
+      result = await sendTextMessage(textMsg);
+    }
+
+    res.json({
+      ok: result.ok,
+      message: result.ok ? '테스트 리포트가 발송되었습니다.' : '발송 실패',
+      stats: stats
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+});
+
+// 오늘 통계 내부 함수 (API 및 스케줄러에서 공용)
+function getTodayStatsInternal() {
+  const history = histRead();
+
+  const now = new Date();
+  const todayStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now);
+
+  const todayHistory = history.filter(item => {
+    if (!item.timestamp) return false;
+    try {
+      let itemDateStr;
+      if (item.timestamp.includes('T')) {
+        const itemDate = new Date(item.timestamp);
+        itemDateStr = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(itemDate);
+      } else {
+        itemDateStr = item.timestamp.split(' ')[0];
+      }
+      return itemDateStr === todayStr;
+    } catch {
+      return false;
+    }
+  });
+
+  const totalExecutions = todayHistory.length;
+  const successCount = todayHistory.filter(item => item.exitCode === 0).length;
+  const failedTests = totalExecutions - successCount;
+  const successRate = totalExecutions > 0 ? Math.round((successCount / totalExecutions) * 100) : 0;
+
+  // 평균 응답시간 계산 (기존 /api/statistics/today와 동일한 로직)
+  const validResponseTimes = [];
+  todayHistory.forEach(item => {
+    // detailedStats에서 avgResponseTime 사용 (우선순위 1)
+    if (item.detailedStats && item.detailedStats.avgResponseTime > 0) {
+      validResponseTimes.push(item.detailedStats.avgResponseTime);
+    }
+    // newmanStats.timings.responseAverage 사용 (우선순위 2)
+    else if (item.newmanStats && item.newmanStats.timings && item.newmanStats.timings.responseAverage > 0) {
+      validResponseTimes.push(item.newmanStats.timings.responseAverage);
+    }
+    // Newman Job만 duration 사용 (우선순위 3)
+    else if (item.type === 'newman' && item.duration && item.duration > 0) {
+      validResponseTimes.push(item.duration * 1000);
+    }
+  });
+
+  const avgResponseTime = validResponseTimes.length > 0
+    ? validResponseTimes.reduce((a, b) => a + b, 0) / validResponseTimes.length
+    : 0;
+
+  return {
+    totalExecutions,
+    successRate,
+    failedTests,
+    avgResponseTime
+  };
+}
+
+// 정기 리포트 스케줄러 변수 (여러 시간 지원을 위해 배열로 변경)
+let dailyReportCronJobs = [];
+
+// 정기 리포트 발송 함수
+async function sendDailyReport() {
+  console.log('[DAILY REPORT] 정기 리포트 발송 시작...');
+  try {
+    const stats = getTodayStatsInternal();
+    const currentConfig = readCfg();
+
+    let result;
+    if (currentConfig.alert_method === 'flex') {
+      const flexMsg = buildDailyReportFlex(stats);
+      result = await sendFlexMessage(flexMsg);
+    } else {
+      const textMsg = buildDailyReportText(stats);
+      result = await sendTextMessage(textMsg);
+    }
+
+    if (result.ok) {
+      console.log('[DAILY REPORT] 정기 리포트 발송 성공');
+    } else {
+      console.error('[DAILY REPORT] 정기 리포트 발송 실패:', result);
+    }
+  } catch (error) {
+    console.error('[DAILY REPORT] 정기 리포트 발송 오류:', error);
+  }
+}
+
+// 정기 리포트 스케줄러 설정 함수
+function setupDailyReportScheduler() {
+  // 기존 스케줄러 모두 중지
+  dailyReportCronJobs.forEach(job => {
+    try { job.stop(); } catch {}
+  });
+  dailyReportCronJobs = [];
+  console.log('[DAILY REPORT] 기존 스케줄러 중지');
+
+  const config = readCfg();
+
+  if (!config.daily_report_enabled) {
+    console.log('[DAILY REPORT] 정기 리포트 비활성화 상태');
+    return;
+  }
+
+  const times = config.daily_report_times || ['18:00'];
+  const days = config.daily_report_days || [1, 2, 3, 4, 5];
+  const daysStr = days.join(',');
+
+  // 각 시간별로 스케줄러 생성
+  times.forEach(time => {
+    const [hour, minute] = time.split(':').map(Number);
+    const cronExpr = `${minute} ${hour} * * ${daysStr}`;
+
+    console.log(`[DAILY REPORT] 스케줄러 설정: ${cronExpr} (${time})`);
+
+    const job = cron.schedule(cronExpr, sendDailyReport, {
+      timezone: 'Asia/Seoul'
+    });
+
+    dailyReportCronJobs.push(job);
+  });
+
+  console.log(`[DAILY REPORT] ${times.length}개 스케줄러 시작됨: ${times.join(', ')}`);
+}
 
 // Keep-alive를 위한 하트비트
 setInterval(() => {
@@ -4591,6 +4758,10 @@ function generateBinaryHtmlReport(data) {
 
 const cfg = readCfg();
 const { site_port = 3000, base_url } = cfg;
+
+// 서버 시작 시 정기 리포트 스케줄러 초기화
+setupDailyReportScheduler();
+
 app.listen(site_port, '0.0.0.0', () => {
   const displayUrl = base_url || `http://localhost:${site_port}`;
   

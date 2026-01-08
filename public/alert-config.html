@@ -251,6 +251,40 @@
             border-width: 0 3px 3px 0;
             transform: rotate(45deg);
         }
+
+        /* Day Checkbox Styles */
+        .day-checkbox {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .day-checkbox input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .day-label {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .day-checkbox:hover .day-label {
+            background: var(--bg-secondary);
+        }
+
+        .day-checkbox input:checked + .day-label {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border-color: #1d4ed8;
+        }
     </style>
 </head>
 <body class="min-h-screen" style="background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);"
@@ -365,6 +399,89 @@
                 </div>
             </form>
         </section>
+
+        <!-- 정기 리포트 설정 -->
+        <section class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
+            <h2 class="text-xl font-bold mb-6" style="color: var(--text-primary);">정기 리포트 설정</h2>
+            <form id="dailyReportForm" class="space-y-6">
+                <!-- 정기 리포트 활성화 -->
+                <div class="flex items-center justify-between p-6 rounded-2xl border" style="background: var(--bg-secondary); border-color: var(--border-color);">
+                    <div>
+                        <h3 class="text-lg font-semibold" style="color: var(--text-primary);">일일 통계 리포트</h3>
+                        <p class="text-sm font-medium mt-1" style="color: var(--text-secondary);">지정된 시간에 Today's Execution Statistics를 발송합니다</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="daily_report_enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- 세부 설정 -->
+                <div id="dailyReportSettings" class="space-y-6 opacity-50 pointer-events-none transition-all duration-500">
+                    <!-- 발송 시간 (여러 개 등록 가능) -->
+                    <div class="p-4 rounded-xl border" style="background: var(--bg-secondary); border-color: var(--border-color);">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-md font-semibold" style="color: var(--text-primary);">발송 시간</h4>
+                            <button type="button" id="addTimeBtn" class="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all">
+                                + 시간 추가
+                            </button>
+                        </div>
+                        <div id="timesList" class="space-y-2">
+                            <!-- 시간 입력 필드들이 여기에 동적으로 추가됨 -->
+                        </div>
+                    </div>
+
+                    <!-- 발송 요일 -->
+                    <div class="p-4 rounded-xl border" style="background: var(--bg-secondary); border-color: var(--border-color);">
+                        <h4 class="text-md font-semibold mb-3" style="color: var(--text-primary);">발송 요일</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="1" checked>
+                                <span class="day-label">월</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="2" checked>
+                                <span class="day-label">화</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="3" checked>
+                                <span class="day-label">수</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="4" checked>
+                                <span class="day-label">목</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="5" checked>
+                                <span class="day-label">금</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="6">
+                                <span class="day-label">토</span>
+                            </label>
+                            <label class="day-checkbox">
+                                <input type="checkbox" name="daily_report_days" value="0">
+                                <span class="day-label">일</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 테스트 발송 버튼 -->
+                    <div class="flex justify-start">
+                        <button type="button" id="testDailyReport" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 font-semibold glow-on-hover">
+                            테스트 발송
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 저장 버튼 -->
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-semibold glow-on-hover">
+                        설정 저장
+                    </button>
+                </div>
+            </form>
+        </section>
     </div>
 
     <script>
@@ -410,22 +527,38 @@
             try {
                 const response = await fetch('/api/alert/config');
                 const config = await response.json();
-                
+
                 // 현재 상태 표시
                 updateStatusDisplay(config);
-                
+
                 // 폼 필드 설정
                 document.getElementById('run_event_alert').checked = config.run_event_alert;
                 document.getElementById('alert_on_start').checked = config.alert_on_start;
                 document.getElementById('alert_on_success').checked = config.alert_on_success;
                 document.getElementById('alert_on_error').checked = config.alert_on_error;
-                
+
                 const methodRadio = document.querySelector(`input[name="alert_method"][value="${config.alert_method}"]`);
                 if (methodRadio) methodRadio.checked = true;
-                
+
                 // 상세 설정 활성화/비활성화
                 toggleDetailSettings(config.run_event_alert);
-                
+
+                // 정기 리포트 설정 로드
+                document.getElementById('daily_report_enabled').checked = config.daily_report_enabled;
+
+                // 시간 목록 로드
+                const times = config.daily_report_times || ['18:00'];
+                renderTimesList(times);
+
+                // 요일 체크박스 설정
+                const days = config.daily_report_days || [1, 2, 3, 4, 5];
+                document.querySelectorAll('input[name="daily_report_days"]').forEach(cb => {
+                    cb.checked = days.includes(parseInt(cb.value));
+                });
+
+                // 정기 리포트 상세 설정 활성화/비활성화
+                toggleDailyReportSettings(config.daily_report_enabled);
+
             } catch (error) {
                 showNotification('설정을 불러오는 중 오류가 발생했습니다.', 'error');
             }
@@ -457,9 +590,9 @@
                     <span class="text-sm font-semibold" style="color: var(--text-primary);">활성화된 알람</span>
                     <span class="text-sm font-medium" style="color: var(--text-secondary);">
                         ${[
-                            config.alert_on_start && '시작',
-                            config.alert_on_success && '성공', 
-                            config.alert_on_error && '실패'
+                            config.alert_on_start && '실행 시작 시',
+                            config.alert_on_success && '실행 성공 시',
+                            config.alert_on_error && '실행 실패 시'
                         ].filter(Boolean).join(', ') || '없음'}
                     </span>
                 </div>
@@ -474,6 +607,141 @@
             } else {
                 detailSettings.classList.add('opacity-50', 'pointer-events-none');
             }
+        }
+
+        // 정기 리포트 설정 토글
+        function toggleDailyReportSettings(enabled) {
+            const settings = document.getElementById('dailyReportSettings');
+            if (enabled) {
+                settings.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                settings.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        // 시간 옵션 생성
+        function generateHourOptions(selectedHour) {
+            let options = '';
+            for (let h = 0; h < 24; h++) {
+                const hour = h.toString().padStart(2, '0');
+                const label = h < 12 ? `오전 ${h === 0 ? 12 : h}시` : `오후 ${h === 12 ? 12 : h - 12}시`;
+                options += `<option value="${hour}" ${hour === selectedHour ? 'selected' : ''}>${label}</option>`;
+            }
+            return options;
+        }
+
+        function generateMinuteOptions(selectedMinute) {
+            const minutes = ['00', '15', '30', '45'];
+            return minutes.map(m =>
+                `<option value="${m}" ${m === selectedMinute ? 'selected' : ''}>${m}분</option>`
+            ).join('');
+        }
+
+        // 시간 목록 렌더링
+        function renderTimesList(times) {
+            const container = document.getElementById('timesList');
+            container.innerHTML = '';
+
+            times.forEach((time, index) => {
+                const [hour, minute] = time.split(':');
+                const div = document.createElement('div');
+                div.className = 'time-item flex items-center gap-3 p-3 rounded-xl border transition-all hover:shadow-md';
+                div.style.cssText = 'background: var(--bg-tertiary); border-color: var(--border-color);';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1">
+                        <div class="flex items-center gap-1 px-3 py-2 rounded-lg" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <select class="time-hour px-3 py-2 rounded-lg border-0 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            style="background: var(--bg-secondary); color: var(--text-primary);">
+                            ${generateHourOptions(hour)}
+                        </select>
+                        <span class="text-lg font-bold" style="color: var(--text-secondary);">:</span>
+                        <select class="time-minute px-3 py-2 rounded-lg border-0 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            style="background: var(--bg-secondary); color: var(--text-primary);">
+                            ${generateMinuteOptions(minute)}
+                        </select>
+                    </div>
+                    <button type="button" class="remove-time-btn p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                        ${times.length <= 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+
+            // 삭제 버튼 이벤트
+            container.querySelectorAll('.remove-time-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (container.children.length > 1) {
+                        this.parentElement.remove();
+                        updateRemoveButtons();
+                    }
+                });
+            });
+        }
+
+        // 삭제 버튼 상태 업데이트
+        function updateRemoveButtons() {
+            const container = document.getElementById('timesList');
+            const buttons = container.querySelectorAll('.remove-time-btn');
+            buttons.forEach(btn => {
+                if (container.children.length <= 1) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.3';
+                    btn.style.cursor = 'not-allowed';
+                } else {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+            });
+        }
+
+        // 시간 추가
+        function addTimeInput() {
+            const container = document.getElementById('timesList');
+            const div = document.createElement('div');
+            div.className = 'time-item flex items-center gap-3 p-3 rounded-xl border transition-all hover:shadow-md';
+            div.style.cssText = 'background: var(--bg-tertiary); border-color: var(--border-color);';
+            div.innerHTML = `
+                <div class="flex items-center gap-2 flex-1">
+                    <div class="flex items-center gap-1 px-3 py-2 rounded-lg" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <select class="time-hour px-3 py-2 rounded-lg border-0 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="background: var(--bg-secondary); color: var(--text-primary);">
+                        ${generateHourOptions('18')}
+                    </select>
+                    <span class="text-lg font-bold" style="color: var(--text-secondary);">:</span>
+                    <select class="time-minute px-3 py-2 rounded-lg border-0 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="background: var(--bg-secondary); color: var(--text-primary);">
+                        ${generateMinuteOptions('00')}
+                    </select>
+                </div>
+                <button type="button" class="remove-time-btn p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+
+            // 새로 추가된 삭제 버튼에 이벤트 연결
+            div.querySelector('.remove-time-btn').addEventListener('click', function() {
+                if (container.children.length > 1) {
+                    div.remove();
+                    updateRemoveButtons();
+                }
+            });
+
+            updateRemoveButtons();
         }
 
         // 알림 표시
@@ -497,16 +765,21 @@
             // 다크모드 초기화를 가장 먼저 실행
             initTheme();
             loadCurrentConfig();
-            
+
             // 메인 스위치 변경 시
             document.getElementById('run_event_alert').addEventListener('change', function() {
                 toggleDetailSettings(this.checked);
             });
-            
-            // 폼 제출
+
+            // 정기 리포트 스위치 변경 시
+            document.getElementById('daily_report_enabled').addEventListener('change', function() {
+                toggleDailyReportSettings(this.checked);
+            });
+
+            // 알람 설정 폼 제출
             document.getElementById('alertConfigForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
-                
+
                 const formData = {
                     run_event_alert: document.getElementById('run_event_alert').checked,
                     alert_on_start: document.getElementById('alert_on_start').checked,
@@ -514,7 +787,7 @@
                     alert_on_error: document.getElementById('alert_on_error').checked,
                     alert_method: document.querySelector('input[name="alert_method"]:checked')?.value || 'text'
                 };
-                
+
                 try {
                     const response = await fetch('/api/alert/config', {
                         method: 'POST',
@@ -523,11 +796,11 @@
                         },
                         body: JSON.stringify(formData)
                     });
-                    
+
                     if (response.ok) {
                         const result = await response.json();
                         showNotification('설정이 저장되었습니다.', 'success');
-                        loadCurrentConfig(); // 설정 다시 로드
+                        loadCurrentConfig();
                     } else {
                         const errorText = await response.text();
                         throw new Error(errorText);
@@ -535,6 +808,88 @@
                 } catch (error) {
                     console.error('설정 저장 오류:', error);
                     showNotification('설정 저장 중 오류가 발생했습니다.', 'error');
+                }
+            });
+
+            // 시간 추가 버튼
+            document.getElementById('addTimeBtn').addEventListener('click', addTimeInput);
+
+            // 정기 리포트 폼 제출
+            document.getElementById('dailyReportForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                // 시간 목록 수집
+                const selectedTimes = [];
+                document.querySelectorAll('.time-item').forEach(item => {
+                    const hour = item.querySelector('.time-hour').value;
+                    const minute = item.querySelector('.time-minute').value;
+                    selectedTimes.push(`${hour}:${minute}`);
+                });
+
+                // 요일 목록 수집
+                const selectedDays = [];
+                document.querySelectorAll('input[name="daily_report_days"]:checked').forEach(cb => {
+                    selectedDays.push(parseInt(cb.value));
+                });
+
+                if (selectedTimes.length === 0) {
+                    showNotification('최소 하나의 발송 시간을 입력해주세요.', 'error');
+                    return;
+                }
+
+                const formData = {
+                    daily_report_enabled: document.getElementById('daily_report_enabled').checked,
+                    daily_report_times: selectedTimes,
+                    daily_report_days: selectedDays
+                };
+
+                try {
+                    const response = await fetch('/api/alert/config', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    if (response.ok) {
+                        showNotification('정기 리포트 설정이 저장되었습니다.', 'success');
+                        loadCurrentConfig();
+                    } else {
+                        throw new Error(await response.text());
+                    }
+                } catch (error) {
+                    console.error('설정 저장 오류:', error);
+                    showNotification('설정 저장 중 오류가 발생했습니다.', 'error');
+                }
+            });
+
+            // 테스트 발송 버튼
+            document.getElementById('testDailyReport').addEventListener('click', async function() {
+                this.disabled = true;
+                this.textContent = '발송 중...';
+
+                try {
+                    const response = await fetch('/api/alert/daily-report/test', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const result = await response.json();
+
+                    if (result.ok) {
+                        showNotification('테스트 리포트가 발송되었습니다.', 'success');
+                    } else {
+                        throw new Error(result.message || '발송 실패');
+                    }
+                } catch (error) {
+                    console.error('테스트 발송 오류:', error);
+                    showNotification('테스트 발송에 실패했습니다: ' + error.message, 'error');
+                } finally {
+                    this.disabled = false;
+                    this.textContent = '테스트 발송';
                 }
             });
         });
