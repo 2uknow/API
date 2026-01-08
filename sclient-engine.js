@@ -492,13 +492,21 @@ export class SClientScenarioEngine {
     for (let i = 0; i < requests.length; i++) {
       const request = requests[i];
       const stepNumber = i + 1;
-      
+
       // request name에도 변수 치환 적용
       const resolvedName = this.replaceVariables(request.name);
-      
+
       try {
+        // step 실행 전 sleepDuration 처리 (args에 있는 경우)
+        const stepSleepDuration = request.arguments?.sleepDuration;
+        if (stepSleepDuration && stepSleepDuration > 0) {
+          this.log(`[STEP ${stepNumber}] 실행 전 ${stepSleepDuration/1000}초 대기...`);
+          await new Promise(resolve => setTimeout(resolve, stepSleepDuration));
+          this.log(`[STEP ${stepNumber}] 대기 완료, 실행 시작`);
+        }
+
         this.log(`[STEP ${stepNumber}/${requests.length}] ${resolvedName}`);
-        
+
         // 타입별 명령 실행
         let response;
         if (request.type === 'crypto') {
