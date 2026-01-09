@@ -4,7 +4,7 @@ description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
 # 공통 변수 불러오기
-include: Danal_Teledit_Cancel_M_v1.0/conf.yaml
+include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ steps:
       ItemCount: "1"
       ItemType: "0"
       ItemInfo: "2|301|1|22S0HZ0100|상품명"
-      AUTHKEY: "20250901101636D6FFC6"
+      AUTHKEY: "{{SKT_AUTH}}"
       ORDERID: "{{ORDER_ID}}"
       OUTPUTOPTION: "3"
       TIDTYPE: "1"
@@ -117,10 +117,10 @@ steps:
           ORDER_ID.includes('ORD'))"
 
       - name: "사용자 전화번호(DstAddr) 정상 출력"
-        assertion: "DSTADDR == 01085402697"
+        assertion: "DSTADDR == 01079266634"
 
       - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
-        assertion: "CARRIER == KTF"
+        assertion: "CARRIER == SKT"
 
       - name: "거래 번호(DNTID) 정상 출력_1"
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
