@@ -783,9 +783,16 @@ app.get('/api/history', (req, res) => {
     history = history.filter(r => {
       const jobMatch = !jobFilter || r.job === jobFilter;
       const rangeMatch = inRange(r.timestamp);
-      const searchMatch = !searchQuery || 
-        ((r.job || '') + (r.summary || '')).toLowerCase().includes(searchQuery.toLowerCase());
-      
+
+      // 검색어 매칭 - job, summary, status(exitCode 기반) 모두 검색
+      let searchMatch = true;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const status = r.exitCode === 0 ? 'success' : 'failed';
+        const searchTarget = ((r.job || '') + ' ' + (r.summary || '') + ' ' + status).toLowerCase();
+        searchMatch = searchTarget.includes(query);
+      }
+
       return jobMatch && rangeMatch && searchMatch;
     });
   }
