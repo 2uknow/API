@@ -4399,6 +4399,10 @@
 													"    parsed[key] = decodeURIComponent(value || '');\r",
 													"});\r",
 													"\r",
+													"// Environments에 TID 저장\r",
+													"pm.environment.set(\"RETURNCODE\", parsed.RETURNCODE);\r",
+													"pm.environment.set(\"RETURNMSG\", parsed.RETURNMSG);\r",
+													"\r",
 													"// Reponse Data 확인\r",
 													"if (parsed.RETURNCODE == \"0000\") {\r",
 													"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -4442,8 +4446,19 @@
 													"        pm.expect(parsed.CPURL).to.eql(\"www.teledit.com\")\r",
 													"    });\r",
 													"} else {\r",
-													"    throw new Error(\"기타 오류 발생 : 거래 결과 코드(RETURNCODE)가 \" + pm.environment.get(\"RETURNCODE\") + \"입니다.\"); \r",
+													"    throw new Error(\"기타 오류 발생 - \" + pm.environment.get(\"RETURNCODE\") + \":\" + pm.environment.get(\"RETURNMSG\")); \r",
 													"}"
+												],
+												"type": "text/javascript",
+												"packages": {},
+												"requests": {}
+											}
+										},
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													""
 												],
 												"type": "text/javascript",
 												"packages": {},
@@ -6082,6 +6097,11 @@
 													"    parsed[key] = decodeURIComponent(value || '');\r",
 													"});\r",
 													"\r",
+													"// Environments에 TID 저장\r",
+													"pm.environment.set(\"RETURNCODE\", parsed.RETURNCODE);\r",
+													"pm.environment.set(\"RETURNMSG\", parsed.RETURNMSG);\r",
+													"\r",
+													"\r",
 													"// Reponse Data 확인\r",
 													"if (parsed.RETURNCODE == \"0000\") {\r",
 													"    pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
@@ -6125,7 +6145,7 @@
 													"        pm.expect(parsed.CPURL).to.eql(\"www.teledit.com\")\r",
 													"    });\r",
 													"} else {\r",
-													"    throw new Error(\"기타 오류 발생 : 거래 결과 코드(RETURNCODE)가 \" + pm.environment.get(\"RETURNCODE\") + \"입니다.\"); \r",
+													"    throw new Error(\"기타 오류 발생 - \" + pm.environment.get(\"RETURNCODE\") + \":\" + pm.environment.get(\"RETURNMSG\")); \r",
 													"}"
 												],
 												"type": "text/javascript",
