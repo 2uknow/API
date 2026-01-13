@@ -543,9 +543,9 @@
 									"    TXTYPE: 'OTBILL',\r",
 									"    SERVICETYPE: 'BATCH',\r",
 									"    ISREBILL: 'Y',\r",
-									"    BILLINFO: 'DC250730151749FFCAA0',\r",
-									"    USERNAME: '김하늘',\r",
-									"    USERPHONE: '01085402697',\r",
+									"    BILLINFO: 'DC2601131055332E950F',\r",
+									"    USERNAME: '김기문',\r",
+									"    USERPHONE: '01012341234',\r",
 									"    ORDERID: '01234567'\r",
 									"};\r",
 									"\r",
@@ -647,7 +647,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"구매자 전화번호(USERPHONE) 빈값 확인\", function () {\r",
-									"    pm.expect(parsed.USERPHONE).to.eql(\"01085402697\")\r",
+									"    pm.expect(parsed.USERPHONE).to.eql(\"01012341234\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"할부 개월 수(QUOTA) 정상출력\", function () {\r",
@@ -714,7 +714,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드번호(CARDNO) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNO).to.eql(\"512028******7294\")\r",
+									"    pm.expect(parsed.CARDNO).to.eql(\"518831******5289\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"거래 승인 번호(CARDAUTHNO) 정상출력\", function () {\r",
@@ -729,7 +729,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"구매자 이름(USERNAME) 정상출력\", function () {\r",
-									"    pm.expect(parsed.USERNAME).to.eql(\"%EA%B9%3F%3F%3F%3F%3F\")\r",
+									"    pm.expect(parsed.USERNAME).to.eql(\"%EA%B9%3F%EA%B8%B0%EB%AC%B8\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"구매자 ID(USERID) 정상출력\", function () {\r",
@@ -984,7 +984,7 @@
 									"    TXTYPE: 'OTBILL',\r",
 									"    SERVICETYPE: 'BATCH',\r",
 									"    ISREBILL: 'Y',\r",
-									"    BILLINFO: 'DC221222165535557F38'\r",
+									"    BILLINFO: 'DC2508061601368DE1F3'\r",
 									"};\r",
 									"\r",
 									"// Step 1: URL 인코딩 (key 제외, value만)\r",
@@ -1152,7 +1152,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드번호(CARDNO) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNO).to.eql(\"403293******4003\")\r",
+									"    pm.expect(parsed.CARDNO).to.eql(\"401762******8706\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"거래 승인 번호(CARDAUTHNO) 정상출력\", function () {\r",
@@ -1246,7 +1246,8 @@
 									"pm.environment.set(\"encryptedData\", finalEncoded);"
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						},
 						{
@@ -1363,7 +1364,8 @@
 									"});"
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -2684,7 +2686,7 @@
 			]
 		},
 		{
-			"name": "BC카드",
+			"name": "기업BC카드",
 			"item": [
 				{
 					"name": "정기결제 요청 (OTBILL)",
@@ -2706,7 +2708,7 @@
 									"    TXTYPE: 'OTBILL',\r",
 									"    SERVICETYPE: 'BATCH',\r",
 									"    ISREBILL: 'Y',\r",
-									"    BILLINFO: 'DC25080416595836B04B'\r",
+									"    BILLINFO: 'DC260113105402C68EE9'\r",
 									"};\r",
 									"\r",
 									"// Step 1: URL 인코딩 (key 제외, value만)\r",
@@ -2803,7 +2805,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드사 코드(CARDCODE 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDCODE).to.eql(\"0202\")\r",
+									"    pm.expect(parsed.CARDCODE).to.eql(\"0206\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"구매자 전화번호(USERPHONE) 빈값 확인\", function () {\r",
@@ -2874,7 +2876,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드번호(CARDNO) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNO).to.eql(\"538920******1226\")\r",
+									"    pm.expect(parsed.CARDNO).to.eql(\"621003******3062\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"거래 승인 번호(CARDAUTHNO) 정상출력\", function () {\r",
@@ -2883,9 +2885,9 @@
 									"    pm.expect(parsed.CARDAUTHNO).to.match(/^\\d{8}$/);\r",
 									"});\r",
 									"\r",
-									"// \"우리BC카드\" 검증\r",
+									"// \"IBKBC카드\" 검증\r",
 									"pm.test(\"카드사 명(CARDNAME) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNAME).to.eql(\"%BF%EC%B8%AEBC%C4%AB%B5%E5\")\r",
+									"    pm.expect(parsed.CARDNAME).to.eql(\"IBK%B1%E2%BE%F7BC%C4%AB%B5%E5\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"구매자 이름(USERNAME) 정상출력\", function () {\r",
@@ -3114,7 +3116,7 @@
 			]
 		},
 		{
-			"name": "우리독자카드",
+			"name": "우리카드",
 			"item": [
 				{
 					"name": "정기결제 요청 (OTBILL)",
@@ -3136,7 +3138,7 @@
 									"    TXTYPE: 'OTBILL',\r",
 									"    SERVICETYPE: 'BATCH',\r",
 									"    ISREBILL: 'Y',\r",
-									"    BILLINFO: 'DC251215145003CEDD72'\r",
+									"    BILLINFO: 'DC260113094149CEDDD6'\r",
 									"};\r",
 									"\r",
 									"// Step 1: URL 인코딩 (key 제외, value만)\r",
@@ -3304,7 +3306,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드번호(CARDNO) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNO).to.eql(\"624404******8380\")\r",
+									"    pm.expect(parsed.CARDNO).to.eql(\"531764******4011\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"거래 승인 번호(CARDAUTHNO) 정상출력\", function () {\r",
@@ -3544,7 +3546,7 @@
 			]
 		},
 		{
-			"name": "Kbank카드",
+			"name": "케이뱅크카드",
 			"item": [
 				{
 					"name": "정기결제 요청 (OTBILL)",
@@ -3566,7 +3568,7 @@
 									"    TXTYPE: 'OTBILL',\r",
 									"    SERVICETYPE: 'BATCH',\r",
 									"    ISREBILL: 'Y',\r",
-									"    BILLINFO: 'DC25121515231344D775'\r",
+									"    BILLINFO: 'DC260113101756F9CE39'\r",
 									"};\r",
 									"\r",
 									"// Step 1: URL 인코딩 (key 제외, value만)\r",
@@ -3734,7 +3736,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"카드번호(CARDNO) 정상출력\", function () {\r",
-									"    pm.expect(parsed.CARDNO).to.eql(\"485462******0767\")\r",
+									"    pm.expect(parsed.CARDNO).to.eql(\"485462******0224\")\r",
 									"});\r",
 									"\r",
 									"pm.test(\"거래 승인 번호(CARDAUTHNO) 정상출력\", function () {\r",
