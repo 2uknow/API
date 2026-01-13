@@ -146,7 +146,7 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -177,7 +177,6 @@ steps:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
       body: "DATA={{ENCRYPTED_CPCENCEL_DATA}}&CIPHERTYPE=0"
-      sleepDuration: 15000   # 암호화 후 대기 시간 (밀리초)
 
     # HTTP 응답 데이터 추출
     extract:
@@ -217,7 +216,7 @@ steps:
       operation: "decrypt"
       key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA}}"
-      sleepDuration: 15000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 20000   # 암호화 후 대기 시간 (밀리초)
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
@@ -351,7 +350,7 @@ steps:
       key: "{{CRYPTOKEY}}"
       # 최초 원거래 TID 사용 부분취소
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_OTID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
       
     # 암호화 결과 추출
     extract:
@@ -382,7 +381,6 @@ steps:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
       body: "DATA={{ENCRYPTED_CPCENCEL_DATA_2}}&CIPHERTYPE=0"
-      sleepDuration: 15000   # 암호화 후 대기 시간 (밀리초)
 
     # HTTP 응답 데이터 추출
     extract:
@@ -422,7 +420,7 @@ steps:
       operation: "decrypt"
       key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA_2}}"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
 
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
@@ -539,6 +537,8 @@ steps:
       key: "{{CRYPTOKEY}}"
       # 직전에 마지막으로 결제된 TID 사용 부분취소
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_TID_2}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
+      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
+
     # 암호화 결과 추출
     extract:
       - name: "result"
@@ -568,7 +568,6 @@ steps:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
       body: "DATA={{ENCRYPTED_CPCENCEL_DATA_6}}&CIPHERTYPE=0"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
 
     # HTTP 응답 데이터 추출
     extract:
@@ -609,7 +608,6 @@ steps:
       key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA_6}}"
       sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
-
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
@@ -724,7 +722,6 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_TID_2}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=3000"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -755,7 +752,6 @@ steps:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
       body: "DATA={{ENCRYPTED_CPCENCEL_DATA_4}}&CIPHERTYPE=0"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
 
     # HTTP 응답 데이터 추출
     extract:
@@ -825,7 +821,6 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_TID_2}}|ORDERID={{RESPONSE_ORDER_ID}}"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -916,5 +911,5 @@ steps:
 # 시나리오 설정
 options:
   stopOnError: false
-  timeout: 50000
+  timeout: 50000000
   retryCount: 0
