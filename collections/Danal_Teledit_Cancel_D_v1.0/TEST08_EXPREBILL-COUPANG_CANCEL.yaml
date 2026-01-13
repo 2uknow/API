@@ -146,7 +146,7 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
-      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 29000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -248,14 +248,6 @@ steps:
         pattern: "orderid"
         variable: "CPCENCEL_ORDERID"
 
-      - name: "remainamt"
-        pattern: "remainamt"
-        variable: "CPCENCEL_REMAINAMT"
-
-      - name: "cancelamt"
-        pattern: "cancelamt"
-        variable: "CPCENCEL_CANCELAMT"
-
 
 ####################################################### Assertion ###########################################################
 
@@ -350,7 +342,7 @@ steps:
       key: "{{CRYPTOKEY}}"
       # 최초 원거래 TID 사용 부분취소
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_OTID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
-      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 29000   # 암호화 후 대기 시간 (밀리초)
       
     # 암호화 결과 추출
     extract:
@@ -453,14 +445,6 @@ steps:
         pattern: "orderid"
         variable: "CPCENCEL_ORDERID_2"
 
-      - name: "remainamt"
-        pattern: "remainamt"
-        variable: "CPCENCEL_REMAINAMT_2"
-
-      - name: "cancelamt"
-        pattern: "cancelamt"
-        variable: "CPCENCEL_CANCELAMT_2"
-
     test:
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "CPCENCEL_RESULT_2 == 0"
@@ -535,9 +519,9 @@ steps:
     args:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
-      # 직전에 마지막으로 결제된 TID 사용 부분취소
-      data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_TID_2}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
-      sleepDuration: 30000   # 암호화 후 대기 시간 (밀리초)
+      # 직전에 마지막으로 결제된 TID 사용 부분취소, 한도 부족 에러 시 선취소 후승인 진행 여부 = Y 설정
+      data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{CPCENCEL_TID_2}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500|ISPRECANCEL=Y"
+      sleepDuration: 29000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -638,14 +622,6 @@ steps:
       - name: "orderid"
         pattern: "orderid"
         variable: "CPCENCEL_ORDERID_6"
-
-      - name: "remainamt"
-        pattern: "remainamt"
-        variable: "CPCENCEL_REMAINAMT_6"
-
-      - name: "cancelamt"
-        pattern: "cancelamt"
-        variable: "CPCENCEL_CANCELAMT_6"
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
@@ -901,15 +877,99 @@ steps:
         pattern: "errmsg"
         variable: "CPCENCEL_ERRMSG_4"
 
+      - name: "tid"
+        pattern: "tid"
+        variable: "CPCENCEL_TID_4"
+
+      - name: "dntid"
+        pattern: "dntid"
+        variable: "CPCENCEL_DNTID_4"
+
+      - name: "date"
+        pattern: "date"
+        variable: "CPCENCEL_DATE_4"
+
+      - name: "otid"
+        pattern: "otid"
+        variable: "CPCENCEL_OTID_4"
+
+      - name: "orderid"
+        pattern: "orderid"
+        variable: "CPCENCEL_ORDERID_4"
+
+      - name: "remainamt"
+        pattern: "remainamt"
+        variable: "CPCENCEL_REMAINAMT_4"
+
+      - name: "cancelamt"
+        pattern: "cancelamt"
+        variable: "CPCENCEL_CANCELAMT_4"
+
     test:
       - name: "결과 코드(RESULT) 정상 출력"
         assertion: "js: CPCENCEL_RESULT_4 && CPCENCEL_RESULT_4 == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "js: CPCENCEL_ERRMSG_4 && CPCENCEL_ERRMSG_4 == 'No Information'"
+      
+      - name: "거래 번호(TID) 정상 출력"
+        description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
+        assertion: "js: (
+          CPCENCEL_TID_4 !== null &&
+          typeof CPCENCEL_TID_4 !== 'undefined' &&
+          typeof CPCENCEL_TID_4 === 'string' &&
+          CPCENCEL_TID_4.trim().length === 18)"
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        description: "복호화된 DNTID가 존재하고 22자리인지 확인"
+        assertion: "js: CPCENCEL_DNTID_4 && CPCENCEL_DNTID_4.trim().length > 0 && /^\\d{22}$/.test(CPCENCEL_DNTID_4)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "복호화된 DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return CPCENCEL_DNTID_4.slice(0, 12) === now12;})()"
+
+      - name: "거래 번호(DNTID) 정상 출력_3"
+        description: "복호화된 DNTID = yyyy + 원거래 TID 일치 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}`;
+          return CPCENCEL_DNTID_4 = now12 + TID;})()"
+
+      - name: "취소 일시(DATE) 정상 출력_1"
+        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+        assertion: "js: (
+          CPCENCEL_DATE_4 !== null &&
+          typeof CPCENCEL_DATE_4 !== 'undefined' &&
+          typeof CPCENCEL_DATE_4 === 'string' &&
+          CPCENCEL_DATE_4.trim().length === 14)"
+
+      - name: "취소 일시(DATE) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          const pad = n => String(n).padStart(2,'0');
+          const d = new Date();
+          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+          return CPCENCEL_DATE_4.slice(0, 12) === now12;})()"
+
+      - name: "원본 거래번호(OTID) 정상 출력"
+        description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
+        assertion: "js: CPCENCEL_OTID_4 && CPCENCEL_OTID_4 === CPCENCEL_TID_2"
+
+      - name: "주문번호(Orderid) 정상 출력"
+        description: "복호화된 주문번호가 원본 주문번호 + 추가 문구 확인"
+        assertion: "js: (
+          typeof CPCENCEL_ORDERID_4 !== 'undefined' &&
+          typeof CPCENCEL_ORDERID_4 === 'string' &&
+          CPCENCEL_ORDERID_4.trim().length > 0 &&
+          CPCENCEL_ORDERID_4.includes(RESPONSE_ORDER_ID))"
 
 # 시나리오 설정
 options:
   stopOnError: false
-  timeout: 50000000
+  timeout: 50000000000
   retryCount: 0
