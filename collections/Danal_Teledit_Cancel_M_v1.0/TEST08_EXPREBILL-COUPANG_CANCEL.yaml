@@ -146,7 +146,7 @@ steps:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
       data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 29000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
     extract:
@@ -177,7 +177,6 @@ steps:
         Content-Type: "application/x-www-form-urlencoded"
         User-Agent: "2uknow-api-monitor/1.0.0"
       body: "DATA={{ENCRYPTED_CPCENCEL_DATA}}&CIPHERTYPE=0"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
 
     # HTTP 응답 데이터 추출
     extract:
@@ -327,5 +326,5 @@ steps:
 # 시나리오 설정
 options:
   stopOnError: false
-  timeout: 50000
+  timeout: 5000000
   retryCount: 0
