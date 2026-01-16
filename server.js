@@ -527,27 +527,202 @@ function flushLogBuffer() {
   }
 }
 
-function histRead(){ 
-  const p=path.join(root,'logs','history.json'); 
-  return fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf-8')):[]; 
+function histRead(){
+  const p=path.join(root,'logs','history.json');
+  return fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf-8')):[];
 }
 
-function histWrite(arr){ 
-  const p=path.join(root,'logs','history.json'); 
-  fs.writeFileSync(p, JSON.stringify(arr,null,2)); 
+function histWrite(arr){
+  const p=path.join(root,'logs','history.json');
+  const backupDir = path.join(root, 'logs', 'history_backup');
+
+  // 백업 디렉토리 생성
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+
+  // 기존 파일이 있고 내용이 있으면 백업 (덮어쓰기 방지)
+  if (fs.existsSync(p)) {
+    try {
+      const existing = fs.readFileSync(p, 'utf-8');
+      const existingArr = JSON.parse(existing);
+
+      // 기존 데이터가 있는데 새 데이터가 비어있거나 더 적으면 백업 후 병합
+      if (existingArr.length > 0 && arr.length < existingArr.length) {
+        const backupPath = path.join(backupDir, `history_backup_${Date.now()}.json`);
+        fs.writeFileSync(backupPath, existing);
+        console.log(`[HIST_PROTECT] Backup created: ${backupPath} (existing: ${existingArr.length}, new: ${arr.length})`);
+
+        // 새 데이터와 기존 데이터 병합 (중복 제거)
+        const merged = [...existingArr];
+        for (const item of arr) {
+          const exists = merged.some(m => m.timestamp === item.timestamp && m.job === item.job);
+          if (!exists) {
+            merged.push(item);
+          }
+        }
+        arr = merged;
+        console.log(`[HIST_PROTECT] Merged data: ${arr.length} items`);
+      }
+    } catch (e) {
+      console.error(`[HIST_PROTECT] Error reading existing history: ${e.message}`);
+    }
+  }
+
+  fs.writeFileSync(p, JSON.stringify(arr,null,2));
 }
 
-function cleanupOldReports(){ 
-  const { report_keep_days=30 }=readCfg(); 
-  const maxAge=report_keep_days*24*3600*1000; 
-  const now=Date.now(); 
-  for (const f of fs.readdirSync(reportsDir)){ 
-    const p=path.join(reportsDir,f); 
-    const st=fs.statSync(p); 
-    if (now-st.mtimeMs>maxAge){ 
-      try{ fs.unlinkSync(p);}catch{} 
-    } 
-  } 
+function cleanupOldReports(){
+  const { report_keep_days=30 }=readCfg();
+  const maxAge=report_keep_days*24*3600*1000;
+  const now=Date.now();
+  for (const f of fs.readdirSync(reportsDir)){
+    const p=path.join(reportsDir,f);
+    const st=fs.statSync(p);
+    if (now-st.mtimeMs>maxAge){
+      try{ fs.unlinkSync(p);}catch{}
+    }
+  }
+}
+
+// ============================================
+// 로그 파일 관리 기능 (일별 스플릿 + 7일 이후 압축)
+// ============================================
+const archiveDir = path.join(logsDir, 'archive');
+
+// 압축이 필요한 로그 파일 패턴 (일별 스플릿되는 로그들)
+const LOG_PATTERNS_TO_ARCHIVE = [
+  /^stdout_.*\.log$/,
+  /^stderr_.*\.log$/,
+  /^batch_execution_\d{4}-\d{2}-\d{2}\.log$/,
+  /^debug_batch_\d{4}-\d{2}-\d{2}\.log$/
+];
+
+// pm2-out.log 등 대용량 단일 로그 파일 일별 스플릿
+function splitLargeLogs() {
+  const logFilesToSplit = ['pm2-out.log', 'pm2-error.log'];
+  const today = nowInTZString().split(' ')[0]; // YYYY-MM-DD
+
+  for (const logFile of logFilesToSplit) {
+    const logPath = path.join(logsDir, logFile);
+    if (!fs.existsSync(logPath)) continue;
+
+    try {
+      const stats = fs.statSync(logPath);
+      const lastModified = new Date(stats.mtime);
+      const lastModifiedDate = lastModified.toISOString().split('T')[0];
+
+      // 파일이 10MB 이상이거나, 날짜가 바뀌었으면 스플릿
+      const fileSizeMB = stats.size / (1024 * 1024);
+      if (fileSizeMB > 10 || lastModifiedDate !== today) {
+        const splitName = logFile.replace('.log', `_${lastModifiedDate}.log`);
+        const splitPath = path.join(logsDir, splitName);
+
+        // 기존 스플릿 파일이 없으면 이동
+        if (!fs.existsSync(splitPath)) {
+          fs.renameSync(logPath, splitPath);
+          fs.writeFileSync(logPath, ''); // 빈 파일 생성
+          console.log(`[LOG_SPLIT] ${logFile} -> ${splitName} (${fileSizeMB.toFixed(2)}MB)`);
+        }
+      }
+    } catch (e) {
+      console.error(`[LOG_SPLIT] Error splitting ${logFile}: ${e.message}`);
+    }
+  }
+}
+
+// 7일 이상 된 로그 파일 압축
+async function archiveOldLogs() {
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+  // archive 디렉토리 생성
+  if (!fs.existsSync(archiveDir)) {
+    fs.mkdirSync(archiveDir, { recursive: true });
+  }
+
+  try {
+    const files = fs.readdirSync(logsDir);
+
+    for (const file of files) {
+      // 압축 대상 패턴인지 확인
+      const isTarget = LOG_PATTERNS_TO_ARCHIVE.some(pattern => pattern.test(file));
+      if (!isTarget) continue;
+
+      // 이미 압축된 파일은 건너뜀
+      if (file.endsWith('.gz') || file.endsWith('.zip')) continue;
+
+      const filePath = path.join(logsDir, file);
+      const stats = fs.statSync(filePath);
+
+      // 7일 이상 된 파일만 압축
+      if (stats.mtimeMs < sevenDaysAgo) {
+        try {
+          const { createGzip } = await import('zlib');
+          const gzip = createGzip();
+          const source = fs.createReadStream(filePath);
+          const destPath = path.join(archiveDir, `${file}.gz`);
+          const dest = fs.createWriteStream(destPath);
+
+          await new Promise((resolve, reject) => {
+            source.pipe(gzip).pipe(dest);
+            dest.on('finish', resolve);
+            dest.on('error', reject);
+          });
+
+          // 압축 완료 후 원본 삭제
+          fs.unlinkSync(filePath);
+          console.log(`[LOG_ARCHIVE] Archived: ${file} -> archive/${file}.gz`);
+        } catch (e) {
+          console.error(`[LOG_ARCHIVE] Error archiving ${file}: ${e.message}`);
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`[LOG_ARCHIVE] Error reading logs directory: ${e.message}`);
+  }
+}
+
+// 30일 이상 된 압축 파일 삭제
+function cleanupOldArchives() {
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+  if (!fs.existsSync(archiveDir)) return;
+
+  try {
+    const files = fs.readdirSync(archiveDir);
+    for (const file of files) {
+      const filePath = path.join(archiveDir, file);
+      const stats = fs.statSync(filePath);
+
+      if (stats.mtimeMs < thirtyDaysAgo) {
+        fs.unlinkSync(filePath);
+        console.log(`[LOG_CLEANUP] Deleted old archive: ${file}`);
+      }
+    }
+  } catch (e) {
+    console.error(`[LOG_CLEANUP] Error cleaning archives: ${e.message}`);
+  }
+}
+
+// 로그 관리 스케줄러 (매일 새벽 3시에 실행)
+function initLogManagement() {
+  // 서버 시작 시 한 번 실행
+  splitLargeLogs();
+  archiveOldLogs();
+  cleanupOldArchives();
+
+  // 매일 새벽 3시에 실행
+  cron.schedule('0 3 * * *', () => {
+    console.log('[LOG_MGMT] Running daily log management...');
+    splitLargeLogs();
+    archiveOldLogs();
+    cleanupOldArchives();
+    console.log('[LOG_MGMT] Daily log management completed');
+  }, {
+    timezone: 'Asia/Seoul'
+  });
+
+  console.log('[LOG_MGMT] Log management scheduler initialized');
 }
 
 async function sendAlert(type, data) {
@@ -765,13 +940,16 @@ app.get('/api/history', (req, res) => {
   const searchQuery = req.query.search || '';
   const jobFilter = req.query.job || '';
   const rangeFilter = req.query.range || '';
-  
+  const statusFilter = req.query.status || ''; // 'success', 'failed', or ''
+  const dateFrom = req.query.dateFrom || '';   // 'YYYY-MM-DD'
+  const dateTo = req.query.dateTo || '';       // 'YYYY-MM-DD'
+
   let history = histRead();
-  
-  // 필터링 로직은 그대로...
-  if (searchQuery || jobFilter || rangeFilter) {
+
+  // 필터링 로직
+  if (searchQuery || jobFilter || rangeFilter || statusFilter || dateFrom || dateTo) {
     const now = Date.now();
-    
+
     function inRange(ts) {
       if (!rangeFilter) return true;
       const t = Date.parse(ts.replace(' ', 'T') + '+09:00');
@@ -779,10 +957,27 @@ app.get('/api/history', (req, res) => {
       if (rangeFilter === '7d') return (now - t) <= (7 * 24 * 3600 * 1000);
       return true;
     }
-    
+
+    function inDateRange(ts) {
+      if (!dateFrom && !dateTo) return true;
+      const dateStr = ts.split(' ')[0]; // 'YYYY-MM-DD'
+      if (dateFrom && dateStr < dateFrom) return false;
+      if (dateTo && dateStr > dateTo) return false;
+      return true;
+    }
+
+    function matchStatus(exitCode) {
+      if (!statusFilter) return true;
+      if (statusFilter === 'success') return exitCode === 0;
+      if (statusFilter === 'failed') return exitCode !== 0;
+      return true;
+    }
+
     history = history.filter(r => {
       const jobMatch = !jobFilter || r.job === jobFilter;
       const rangeMatch = inRange(r.timestamp);
+      const dateRangeMatch = inDateRange(r.timestamp);
+      const statusMatch = matchStatus(r.exitCode);
 
       // 검색어 매칭 - job, summary, status(exitCode 기반) 모두 검색
       let searchMatch = true;
@@ -793,7 +988,7 @@ app.get('/api/history', (req, res) => {
         searchMatch = searchTarget.includes(query);
       }
 
-      return jobMatch && rangeMatch && searchMatch;
+      return jobMatch && rangeMatch && dateRangeMatch && statusMatch && searchMatch;
     });
   }
   
@@ -802,8 +997,16 @@ app.get('/api/history', (req, res) => {
   const totalPages = Math.ceil(total / size);
   const startIndex = (page - 1) * size;
   const endIndex = startIndex + size;
-  const items = history.slice().reverse().slice(startIndex, endIndex);
-  
+  const rawItems = history.slice().reverse().slice(startIndex, endIndex);
+
+  // history.json의 필드를 API 응답 형식으로 변환
+  const items = rawItems.map(item => ({
+    ...item,
+    report: item.reportPath || item.report || '',
+    htmlReport: item.reportPath || item.htmlReport || '',
+    duration: item.duration || 0
+  }));
+
   // 응답 구조 수정 - 클라이언트가 기대하는 형태로
   res.json({
     items,
@@ -2140,10 +2343,10 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   history.push(historyEntry);
   
   const { history_keep = 500 } = readCfg();
-  if (history.length > history_keep) {
+  if (history_keep > 0 && history.length > history_keep) {
     history.splice(0, history.length - history_keep);
   }
-  
+
   histWrite(history);
   cleanupOldReports();
 
@@ -2548,7 +2751,7 @@ async function runBinaryJob(jobName, job) {
         history.push(historyEntry);
 
         const { history_keep = 500 } = readCfg();
-        if (history.length > history_keep) {
+        if (history_keep > 0 && history.length > history_keep) {
           history.splice(0, history.length - history_keep);
         }
 
@@ -2831,12 +3034,12 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           };
           
           history.push(historyEntry);
-          
+
           const { history_keep = 500 } = readCfg();
-          if (history.length > history_keep) {
+          if (history_keep > 0 && history.length > history_keep) {
             history.splice(0, history.length - history_keep);
           }
-          
+
           histWrite(history);
           cleanupOldReports();
           
@@ -4189,10 +4392,10 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     
     // 최대 기록 개수 유지
     const { history_keep = 500 } = readCfg();
-    if (history.length > history_keep) {
+    if (history_keep > 0 && history.length > history_keep) {
       history.splice(0, history.length - history_keep);
     }
-    
+
     // 히스토리 파일에 저장
     try {
       histWrite(history);
@@ -4357,10 +4560,10 @@ async function runSClientScenarioJob(jobName, job) {
     
     // 최대 기록 개수 유지
     const { history_keep = 500 } = readCfg();
-    if (history.length > history_keep) {
+    if (history_keep > 0 && history.length > history_keep) {
       history.splice(0, history.length - history_keep);
     }
-    
+
     broadcastState({ history_updated: true });
     
     return { started: true, success, result: scenarioResult };
@@ -4810,6 +5013,9 @@ const { site_port = 3000, base_url } = cfg;
 
 // 서버 시작 시 정기 리포트 스케줄러 초기화
 setupDailyReportScheduler();
+
+// 로그 관리 스케줄러 초기화 (일별 스플릿 + 7일 이후 압축)
+initLogManagement();
 
 app.listen(site_port, '0.0.0.0', () => {
   const displayUrl = base_url || `http://localhost:${site_port}`;
