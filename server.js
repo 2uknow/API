@@ -16,6 +16,7 @@ import {
   buildDailyReportFlex
 } from './alert.js';
 import iconv from 'iconv-lite';
+import crypto from 'crypto';
 import { SClientScenarioEngine, SClientReportGenerator } from './sclient-engine.js';
 import { validateTestsWithYamlData } from './sclient-test-validator.js';
 const __filename = fileURLToPath(import.meta.url);
@@ -762,19 +763,60 @@ async function sendAlert(type, data) {
         }
         message += `\nDuration: ${data.duration}s\nEnd Time: ${data.endTime}`;
       } else if (type === 'error') {
-        message = `API Test Execution Failed\nJob: ${data.jobName}\nCollection: ${data.collection}`;
+        message = `[API Test FAILED]\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `Job: ${data.jobName}\n`;
+
+        if (data.collection) {
+          message += `Collection: ${data.collection}\n`;
+        }
         if (data.environment) {
-          message += `\nEnvironment: ${data.environment}`;
+          message += `Environment: ${data.environment}\n`;
         }
-        message += `\nExit Code: ${data.exitCode}\nDuration: ${data.duration}s\nEnd Time: ${data.endTime}`;
-        
+        if (data.scenarioName) {
+          message += `Scenario: ${data.scenarioName}\n`;
+        }
+
+        message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `Exit Code: ${data.exitCode}\n`;
+        message += `Duration: ${data.duration}s\n`;
+        message += `End Time: ${data.endTime}\n`;
+
+        // 통계 정보
+        if (data.detailedStats) {
+          message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          message += `[Statistics]\n`;
+          message += `Total: ${data.detailedStats.totalSteps || 0}\n`;
+          message += `Passed: ${data.detailedStats.passedSteps || 0}\n`;
+          message += `Failed: ${data.detailedStats.failedSteps || 0}\n`;
+          message += `Success Rate: ${data.detailedStats.successRate || 0}%\n`;
+        }
+
+        // 에러 요약
         if (data.errorSummary) {
-          message += `\nError: ${data.errorSummary}`;
+          message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          message += `[Error Summary]\n`;
+          message += `${data.errorSummary}\n`;
         }
-        
-        // 상세 실패 리포트 추가
+
+        // 상세 실패 리포트 추가 (Response Body 포함)
         if (data.failureReport) {
-          message += `\n\n=== Failure Summary Report ===\n${data.failureReport}`;
+          console.log(`[ALERT DEBUG] failureReport length: ${data.failureReport.length}`);
+          console.log(`[ALERT DEBUG] failureReport preview: ${data.failureReport.substring(0, 500)}`);
+          message += `\n${data.failureReport}`;
+        } else {
+          console.log(`[ALERT DEBUG] failureReport is empty or null`);
+        }
+
+        // Response Body (stdout) - binary job용
+        if (data.stdout && !data.failureReport) {
+          message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          message += `[Response (Decoded)]\n`;
+          const truncatedStdout = data.stdout.substring(0, 1500);
+          message += truncatedStdout;
+          if (data.stdout.length > 1500) {
+            message += '\n... (truncated)';
+          }
         }
       }
       result = await sendTextMessage(message);
@@ -798,24 +840,59 @@ function parseNewmanJsonReport(jsonReportPath) {
       console.log(`[NEWMAN PARSE] JSON 리포트 파일 없음: ${jsonReportPath}`);
       return null;
     }
-    
+
     const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf-8'));
     const run = reportData.run;
-    
+
     if (!run) {
       console.log('[NEWMAN PARSE] run 데이터 없음');
       return null;
     }
-    
+
     const stats = run.stats || {};
     const timings = run.timings || {};
     const failures = run.failures || [];
-    
+    const executions = run.executions || [];
+
     // 상세 통계 계산
     const requests = stats.requests || {};
     const assertions = stats.assertions || {};
     const testScripts = stats.testScripts || {};
-    
+
+    // 실패한 요청의 Response Body 추출
+    const failedExecutions = [];
+    for (const execution of executions) {
+      const hasFailedAssertion = execution.assertions?.some(a => a.error);
+      const hasFailedRequest = execution.requestError;
+
+      if (hasFailedAssertion || hasFailedRequest) {
+        const responseBody = execution.response?.stream ?
+          Buffer.from(execution.response.stream.data || []).toString('utf-8') :
+          (execution.response?.body || '');
+
+        failedExecutions.push({
+          name: execution.item?.name || 'Unknown Request',
+          request: {
+            url: execution.request?.url?.toString() || '',
+            method: execution.request?.method || '',
+            body: execution.request?.body?.raw || ''
+          },
+          response: {
+            status: execution.response?.code || 0,
+            statusText: execution.response?.status || '',
+            body: decodeUrlEncodedContent(responseBody),
+            responseTime: execution.response?.responseTime || 0
+          },
+          assertions: (execution.assertions || []).map(a => ({
+            name: a.assertion,
+            passed: !a.error,
+            error: a.error?.message || null
+          })),
+          error: execution.requestError?.message || null
+        });
+      }
+    }
+
     const result = {
       summary: {
         iterations: stats.iterations || { total: 0, failed: 0 },
@@ -824,12 +901,12 @@ function parseNewmanJsonReport(jsonReportPath) {
         assertions: { total: assertions.total || 0, failed: assertions.failed || 0 }
       },
       timings: {
-        responseAverage: timings.responseAverage || 0,      // 평균 응답시간 (밀리초)
-        responseMin: timings.responseMin || 0,              // 최소 응답시간
-        responseMax: timings.responseMax || 0,              // 최대 응답시간
-        responseTotal: timings.responseTotal || 0,          // 총 응답시간
-        started: timings.started || 0,                      // 시작 시간
-        completed: timings.completed || 0                   // 완료 시간
+        responseAverage: timings.responseAverage || 0,
+        responseMin: timings.responseMin || 0,
+        responseMax: timings.responseMax || 0,
+        responseTotal: timings.responseTotal || 0,
+        started: timings.started || 0,
+        completed: timings.completed || 0
       },
       failures: failures.map(failure => ({
         source: failure.source?.name || 'Unknown',
@@ -837,6 +914,8 @@ function parseNewmanJsonReport(jsonReportPath) {
         test: failure.error?.test || null,
         at: failure.at || null
       })),
+      // 실패한 요청들의 상세 정보 (Response Body 포함)
+      failedExecutions: failedExecutions,
       // 성공률 계산
       successRate: (() => {
         const totalRequests = requests.total || 0;
@@ -845,27 +924,104 @@ function parseNewmanJsonReport(jsonReportPath) {
         const failedAssertions = assertions.failed || 0;
         const totalTests = testScripts.total || 0;
         const failedTests = testScripts.failed || 0;
-        
+
         const totalItems = totalRequests + totalAssertions + totalTests;
         const failedItems = failedRequests + failedAssertions + failedTests;
-        
+
         if (totalItems === 0) return 100;
         return Math.round(((totalItems - failedItems) / totalItems) * 100);
       })()
     };
-    
+
     console.log(`[NEWMAN PARSE] 성공적으로 파싱됨:`, {
       responseAverage: result.timings.responseAverage,
       successRate: result.successRate,
       totalRequests: result.summary.requests.total,
-      failedRequests: result.summary.requests.failed
+      failedRequests: result.summary.requests.failed,
+      failedExecutions: failedExecutions.length
     });
-    
+
     return result;
   } catch (error) {
     console.error('[NEWMAN PARSE ERROR]', error);
     return null;
   }
+}
+
+// Newman 실패 리포트 생성 함수
+function buildNewmanFailureReport(newmanParsed, detailedFailures) {
+  console.log('[DEBUG] buildNewmanFailureReport called');
+  console.log('[DEBUG] newmanParsed:', newmanParsed ? 'exists' : 'null');
+  console.log('[DEBUG] newmanParsed.summary:', newmanParsed?.summary ? 'exists' : 'null');
+  console.log('[DEBUG] newmanParsed.failedExecutions:', newmanParsed?.failedExecutions?.length || 0);
+  console.log('[DEBUG] detailedFailures:', detailedFailures?.length || 0);
+
+  const lines = [];
+
+  lines.push('=== Newman Test Failure Report ===');
+  lines.push('');
+
+  // 1. 통계 요약
+  if (newmanParsed?.summary) {
+    lines.push('[Statistics]');
+    lines.push(`  Requests: ${newmanParsed.summary.requests.failed}/${newmanParsed.summary.requests.total} failed`);
+    lines.push(`  Assertions: ${newmanParsed.summary.assertions.failed}/${newmanParsed.summary.assertions.total} failed`);
+    lines.push(`  Success Rate: ${newmanParsed.successRate}%`);
+    lines.push('');
+  }
+
+  // 2. 실패한 요청들의 Response Body
+  if (newmanParsed?.failedExecutions?.length > 0) {
+    lines.push('[Failed Requests with Response]');
+
+    newmanParsed.failedExecutions.slice(0, 5).forEach((exec, idx) => {
+      lines.push(`━━━ ${idx + 1}. ${exec.name} ━━━`);
+      lines.push(`  URL: ${exec.request.method} ${exec.request.url}`);
+      lines.push(`  Status: ${exec.response.status} ${exec.response.statusText}`);
+      lines.push(`  Response Time: ${exec.response.responseTime}ms`);
+
+      // Assertion 실패 정보
+      const failedAssertions = exec.assertions.filter(a => !a.passed);
+      if (failedAssertions.length > 0) {
+        lines.push('  Failed Assertions:');
+        failedAssertions.forEach(a => {
+          lines.push(`    - ${a.name}: ${a.error || 'Failed'}`);
+        });
+      }
+
+      // Response Body (URL 디코딩됨)
+      if (exec.response.body) {
+        lines.push('  Response Body:');
+        const truncated = exec.response.body.substring(0, 800);
+        lines.push(`    ${truncated}${exec.response.body.length > 800 ? '...' : ''}`);
+      }
+
+      lines.push('');
+    });
+
+    if (newmanParsed.failedExecutions.length > 5) {
+      lines.push(`... and ${newmanParsed.failedExecutions.length - 5} more failed requests`);
+    }
+  }
+
+  // 3. CLI에서 파싱한 상세 실패 정보 (fallback)
+  if (detailedFailures?.length > 0 && (!newmanParsed?.failedExecutions?.length)) {
+    lines.push('[Assertion Failures]');
+    detailedFailures.slice(0, 5).forEach((failure, idx) => {
+      lines.push(`  ${idx + 1}. ${failure.testName}`);
+      lines.push(`     Request: ${failure.requestName}`);
+      if (failure.errorDetails) {
+        lines.push(`     Error: ${failure.errorDetails}`);
+      }
+      if (failure.expectedValue && failure.actualValue) {
+        lines.push(`     Expected: ${failure.expectedValue}`);
+        lines.push(`     Actual: ${failure.actualValue}`);
+      }
+      lines.push('');
+    });
+  }
+
+  return lines.join('\n');
 }
 // API: jobs
 app.get('/api/jobs', (req,res)=>{
@@ -1500,6 +1656,399 @@ function parseBinaryOutput(output, parseConfig = {}) {
   
   return result;
 }
+
+// URL 인코딩된 내용을 디코딩하는 함수
+function decodeUrlEncodedContent(content) {
+  if (!content) return '';
+
+  try {
+    // 이중 인코딩된 경우도 처리
+    let decoded = content;
+    let prevDecoded = '';
+    let maxIterations = 3; // 무한루프 방지
+
+    while (decoded !== prevDecoded && maxIterations > 0) {
+      prevDecoded = decoded;
+      try {
+        decoded = decodeURIComponent(decoded);
+      } catch (e) {
+        break; // 더 이상 디코딩 불가
+      }
+      maxIterations--;
+    }
+
+    return decoded;
+  } catch (error) {
+    // 디코딩 실패 시 원본 반환
+    return content;
+  }
+}
+
+// 다날페이카드 응답 복호화 함수 (AES-256-CBC)
+function decryptDanalCreditResponse(encryptedData) {
+  if (!encryptedData) return null;
+
+  try {
+    // 다날페이카드 복호화 Key / IV (Hex)
+    const keyHex = '20ad459ab1ad2f6e541929d50d24765abb05850094a9629041bebb726814625d';
+    const ivHex = 'd7d02c92cb930b661f107cb92690fc83';
+
+    const key = Buffer.from(keyHex, 'hex');
+    const iv = Buffer.from(ivHex, 'hex');
+
+    // DATA= 뒤의 암호문 추출
+    let cipherText = encryptedData;
+    if (encryptedData.includes('DATA=')) {
+      cipherText = encryptedData.split('DATA=')[1];
+      if (cipherText) {
+        cipherText = cipherText.split('&')[0]; // 다른 파라미터가 있으면 제거
+      }
+    }
+
+    if (!cipherText) return null;
+
+    // URL 디코딩
+    cipherText = decodeURIComponent(cipherText);
+
+    // Base64 → Buffer
+    const encryptedBuffer = Buffer.from(cipherText, 'base64');
+
+    // AES-256-CBC 복호화
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(encryptedBuffer);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+    const result = decrypted.toString('utf-8');
+    console.log('[DECRYPT] 다날페이카드 복호화 성공, length:', result.length);
+
+    return result;
+  } catch (error) {
+    console.log('[DECRYPT] 다날페이카드 복호화 실패:', error.message);
+    return null;
+  }
+}
+
+// Response Body 처리 함수 (복호화 시도 포함)
+function processResponseBody(responseBody, jobName) {
+  if (!responseBody) return '';
+
+  // 다날페이카드 Job인 경우 복호화 시도
+  if (jobName && (jobName.includes('다날페이카드') || jobName.includes('CreditRebill'))) {
+    if (responseBody.includes('DATA=')) {
+      const decrypted = decryptDanalCreditResponse(responseBody);
+      if (decrypted) {
+        // 복호화된 데이터의 각 값을 URL 디코딩
+        return decodeQueryStringValues(decrypted);
+      }
+    }
+  }
+
+  // 기본 URL 디코딩
+  return decodeUrlEncodedContent(responseBody);
+}
+
+// Query String 형태(KEY=VALUE&KEY2=VALUE2)의 각 VALUE를 URL 디코딩
+function decodeQueryStringValues(queryString) {
+  if (!queryString) return '';
+
+  try {
+    // & 로 분리하여 각 KEY=VALUE 쌍 처리
+    const pairs = queryString.split('&');
+    const decodedPairs = pairs.map(pair => {
+      const eqIndex = pair.indexOf('=');
+      if (eqIndex === -1) return pair;
+
+      const key = pair.substring(0, eqIndex);
+      const value = pair.substring(eqIndex + 1);
+
+      // VALUE를 URL 디코딩 (EUC-KR 및 UTF-8 모두 지원)
+      let decodedValue = decodeUrlEncodedValue(value);
+
+      return `${key}=${decodedValue}`;
+    });
+
+    return decodedPairs.join('&');
+  } catch (error) {
+    return queryString;
+  }
+}
+
+// URL 인코딩된 값 디코딩 (EUC-KR, UTF-8 모두 지원)
+function decodeUrlEncodedValue(value) {
+  if (!value) return '';
+
+  try {
+    // % 인코딩이 없으면 그대로 반환
+    if (!value.includes('%')) return value;
+
+    // 1. 먼저 UTF-8로 디코딩 시도
+    try {
+      const utf8Decoded = decodeURIComponent(value);
+      // 성공적으로 디코딩되고 한글이 포함되어 있으면 UTF-8
+      if (utf8Decoded !== value && /[\uAC00-\uD7AF]/.test(utf8Decoded)) {
+        return utf8Decoded;
+      }
+    } catch (e) {
+      // UTF-8 디코딩 실패 - EUC-KR 시도
+    }
+
+    // 2. EUC-KR로 디코딩 시도 (iconv-lite 사용)
+    try {
+      // %XX 형태를 바이트 배열로 변환
+      const bytes = [];
+      let i = 0;
+      while (i < value.length) {
+        if (value[i] === '%' && i + 2 < value.length) {
+          const hex = value.substring(i + 1, i + 3);
+          const byte = parseInt(hex, 16);
+          if (!isNaN(byte)) {
+            bytes.push(byte);
+            i += 3;
+            continue;
+          }
+        }
+        bytes.push(value.charCodeAt(i));
+        i++;
+      }
+
+      const buffer = Buffer.from(bytes);
+      const eucKrDecoded = iconv.decode(buffer, 'euc-kr');
+
+      // EUC-KR 디코딩 결과에 한글이 포함되어 있으면 성공
+      if (/[\uAC00-\uD7AF]/.test(eucKrDecoded)) {
+        return eucKrDecoded;
+      }
+
+      // 한글이 없으면 원본 반환 시도
+      return decodeURIComponent(value);
+    } catch (e) {
+      // EUC-KR 디코딩도 실패
+    }
+
+    // 3. 모두 실패하면 원본 반환
+    return value;
+  } catch (error) {
+    return value;
+  }
+}
+
+// Binary Job 실패 리포트 생성 함수
+function buildBinaryFailureReport(stdout, stderr, parsedResult) {
+  const lines = [];
+
+  lines.push('=== Binary Execution Failure Report ===');
+  lines.push('');
+
+  // 1. Assertion 실패 내용
+  if (parsedResult.failures && parsedResult.failures.length > 0) {
+    lines.push('[Assertion Failures]');
+    parsedResult.failures.forEach((failure, idx) => {
+      lines.push(`  ${idx + 1}. ${failure}`);
+    });
+    lines.push('');
+  }
+
+  // 2. Response Body (stdout에서 추출, URL 디코딩 적용)
+  if (stdout) {
+    const decodedStdout = decodeUrlEncodedContent(stdout);
+
+    // Response Body 추출 시도 (다양한 패턴)
+    const responsePatterns = [
+      /Response Body[:\s]*(.+?)(?=\n\[|$)/is,
+      /HTTP Response[:\s]*(.+?)(?=\n\[|$)/is,
+      /BODY[:\s]*(.+?)(?=\n\[|$)/is,
+      /Result=.*/gm
+    ];
+
+    let responseBody = null;
+    for (const pattern of responsePatterns) {
+      const match = decodedStdout.match(pattern);
+      if (match) {
+        responseBody = match[0];
+        break;
+      }
+    }
+
+    lines.push('[Response (Decoded)]');
+    if (responseBody) {
+      lines.push(responseBody.substring(0, 1000)); // 최대 1000자
+    } else {
+      // stdout 전체 출력 (최대 1500자)
+      const truncated = decodedStdout.substring(0, 1500);
+      lines.push(truncated);
+      if (decodedStdout.length > 1500) {
+        lines.push('... (truncated)');
+      }
+    }
+    lines.push('');
+  }
+
+  // 3. Error 출력 (stderr)
+  if (stderr && stderr.trim()) {
+    lines.push('[Error Output]');
+    lines.push(stderr.substring(0, 500));
+    lines.push('');
+  }
+
+  // 4. Summary
+  lines.push(`[Summary] ${parsedResult.summary || 'Execution failed'}`);
+
+  return lines.join('\n');
+}
+
+// YAML Scenario 실패 리포트 생성 함수
+function buildYamlScenarioFailureReport(failedSteps) {
+  const lines = [];
+
+  lines.push('=== YAML Scenario Failure Report ===');
+  lines.push('');
+
+  failedSteps.forEach((step, idx) => {
+    lines.push(`[Step ${idx + 1}] ${step.name}`);
+
+    // 에러 메시지
+    if (step.error) {
+      lines.push(`  Error: ${step.error}`);
+    }
+
+    // 테스트 실패 상세
+    if (step.tests && step.tests.length > 0) {
+      const failedTests = step.tests.filter(t => !t.passed);
+      if (failedTests.length > 0) {
+        lines.push('  Failed Assertions:');
+        failedTests.forEach(test => {
+          lines.push(`    - ${test.name}: ${test.error || 'Failed'}`);
+        });
+      }
+    }
+
+    // Response Body (URL 디코딩 적용)
+    if (step.response) {
+      lines.push('  Response:');
+
+      // HTTP 응답인 경우
+      if (step.response.body) {
+        const decodedBody = decodeUrlEncodedContent(step.response.body);
+        const truncated = decodedBody.substring(0, 800);
+        lines.push(`    Body: ${truncated}${decodedBody.length > 800 ? '...' : ''}`);
+      }
+
+      // stdout (SClient 출력)
+      if (step.response.stdout) {
+        const decodedStdout = decodeUrlEncodedContent(step.response.stdout);
+        const truncated = decodedStdout.substring(0, 800);
+        lines.push(`    Output: ${truncated}${decodedStdout.length > 800 ? '...' : ''}`);
+      }
+
+      // 파싱된 결과
+      if (step.response.parsed && Object.keys(step.response.parsed).length > 0) {
+        lines.push('    Parsed:');
+        Object.entries(step.response.parsed).forEach(([key, value]) => {
+          const decodedValue = decodeUrlEncodedContent(String(value));
+          lines.push(`      ${key}: ${decodedValue}`);
+        });
+      }
+
+      if (step.response.duration) {
+        lines.push(`    Duration: ${step.response.duration}ms`);
+      }
+    }
+
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
+// Batch 실행 실패 리포트 생성 함수
+function buildBatchFailureReport(failedResults) {
+  const lines = [];
+
+  lines.push('=== Batch Execution Failure Report ===');
+  lines.push('');
+
+  // 실패 요약
+  lines.push(`[Summary] ${failedResults.length} file(s) failed`);
+  lines.push('');
+
+  // 각 실패 파일의 상세 정보
+  failedResults.slice(0, 5).forEach((failedResult, idx) => {
+    lines.push(`━━━ ${idx + 1}. ${failedResult.fileName} ━━━`);
+
+    const result = failedResult.result;
+
+    // 에러 메시지
+    if (result?.error) {
+      lines.push(`  Error: ${result.error}`);
+    }
+
+    // Scenario 결과가 있는 경우
+    if (result?.scenarioResult) {
+      const summary = result.scenarioResult.summary;
+      if (summary) {
+        lines.push(`  Steps: ${summary.passed}/${summary.total} passed`);
+      }
+
+      // 실패한 step들의 Response Body
+      const failedSteps = (result.scenarioResult.steps || []).filter(s => !s.passed);
+      if (failedSteps.length > 0) {
+        lines.push('  Failed Steps:');
+
+        failedSteps.slice(0, 3).forEach(step => {
+          lines.push(`    - ${step.name}`);
+
+          // 에러 메시지
+          if (step.error) {
+            lines.push(`      Error: ${step.error}`);
+          }
+
+          // 테스트 실패 상세
+          if (step.tests) {
+            const failedTests = step.tests.filter(t => !t.passed);
+            failedTests.forEach(test => {
+              lines.push(`      Assertion: ${test.name} - ${test.error || 'Failed'}`);
+            });
+          }
+
+          // Response Body (URL 디코딩 적용)
+          if (step.response) {
+            if (step.response.body) {
+              const decodedBody = decodeUrlEncodedContent(step.response.body);
+              const truncated = decodedBody.substring(0, 500);
+              lines.push(`      Response: ${truncated}${decodedBody.length > 500 ? '...' : ''}`);
+            } else if (step.response.stdout) {
+              const decodedStdout = decodeUrlEncodedContent(step.response.stdout);
+              const truncated = decodedStdout.substring(0, 500);
+              lines.push(`      Output: ${truncated}${decodedStdout.length > 500 ? '...' : ''}`);
+            }
+
+            // Parsed 결과
+            if (step.response.parsed && Object.keys(step.response.parsed).length > 0) {
+              lines.push('      Parsed:');
+              Object.entries(step.response.parsed).slice(0, 5).forEach(([key, value]) => {
+                const decodedValue = decodeUrlEncodedContent(String(value));
+                lines.push(`        ${key}: ${decodedValue}`);
+              });
+            }
+          }
+        });
+
+        if (failedSteps.length > 3) {
+          lines.push(`    ... and ${failedSteps.length - 3} more failed steps`);
+        }
+      }
+    }
+
+    lines.push('');
+  });
+
+  if (failedResults.length > 5) {
+    lines.push(`... and ${failedResults.length - 5} more failed files`);
+  }
+
+  return lines.join('\n');
+}
+
 // Newman CLI 출력에서 통계 추출
 function parseNewmanCliOutput(stdoutPath) {
   try {
@@ -1975,9 +2524,31 @@ proc.on('close', async (code) => {
             total: iterations.total || 0,
             failed: iterations.failed || 0,
             pending: iterations.pending || 0
-          }
+          },
+          // timings 정보 추가
+          timings: {
+            responseAverage: run.timings?.responseAverage || 0,
+            responseMin: run.timings?.responseMin || 0,
+            responseMax: run.timings?.responseMax || 0,
+            responseTotal: run.timings?.responseTotal || 0
+          },
+          // summary 정보 (buildNewmanFailureReport에서 사용)
+          summary: {
+            requests: { total: requests.total || 0, failed: requests.failed || 0 },
+            assertions: { total: assertions.total || 0, failed: assertions.failed || 0 }
+          },
+          successRate: 0 // 아래에서 계산
         };
-        
+
+        // 성공률 계산
+        const totalItems = (requests.total || 0) + (assertions.total || 0);
+        const failedItems = (requests.failed || 0) + (assertions.failed || 0);
+        if (totalItems > 0) {
+          newmanStats.successRate = Math.round(((totalItems - failedItems) / totalItems) * 100);
+        } else {
+          newmanStats.successRate = 100;
+        }
+
         // 상세 통계 계산
         detailedStats = {
           totalExecuted: (requests.total || 0) + (assertions.total || 0) + (testScripts.total || 0),
@@ -1999,6 +2570,53 @@ proc.on('close', async (code) => {
             assertion: failure.error?.test || null,
             request: failure.source?.request?.name || null
           }));
+        }
+
+        // 실패한 요청의 Response Body 추출 (executions에서)
+        const executions = run.executions || [];
+        const failedExecutions = [];
+        for (const execution of executions) {
+          const hasFailedAssertion = execution.assertions?.some(a => a.error);
+          const hasFailedRequest = execution.requestError;
+
+          if (hasFailedAssertion || hasFailedRequest) {
+            // Response Body 추출 (stream.data에서)
+            let responseBody = '';
+            if (execution.response?.stream?.data) {
+              try {
+                responseBody = Buffer.from(execution.response.stream.data).toString('utf-8');
+              } catch (e) {
+                responseBody = '';
+              }
+            }
+
+            failedExecutions.push({
+              name: execution.item?.name || 'Unknown Request',
+              request: {
+                url: execution.request?.url?.toString() || '',
+                method: execution.request?.method || '',
+                body: execution.request?.body?.raw || ''
+              },
+              response: {
+                status: execution.response?.code || 0,
+                statusText: execution.response?.status || '',
+                body: processResponseBody(responseBody, jobName), // 복호화 시도 포함
+                responseTime: execution.response?.responseTime || 0
+              },
+              assertions: (execution.assertions || []).map(a => ({
+                name: a.assertion,
+                passed: !a.error,
+                error: a.error?.message || null
+              })),
+              error: execution.requestError?.message || null
+            });
+          }
+        }
+
+        // newmanStats에 failedExecutions 추가
+        if (failedExecutions.length > 0) {
+          newmanStats.failedExecutions = failedExecutions;
+          console.log(`[NEWMAN] Found ${failedExecutions.length} failed executions with response bodies`);
         }
         
         // Summary 생성: 더 세분화된 정보
@@ -2360,39 +2978,42 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 
   // 알람 데이터 준비 - 훨씬 풍부한 정보 포함
   const alertData = {
-  jobName,
-  startTime,
-  endTime,
-  duration,
-  exitCode: code,
-  collection: path.basename(collection),
-  environment: environment ? path.basename(environment) : null,
-  
-  // 기본 오류 정보
-  errorSummary,
-  failureReport,
-  
-  // Newman 상세 통계
-  newmanStats: newmanStats,
-  detailedStats: detailedStats,
-  
-  // 상세 실패 정보 (CLI에서 파싱한 것과 JSON에서 파싱한 것 모두)
-  failureDetails: failureDetails, // JSON에서 파싱한 것
-  detailedFailures: detailedFailures, // CLI에서 파싱한 상세한 것
-  
-  // 성능 정보
-  performanceInfo: {
-    avgResponseTime: detailedStats?.avgResponseTime || 0,
-    totalDuration: detailedStats?.totalDuration || duration * 1000,
-    successRate: detailedStats?.successRate || 0
-  },
-  
-  // 요약 정보
-  summaryText: summary,
-  
-  // 리포트 경로
-  reportPath: fs.existsSync(htmlReport) ? htmlReport : null
-};
+    jobName,
+    startTime,
+    endTime,
+    duration,
+    exitCode: code,
+    collection: path.basename(collection),
+    environment: environment ? path.basename(environment) : null,
+
+    // 기본 오류 정보
+    errorSummary,
+    // Response Body 포함한 상세 실패 리포트 생성
+    failureReport: code !== 0 ? buildNewmanFailureReport(newmanStats, detailedFailures) : failureReport,
+
+    // Newman 상세 통계
+    newmanStats: newmanStats,
+    detailedStats: detailedStats,
+
+    // 상세 실패 정보 (CLI에서 파싱한 것과 JSON에서 파싱한 것 모두)
+    failureDetails: failureDetails,
+    detailedFailures: detailedFailures,
+    // 실패한 요청들의 Response Body 포함
+    failedExecutions: newmanStats?.failedExecutions || [],
+
+    // 성능 정보
+    performanceInfo: {
+      avgResponseTime: detailedStats?.avgResponseTime || 0,
+      totalDuration: detailedStats?.totalDuration || duration * 1000,
+      successRate: detailedStats?.successRate || 0
+    },
+
+    // 요약 정보
+    summaryText: summary,
+
+    // 리포트 경로
+    reportPath: fs.existsSync(htmlReport) ? htmlReport : null
+  };
 
   // 결과에 따른 알람 전송
   if (code === 0) {
@@ -2787,12 +3408,16 @@ async function runBinaryJob(jobName, job) {
           summary: parsedResult.summary,
           success: parsedResult.success,
           type: 'binary',
-          reportPath: fs.existsSync(txtReport) ? txtReport : null
+          reportPath: fs.existsSync(txtReport) ? txtReport : null,
+          // stdout(RES) 내용 포함 - URL 디코딩 적용
+          stdout: decodeUrlEncodedContent(stdout || ''),
+          stderr: stderr || ''
         };
 
         if (!parsedResult.success && parsedResult.failures.length > 0) {
           alertData.errorSummary = parsedResult.failures.slice(0, 3).join('; ');
-          alertData.failureReport = `Binary Execution Failures:\n${parsedResult.failures.join('\n')}`;
+          // 실패 리포트에 RES 내용과 Assertion 실패 원인 포함
+          alertData.failureReport = buildBinaryFailureReport(stdout, stderr, parsedResult);
         }
 
         // 결과에 따른 알람 전송
@@ -3085,24 +3710,35 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           
           if (!scenarioResult.success) {
             const failedSteps = scenarioResult.steps.filter(step => !step.passed);
-            alertData.errorSummary = failedSteps.slice(0, 3).map(step => 
+            alertData.errorSummary = failedSteps.slice(0, 3).map(step =>
               `${step.name}: ${step.error || 'Test failed'}`
             ).join('; ');
-            alertData.failureReport = `YAML Scenario Failures:\n${failedSteps.map(step => 
-              `- ${step.name}: ${step.error || 'Test assertions failed'}`
-            ).join('\n')}`;
+            // Response Body 및 상세 Assertion 실패 정보 포함
+            alertData.failureReport = buildYamlScenarioFailureReport(failedSteps);
+            // 실패한 step들의 response 정보 추가
+            alertData.failedStepDetails = failedSteps.map(step => ({
+              name: step.name,
+              error: step.error,
+              tests: step.tests,
+              response: step.response ? {
+                body: decodeUrlEncodedContent(step.response.body || ''),
+                stdout: decodeUrlEncodedContent(step.response.stdout || ''),
+                parsed: step.response.parsed,
+                duration: step.response.duration
+              } : null
+            }));
           }
-          
+
           // 결과에 따른 알람 전송
           if (scenarioResult.success) {
             await sendAlert('success', alertData);
           } else {
             await sendAlert('error', alertData);
           }
-          
+
           // 통합 완료 처리 함수 사용 (완료를 기다림)
           await finalizeJobCompletion(jobName, scenarioResult.success ? 0 : 1, scenarioResult.success);
-          
+
           // 임시 파일 정리
           try {
             fs.unlinkSync(tempScenarioPath);
@@ -3113,7 +3749,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           console.error('[ASYNC CLEANUP ERROR]', error);
         }
       });
-      
+
       // Promise를 즉시 resolve
       console.log(`[YAML] Resolving Promise immediately with result:`, resultData);
       resolve(resultData);
@@ -4327,21 +4963,45 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       batchReportPath
     };
 
-    // 알람 전송
+    // 알람 전송 - 실패한 파일들의 상세 정보 포함
+    const failedResults = batchResults.filter(r => !r.success);
+    let batchFailureReport = null;
+    let batchErrorSummary = null;
+
+    if (failedResults.length > 0) {
+      // 실패 요약
+      batchErrorSummary = failedResults.slice(0, 3).map(r =>
+        `${r.fileName}: ${r.result?.error || 'Failed'}`
+      ).join('; ');
+
+      // 상세 실패 리포트 생성
+      batchFailureReport = buildBatchFailureReport(failedResults);
+    }
+
     await sendAlert(overallSuccess ? 'success' : 'error', {
       jobName,
       startTime,
       endTime,
-      duration,
+      duration: Math.round(duration / 1000), // 초 단위로 변환
       exitCode: overallSuccess ? 0 : 1,
-      collection: path.basename(collectionPath),  // 폴더명만 표시
+      collection: path.basename(collectionPath),
       type: 'yaml_batch',
       result: finalResult,
       stats: finalResult.stats,
       totalRequests: yamlFiles.length,
       passedRequests: successFiles,
       failedRequests: failedFiles,
-      reportPath: batchReportPath  // alert.js에서 사용하는 필드명
+      reportPath: batchReportPath,
+      // 실패 정보 추가
+      errorSummary: batchErrorSummary,
+      failureReport: batchFailureReport,
+      // 상세 통계 (sendAlert의 error 타입에서 사용)
+      detailedStats: {
+        totalSteps: yamlFiles.length,
+        passedSteps: successFiles,
+        failedSteps: failedFiles,
+        successRate: parseFloat(successRate)
+      }
     });
 
     // 배치 실행 결과를 히스토리에 저장
