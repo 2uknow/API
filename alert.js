@@ -686,6 +686,89 @@ export function buildRunStatusFlex(kind, data) {
         color: '#666666'
       });
     }
+
+    // Response Body 표시 (failedExecutions가 있는 경우 - Newman)
+    if (data.failedExecutions && data.failedExecutions.length > 0) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md'
+      });
+
+      bodyContents.push({
+        type: 'text',
+        text: '📋 Response Details:',
+        wrap: true,
+        size: 'sm',
+        color: '#C62828',
+        weight: 'bold',
+        margin: 'sm'
+      });
+
+      // 최대 2개의 실패한 요청의 Response Body 표시
+      data.failedExecutions.slice(0, 2).forEach((exec, idx) => {
+        bodyContents.push({
+          type: 'text',
+          text: `${idx + 1}. ${exec.name}`,
+          wrap: true,
+          size: 'xs',
+          color: '#333333',
+          weight: 'bold',
+          margin: 'sm'
+        });
+
+        // Status
+        if (exec.response && exec.response.status) {
+          bodyContents.push({
+            type: 'text',
+            text: `   Status: ${exec.response.status} ${exec.response.statusText || ''}`,
+            wrap: true,
+            size: 'xs',
+            color: '#666666'
+          });
+        }
+
+        // Response Body (최대 800자로 확장)
+        if (exec.response && exec.response.body) {
+          const bodyText = String(exec.response.body).substring(0, 800);
+          bodyContents.push({
+            type: 'text',
+            text: `   Response: ${bodyText}${exec.response.body.length > 800 ? '...' : ''}`,
+            wrap: true,
+            size: 'xs',
+            color: '#888888'
+          });
+        }
+      });
+
+      if (data.failedExecutions.length > 2) {
+        bodyContents.push({
+          type: 'text',
+          text: `... and ${data.failedExecutions.length - 2} more failed requests`,
+          wrap: true,
+          size: 'xs',
+          color: '#999999',
+          margin: 'sm'
+        });
+      }
+    }
+
+    // failureReport 표시 (텍스트 형태의 상세 리포트 - 최대 1000자)
+    if (data.failureReport && !data.failedExecutions?.length) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md'
+      });
+
+      // failureReport를 줄 단위로 분리하여 표시 (최대 1000자로 확장)
+      const reportText = String(data.failureReport).substring(0, 1000);
+      bodyContents.push({
+        type: 'text',
+        text: reportText + (data.failureReport.length > 1000 ? '...' : ''),
+        wrap: true,
+        size: 'xs',
+        color: '#666666'
+      });
+    }
   }
 
   // 성공한 경우 추가 정보
