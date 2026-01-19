@@ -306,7 +306,7 @@
             <button id="scheduleToggle" class="px-3 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium text-purple-700" style="background: var(--bg-tertiary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">관리</button>
           </div>
           <span id="scheduleIndicator" class="px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 font-medium">확인 중...</span>
-          <div id="scheduleList" class="mt-3 space-y-2 max-h-24 overflow-y-auto"></div>
+          <div id="scheduleList" class="mt-3 space-y-2 max-h-48 overflow-y-auto"></div>
         </div>
       </div>
 
@@ -315,14 +315,22 @@
           <div class="text-lg font-bold" style="color: var(--text-primary);">Execution History</div>
           <div class="flex items-center gap-3 text-sm">
             <label class="font-medium" style="color: var(--text-secondary);">Page</label>
-            <select id="pageSize" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"><option>10</option><option selected>10</option><option>50</option><option>100</option></select>
+            <select id="pageSize" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"><option>10</option><option selected>10</option><option>50</option><option>100</option><option>500</option><option value="9999">All</option></select>
           </div>
         </div>
 
-        <div class="flex items-end gap-4 mb-4">
+        <div class="flex flex-wrap items-end gap-4 mb-4">
           <div>
             <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Job</label>
             <select id="filterJob" class="border rounded-lg px-3 py-2 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"><option value="">All</option></select>
+          </div>
+          <div>
+            <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Status</label>
+            <select id="filterStatus" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+              <option value="">All</option>
+              <option value="success">Success</option>
+              <option value="failed">Failed</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Period</label>
@@ -332,9 +340,17 @@
               <option value="7d">최근 7일</option>
             </select>
           </div>
-          <div class="flex-1">
+          <div>
+            <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Date From</label>
+            <input type="date" id="dateFrom" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+          </div>
+          <div>
+            <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Date To</label>
+            <input type="date" id="dateTo" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+          </div>
+          <div class="flex-1 min-w-[150px]">
             <label class="block text-sm mb-2 font-medium" style="color: var(--text-secondary);">Keyword</label>
-            <input id="searchText" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);" placeholder="Success / Failed">
+            <input id="searchText" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);" placeholder="Search...">
           </div>
           <div class="flex gap-3">
             <button id="applyFilter" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 font-medium">Apply</button>
@@ -889,7 +905,7 @@ async function loadSchedules() {
 function renderScheduleIndicator(schedules) {
   const indicator = document.getElementById('scheduleIndicator');
   const list = document.getElementById('scheduleList');
-  
+
   if (schedules.length === 0) {
     indicator.textContent = '활성 스케줄 없음';
     indicator.className = 'px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 font-medium';
@@ -897,16 +913,11 @@ function renderScheduleIndicator(schedules) {
   } else {
     indicator.textContent = `${schedules.length}개 활성`;
     indicator.className = 'px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 font-medium';
-    
-    list.innerHTML = schedules.slice(0, 3).map(s => 
-      `<div class="text-sm bg-white rounded-lg px-3 py-2 border border-purple-200">${s.name} (${s.cronExpr})</div>`
+
+    // 모든 스케줄 표시 (스크롤로 처리)
+    list.innerHTML = schedules.map(s =>
+      `<div class="text-sm rounded-lg px-3 py-2 border" style="background: var(--bg-secondary); border-color: var(--border-color);">${s.name} <span style="color: var(--text-secondary);">(${s.cronExpr})</span></div>`
     ).join('');
-    
-    if (schedules.length > 3) {
-      list.insertAdjacentHTML('beforeend', 
-        `<div class="text-sm text-purple-600 px-3 font-medium">+${schedules.length - 3}개 더</div>`
-      );
-    }
   }
 }
 
@@ -1008,15 +1019,21 @@ async function fetchHistory(){
   const job = document.getElementById('filterJob').value;
   const range = document.getElementById('range').value;
   const search = document.getElementById('searchText').value.trim();
-  
+  const status = document.getElementById('filterStatus').value;
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
   const params = new URLSearchParams({
     page: currentPage,
     size: pageSize
   });
-  
+
   if (job) params.append('job', job);
   if (range) params.append('range', range);
   if (search) params.append('search', search);
+  if (status) params.append('status', status);
+  if (dateFrom) params.append('dateFrom', dateFrom);
+  if (dateTo) params.append('dateTo', dateTo);
   
   const r = await fetch(`/api/history?${params}`); 
   const data = await r.json();
@@ -1257,7 +1274,7 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  ['filterJob', 'range', 'searchText'].forEach(id => document.getElementById(id).value = '');
+  ['filterJob', 'range', 'searchText', 'filterStatus', 'dateFrom', 'dateTo'].forEach(id => document.getElementById(id).value = '');
   currentPage = 1;
   fetchHistory(); // 서버에서 데이터 가져오기
 }
