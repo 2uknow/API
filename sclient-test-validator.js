@@ -64,8 +64,13 @@ export function evaluateAssertion(assertion, extractedVars) {
         }
         
         // 3. JavaScript 표현식 패턴 - 완전 범용 (상세 디버깅 포함)
-        if (assertion.startsWith('js:')) {
-            const jsCode = assertion.substring(3).trim();
+        // trim()으로 앞뒤 공백/줄바꿈 제거 후 체크
+        const trimmedAssertion = assertion.trim();
+        if (trimmedAssertion.startsWith('js:')) {
+            // js: 이후의 코드 추출하고, 멀티라인 코드의 줄바꿈을 공백으로 변환
+            let jsCode = trimmedAssertion.substring(3).trim();
+            // 멀티라인 JS 코드 처리: 줄바꿈 + 들여쓰기를 단일 공백으로 변환
+            jsCode = jsCode.replace(/\n\s*/g, ' ');
             
             // 모든 추출된 변수를 그대로 컨텍스트에 추가
             const evalContext = { ...extractedVars };
@@ -124,12 +129,12 @@ export function evaluateAssertion(assertion, extractedVars) {
             };
         }
         
-        // 4. 인식할 수 없는 패턴은 문자열로 처리 (기존 호환성)
+        // 4. 인식할 수 없는 패턴은 실패 처리 (잘못된 assertion이 성공 처리되는 것 방지)
         return {
-            passed: true,
-            expected: 'unknown pattern',
-            actual: 'skipped',
-            warning: `Unrecognized assertion pattern: ${assertion}`
+            passed: false,
+            expected: 'valid assertion pattern',
+            actual: 'unrecognized pattern',
+            error: `Unrecognized assertion pattern: ${assertion.substring(0, 100)}${assertion.length > 100 ? '...' : ''}`
         };
         
     } catch (error) {
