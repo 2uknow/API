@@ -381,17 +381,31 @@ export function buildRunStatusFlex(kind, data) {
         let errorDetails = null;
 
         // scenarioResult에서 실패한 테스트 찾기
-        // result.result.steps 또는 result.steps 둘 다 확인
-        const steps = firstFailure.result?.result?.steps || firstFailure.result?.steps;
+        // result.scenarioResult.steps, result.result.steps 또는 result.steps 모두 확인
+        const steps = firstFailure.result?.scenarioResult?.steps || firstFailure.result?.result?.steps || firstFailure.result?.steps;
         if (steps) {
           for (const step of steps) {
             if (step.tests) {
               const failedTest = step.tests.find(t => !t.passed);
               if (failedTest) {
+                // Response Body 추출 (stdout 또는 parsed 결과에서)
+                let responseBody = null;
+                if (step.response) {
+                  if (step.response.stdout) {
+                    responseBody = step.response.stdout;
+                  } else if (step.response.parsed) {
+                    // parsed 결과에서 Result와 ErrMsg 추출
+                    const parsed = step.response.parsed;
+                    if (parsed.Result !== undefined || parsed.ErrMsg) {
+                      responseBody = `Result=${parsed.Result || 'N/A'}, ErrMsg=${parsed.ErrMsg || 'N/A'}`;
+                    }
+                  }
+                }
                 errorDetails = {
                   stepName: step.name,
                   testName: failedTest.name || failedTest.assertion,
-                  error: failedTest.error || failedTest.actual
+                  error: failedTest.error || failedTest.actual,
+                  responseBody: responseBody
                 };
                 break;
               }
@@ -437,6 +451,17 @@ export function buildRunStatusFlex(kind, data) {
               wrap: true,
               size: 'xs',
               color: '#C62828'
+            });
+          }
+          // Response Body 표시
+          if (errorDetails.responseBody) {
+            const responseMsg = String(errorDetails.responseBody).substring(0, 150);
+            bodyContents.push({
+              type: 'text',
+              text: `Response: ${responseMsg}${errorDetails.responseBody.length > 150 ? '...' : ''}`,
+              wrap: true,
+              size: 'xs',
+              color: '#888888'
             });
           }
         }
