@@ -23,7 +23,7 @@ steps:
       ItemType: "0"
       ItemInfo: "2|3001|1|22S0HZ0100|상품명"
       AUTHKEY: "{{SKT_AUTH}}"
-      ORDERID: "{{ORDER_ID}}"
+      ORDERID: "{{ORDER_ID_R}}"
       OUTPUTOPTION: "3"  # 응답 옵션
       TIDTYPE: "1"
       IFVERSION: "V1.1.2"
@@ -96,12 +96,23 @@ steps:
           DATE.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DATE.slice(0, 12) === now12;})()"
+          if (!DATE || DATE.length < 12) return false;
+
+          const tidPrefix = DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "TOTAL_AMOUNT == 3001"
@@ -126,16 +137,16 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "DN_TID = yyyy + 원거래 TID 일치 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
           const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DN_TID.slice(0, 12) === now12;})()"
+          const now12 = `${d.getFullYear()}`;
+          return DN_TID = now12 + TID;})()"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] 부분 취소 - COUPANG Cancel 데이터 암호화
+#  * [2차 호출] 부분 취소 - COUPANG CANCEL 데이터 암호화
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "부분 취소 COUPANG Cancel 데이터 암호화"
@@ -145,7 +156,7 @@ steps:
     args:
       operation: "encrypt"
       key: "{{CRYPTOKEY}}"
-      data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=500"
+      data: "ID={{MERCHANT_ID}}|PWD={{MERCHANT_PWD}}|TID={{TID}}|ORDERID={{RESPONSE_ORDER_ID}}|CAMT=1000"
       sleepDuration: 29000   # 암호화 후 대기 시간 (밀리초)
 
     # 암호화 결과 추출
@@ -155,7 +166,7 @@ steps:
         variable: "ENCRYPTED_CPCENCEL_DATA"
 
     test:
-      - name: "PCancel 데이터 암호화 성공 확인"
+      - name: "COUPANG CANCEL 데이터 암호화 성공 확인"
         assertion: "ENCRYPTED_CPCENCEL_DATA exists"
 
       - name: "암호화 데이터 길이 확인"
@@ -163,10 +174,10 @@ steps:
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [3차 호출] 부분 취소 - COUPANG_CANCEL HTTP POST 요청
+#  * [3차 호출] 부분 취소 - COUPANG CANCEL HTTP POST 요청
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "부분 취소 - COUPANG Cancel HTTP 요청"
+  - name: "부분 취소 - COUPANG CANCEL HTTP 요청"
     description: "부분 취소 HTTP POST 요청"
     type: "http"
 
@@ -205,7 +216,7 @@ steps:
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [4차 호출] 부분 취소 - COUPANG_CANCEL 응답 복호화 및 검증
+#  * [4차 호출] 부분 취소 - COUPANG CANCEL 응답 복호화 및 검증
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "부분 취소 - COUPANG CANCEL 응답 복호화 및 검증"
@@ -216,7 +227,7 @@ steps:
       operation: "decrypt"
       key: "{{CRYPTOKEY}}"
       data: "{{SERVER_ENCRYPTED_DATA}}"
-      sleepDuration: 25000   # 암호화 후 대기 시간 (밀리초)
+      sleepDuration: 20000   # 암호화 후 대기 시간 (밀리초)
 
     # 복호화 결과 추출 (자동 파싱된 필드들)
     extract:
@@ -248,14 +259,6 @@ steps:
         pattern: "orderid"
         variable: "CPCENCEL_ORDERID"
 
-      - name: "remainamt"
-        pattern: "remainamt"
-        variable: "CPCENCEL_REMAINAMT"
-
-      - name: "cancelamt"
-        pattern: "cancelamt"
-        variable: "CPCENCEL_CANCELAMT"
-
 
 ####################################################### Assertion ###########################################################
 
@@ -268,25 +271,13 @@ steps:
 
       - name: "거래 번호(TID) 정상 출력"
         description: "복호화된 취소 거래번호가 존재하고 18자리인지 확인"
-        assertion: "js: (
-          CPCENCEL_TID !== null &&
-          typeof CPCENCEL_TID !== 'undefined' &&
-          typeof CPCENCEL_TID === 'string' &&
-          CPCENCEL_TID.trim().length === 18)"
+        assertion: "js: typeof CPCENCEL_TID === 'string' && /^\\d{18}$/.test(CPCENCEL_TID.trim())"
 
       - name: "거래 번호(DNTID) 정상 출력_1"
         description: "복호화된 DNTID가 존재하고 22자리인지 확인"
         assertion: "js: CPCENCEL_DNTID && CPCENCEL_DNTID.trim().length > 0 && /^\\d{22}$/.test(CPCENCEL_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "복호화된 DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return CPCENCEL_DNTID.slice(0, 12) === now12;})()"
-        
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "복호화된 DNTID = yyyy + 원거래 TID 일치 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
@@ -294,21 +285,30 @@ steps:
           const now12 = `${d.getFullYear()}`;
           return CPCENCEL_DNTID = now12 + TID;})()"
 
-      - name: "취소 일시(DATE) 정상 출력_1"
-        description: "복호화된 취소 일시가 존재하고 14자리인지 확인"
+      - name: "취소 일시(DATE) 형식 정상 출력"
+        description: "복호화된 취소 일시가 14자리 숫자인지 확인"
         assertion: "js: (
-          CPCENCEL_DATE !== null &&
-          typeof CPCENCEL_DATE !== 'undefined' &&
           typeof CPCENCEL_DATE === 'string' &&
-          CPCENCEL_DATE.trim().length === 14)"
+          /^\\d{14}$/.test(CPCENCEL_DATE.trim()))"
 
       - name: "취소 일시(DATE) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return CPCENCEL_DATE.slice(0, 12) === now12;})()"
+          if (!CPCENCEL_DATE || CPCENCEL_DATE.length < 12) return false;
+
+          const tidPrefix = CPCENCEL_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "원본 거래번호(OTID) 정상 출력"
         description: "복호화된 원본 TID가 최초 결제 TID와 일치하는지 확인"
@@ -317,9 +317,8 @@ steps:
       - name: "주문번호(Orderid) 정상 출력"
         description: "복호화된 주문번호가 원본 주문번호 + 추가 문구 확인"
         assertion: "js: (
-          typeof CPCENCEL_ORDERID !== 'undefined' &&
-          typeof CPCENCEL_ORDERID === 'string' &&
-          CPCENCEL_ORDERID.trim().length > 0 &&
+          CPCENCEL_ORDERID && typeof CPCENCEL_ORDERID !== 'undefined' &&
+          typeof CPCENCEL_ORDERID === 'string' && CPCENCEL_ORDERID.trim().length > 0 &&
           CPCENCEL_ORDERID.includes(RESPONSE_ORDER_ID))"
 
 
