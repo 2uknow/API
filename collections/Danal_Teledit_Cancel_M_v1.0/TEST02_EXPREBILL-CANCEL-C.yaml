@@ -81,18 +81,10 @@ steps:
         assertion: "ERROR_MESSAGE == No Information"
             
       - name: "거래 번호(TID) 정상 출력"
-        assertion: "js: (
-          TID !== null &&
-          typeof TID !== 'undefined' &&
-          typeof TID === 'string' &&
-          TID.trim().length === 18)"
+        assertion: "js: TID && TID.trim().length > 0 && /^\\d{18}$/.test(TID)"
 
       - name: "결제 완료 시간(Date) 정상 출력_1"
-        assertion: "js: (
-          DATE !== null &&
-          typeof DATE !== 'undefined' &&
-          typeof DATE === 'string' &&
-          DATE.trim().length === 14)"
+        assertion: "js: DATE && DATE.trim().length > 0 && /^\\d{14}$/.test(DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
@@ -125,14 +117,6 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DN_TID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "DN_TID = yyyy + 원거래 TID 일치 확인"
         assertion: "js: (() => {
           const d = new Date();
@@ -204,21 +188,16 @@ steps:
         assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "EXPREBILL DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
           if (typeof C_DNTID === 'undefined' || typeof DN_TID === 'undefined') return false;
           return String(C_DNTID).trim() !== String(DN_TID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: C_DATE && C_DATE.trim().length > 0 && /^\\d{14}$/.test(C_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
