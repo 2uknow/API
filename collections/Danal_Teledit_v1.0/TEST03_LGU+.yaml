@@ -28,7 +28,7 @@ steps:
       ItemInfo: "2|301|1|22S0HZ0100|상품명"
       SUBCP: "DETEST"
       USERID: "{{USER_ID}}"
-      ORDERID: "{{ORDER_ID}}"
+      ORDERID: "{{ORDER_ID_R}}"
       IsPreOtbill: "N"
       IsOpenMarket: "N"
       SellerName: ""
@@ -199,7 +199,7 @@ steps:
       IFVERSION: "V1.0.5"
       TERMSAGREE2: "N"
       WPRCODE: "0000"
-      ANSIMPASS: "6634"
+      ANSIMPASS: "8540"
       ANSIMMEMBER: "Y"
       OTP: "000000"
     
@@ -221,11 +221,11 @@ steps:
 ########################################################### Assertion ###########################################################
 
     test:
-      - name: "결과 코드(RESULT) 482 출력 확인"
-        assertion: "IR_RESULT == 482"
+      - name: "결과 코드(RESULT) 446 출력 확인"
+        assertion: "IR_RESULT == 446"
 
       - name: "결과 메시지(ErrMsg) 불일치 출력 확인"
-        assertion: "IR_ERROR_MSG == 승인 번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오."
+        assertion: "IR_ERROR_MSG == 안심결제 비밀번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오."
 
 
 # ** ----------------------------------------------------------------------------------------------------------------

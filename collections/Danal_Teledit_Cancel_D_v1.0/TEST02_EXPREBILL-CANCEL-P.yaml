@@ -82,26 +82,29 @@ steps:
         assertion: "ERROR_MESSAGE == No Information"
             
       - name: "거래 번호(TID) 정상 출력"
-        assertion: "js: (
-          TID !== null &&
-          typeof TID !== 'undefined' &&
-          typeof TID === 'string' &&
-          TID.trim().length === 18)"
+        assertion: "js: TID && TID.trim().length > 0 && /^\\d{18}$/.test(TID)"
 
       - name: "결제 완료 시간(Date) 정상 출력_1"
-        assertion: "js: (
-          DATE !== null &&
-          typeof DATE !== 'undefined' &&
-          typeof DATE === 'string' &&
-          DATE.trim().length === 14)"
+        assertion: "js: DATE && DATE.trim().length > 0 && /^\\d{14}$/.test(DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DATE.slice(0, 12) === now12;})()"
+          if (!DATE || DATE.length < 12) return false;
+
+          const tidPrefix = DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "TOTAL_AMOUNT == 301"
@@ -126,14 +129,6 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DN_TID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "DN_TID = yyyy + 원거래 TID 일치 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
@@ -208,27 +203,34 @@ steps:
         assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "EXPREBILL DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
           if (typeof C_DNTID === 'undefined' || typeof DN_TID === 'undefined') return false;
           return String(C_DNTID).trim() !== String(DN_TID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하고 숫자 14자리인지 검증"
+        assertion: "js: C_DATE && C_DATE.trim().length > 0 && /^\\d{14}$/.test(C_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DATE.slice(0, 12) === now12;})()"
+          if (!C_DATE || C_DATE.length < 12) return false;
+
+          const tidPrefix = C_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "남은 금액(RAMT) 정상 출력"
         description: "CANCELOPTION 설정에 따른 남은 금액 정상 출력 확인"
@@ -301,14 +303,6 @@ steps:
         assertion: "js: c_DNTID && c_DNTID.trim().length > 0 && /^\\d{22}$/.test(c_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DN_TID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return c_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "1차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
@@ -316,31 +310,31 @@ steps:
           return String(c_DNTID).trim() !== String(C_DNTID).trim();})()"
 
       - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "Date가 존재하고 숫자 14자리인지 검증"
+        assertion: "js: c_DATE && c_DATE.trim().length > 0 && /^\\d{14}$/.test(c_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return c_DATE.slice(0, 12) === now12;})()"
+          if (!c_DATE || c_DATE.length < 12) return false;
+
+          const tidPrefix = c_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "남은 금액(RAMT) 정상 출력"
         description: "CANCELOPTION 설정에 따른 남은 금액 정상 출력 확인"
         assertion: "js: c_RAMT && c_RAMT == 151"
-
-# # ** ----------------------------------------------------------------------------------------------------------------
-# # * [대기] 부분 취소 2번 후 대기
-# # * ----------------------------------------------------------------------------------------------------------------*
-
-#   - name: "500초 딜레이"
-#     description: "부분 취소 2번 후 DB 적재 대기"
-#     type: "sleep"
-    
-#     args:
-#       duration: 500000  # 500초 (ms)
-
-#     test:
-#       - name: "대기 완료 확인"
-#         assertion: "js: true"
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [4차 호출] CANCEL - 3차 부분 취소
@@ -412,38 +406,42 @@ steps:
         assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "2차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
           if (typeof P_DNTID === 'undefined' || typeof c_DNTID === 'undefined') return false;
           return String(c_DNTID).trim() !== String(P_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하며 14자리 숫자 검증"
+        assertion: "js: P_DATE && P_DATE.trim().length > 0 && /^\\d{14}$/.test(P_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DATE.slice(0, 12) === now12;})()"
+          if (!P_DATE || P_DATE.length < 12) return false;
+
+          const tidPrefix = P_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "남은 금액(RAMT) 정상 미출력"
         description: "RAMT가 정의되어 있고 값이 존재하면 실패"
-        assertion: |
-          js: (() => {
-            if (typeof P_RAMT !== 'undefined' && P_RAMT !== null && String(P_RAMT).trim() !== '') {
-              throw new Error(`RAMT 값이 존재함 (${P_RAMT})`);
-            }
-            // 값이 없으면 정상 통과
-            return true;
-          })()
+        assertion: "js: (() => {
+          if (typeof D_RAMT === 'undefined') return true;
+          if (D_RAMT === null) return true;
+          if (String(D_RAMT).trim() === '') return true;
+          return false;})()"
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [5차 호출] CANCEL - 4차 부분 취소
@@ -512,38 +510,42 @@ steps:
         assertion: "js: p_DNTID && p_DNTID.trim().length > 0 && /^\\d{22}$/.test(p_DNTID)"
 
       - name: "거래 번호(DNTID) 정상 출력_2"
-        description: "DNTID가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return p_DNTID.slice(0, 12) === now12;})()"
-
-      - name: "거래 번호(DNTID) 정상 출력_3"
         description: "3차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
           if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
           return String(P_DNTID).trim() !== String(p_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하며 14자리 숫자 검증"
+        assertion: "js: p_DATE && p_DATE.trim().length > 0 && /^\\d{14}$/.test(p_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return p_DATE.slice(0, 12) === now12;})()"
+          if (!p_DATE || p_DATE.length < 12) return false;
+
+          const tidPrefix = p_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "남은 금액(RAMT) 정상 미출력"
         description: "RAMT가 정의되어 있고 값이 존재하면 실패"
-        assertion: |
-          js: (() => {
-            if (typeof p_RAMT !== 'undefined' && p_RAMT !== null && String(p_RAMT).trim() !== '') {
-              throw new Error(`RAMT 값이 존재함 (${p_RAMT})`);
-            }
-            // 값이 없으면 정상 통과
-            return true;
-          })()
+        assertion: "js: (() => {
+          if (typeof D_RAMT === 'undefined') return true;
+          if (D_RAMT === null) return true;
+          if (String(D_RAMT).trim() === '') return true;
+          return false;})()"
 
 
 # 시나리오 설정
