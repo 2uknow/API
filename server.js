@@ -1964,86 +1964,82 @@ function buildYamlScenarioFailureReport(failedSteps) {
 function buildBatchFailureReport(failedResults) {
   const lines = [];
 
-  lines.push('=== Batch Execution Failure Report ===');
-  lines.push('');
+  // 헤더 간소화
+  lines.push(`[Failure Report] ${failedResults.length} file(s) failed`);
 
-  // 실패 요약
-  lines.push(`[Summary] ${failedResults.length} file(s) failed`);
-  lines.push('');
-
-  // 각 실패 파일의 상세 정보
-  failedResults.slice(0, 5).forEach((failedResult, idx) => {
-    lines.push(`━━━ ${idx + 1}. ${failedResult.fileName} ━━━`);
-
+  // 각 실패 파일의 상세 정보 (최대 8개 파일)
+  failedResults.slice(0, 8).forEach((failedResult, idx) => {
     const result = failedResult.result;
+    let fileLine = `${idx + 1}. ${failedResult.fileName}`;
 
     // 에러 메시지
     if (result?.error) {
-      lines.push(`  Error: ${result.error}`);
+      fileLine += ` - Error: ${result.error}`;
     }
 
     // Scenario 결과가 있는 경우
     if (result?.scenarioResult) {
       const summary = result.scenarioResult.summary;
       if (summary) {
-        lines.push(`  Steps: ${summary.passed}/${summary.total} passed`);
+        fileLine += ` (${summary.passed}/${summary.total} steps)`;
       }
 
-      // 실패한 step들의 Response Body
+      // 실패한 step들의 정보 (최대 5개 step)
       const failedSteps = (result.scenarioResult.steps || []).filter(s => !s.passed);
       if (failedSteps.length > 0) {
-        lines.push('  Failed Steps:');
+        lines.push(fileLine);
 
-        failedSteps.slice(0, 3).forEach(step => {
-          lines.push(`    - ${step.name}`);
+        failedSteps.slice(0, 5).forEach((step, stepIdx) => {
+          let stepLine = `  ${stepIdx + 1}) ${step.name}`;
 
-          // 에러 메시지
-          if (step.error) {
-            lines.push(`      Error: ${step.error}`);
-          }
-
-          // 테스트 실패 상세
+          // 테스트 실패 상세 (최대 3개 테스트, 한 줄에 압축)
           if (step.tests) {
             const failedTests = step.tests.filter(t => !t.passed);
-            failedTests.forEach(test => {
-              lines.push(`      Assertion: ${test.name} - ${test.error || 'Failed'}`);
-            });
+            if (failedTests.length > 0) {
+              const testInfo = failedTests.slice(0, 3).map(t =>
+                `${t.name}: ${t.error || 'Failed'}`
+              ).join('; ');
+              stepLine += ` | ${testInfo}`;
+              if (failedTests.length > 3) {
+                stepLine += ` (+${failedTests.length - 3} more)`;
+              }
+            }
           }
 
-          // Response Body (URL 디코딩 적용)
+          // Response 정보 (URL 디코딩 적용, 1000자로 확장)
           if (step.response) {
-            if (step.response.body) {
+            if (step.response.parsed && Object.keys(step.response.parsed).length > 0) {
+              // Parsed 결과 우선 (최대 8개 키)
+              const parsedInfo = Object.entries(step.response.parsed).slice(0, 8).map(([key, value]) => {
+                const decodedValue = decodeUrlEncodedContent(String(value));
+                return `${key}=${decodedValue.substring(0, 100)}`;
+              }).join(', ');
+              stepLine += ` | Response: ${parsedInfo}`;
+            } else if (step.response.body) {
               const decodedBody = decodeUrlEncodedContent(step.response.body);
-              const truncated = decodedBody.substring(0, 500);
-              lines.push(`      Response: ${truncated}${decodedBody.length > 500 ? '...' : ''}`);
+              stepLine += ` | Response: ${decodedBody.substring(0, 1000)}`;
             } else if (step.response.stdout) {
               const decodedStdout = decodeUrlEncodedContent(step.response.stdout);
-              const truncated = decodedStdout.substring(0, 500);
-              lines.push(`      Output: ${truncated}${decodedStdout.length > 500 ? '...' : ''}`);
-            }
-
-            // Parsed 결과
-            if (step.response.parsed && Object.keys(step.response.parsed).length > 0) {
-              lines.push('      Parsed:');
-              Object.entries(step.response.parsed).slice(0, 5).forEach(([key, value]) => {
-                const decodedValue = decodeUrlEncodedContent(String(value));
-                lines.push(`        ${key}: ${decodedValue}`);
-              });
+              stepLine += ` | Output: ${decodedStdout.substring(0, 1000)}`;
             }
           }
+
+          lines.push(stepLine.substring(0, 2000));  // 한 줄 최대 2000자
         });
 
-        if (failedSteps.length > 3) {
-          lines.push(`    ... and ${failedSteps.length - 3} more failed steps`);
+        if (failedSteps.length > 5) {
+          lines.push(`  ... +${failedSteps.length - 5} more steps`);
         }
+      } else {
+        lines.push(fileLine);
       }
+    } else {
+      lines.push(fileLine);
     }
-
-    lines.push('');
   });
 
-  if (failedResults.length > 5) {
-    lines.push(`... and ${failedResults.length - 5} more failed files`);
+  if (failedResults.length > 8) {
+    lines.push(`... +${failedResults.length - 8} more files`);
   }
 
   return lines.join('\n');
@@ -4721,7 +4717,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     }
 
     // 각 YAML 파일을 순차적으로 기존 runYamlSClientScenario 방식으로 처리
-    const batchResults = [];
+    const batchResults = [];  // 히스토리 저장용 (요약만)
+    const batchResultsFull = [];  // 알림 전송용 (상세 정보 포함)
     let overallSuccess = true;
 
     for (let i = 0; i < yamlFiles.length; i++) {
@@ -4795,7 +4792,17 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         individualOutStream.end();
         individualErrStream.end();
         
-        // 히스토리에는 요약 정보만 저장 (상세 결과는 HTML 리포트에 있음)
+        // 알림용: 상세 정보 포함 (에러 메시지 표시에 필요)
+        const fileResultFull = {
+          fileName,
+          filePath,
+          success: result.success,
+          reportPath: result.reportPath,
+          result  // 상세 결과 포함
+        };
+        batchResultsFull.push(fileResultFull);
+
+        // 히스토리용: 요약 정보만 저장 (파일 크기 절약)
         const fileResult = {
           fileName,
           filePath,
@@ -4808,7 +4815,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
             failed: result.scenarioResult.summary.failed
           } : null
         };
-
         batchResults.push(fileResult);
         debugLog(`[YAML_BATCH] Added result to batch for: ${fileName}`, fileResult);
         
@@ -4969,20 +4975,30 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       batchReportPath
     };
 
-    // 알람 전송 - 실패한 파일들의 상세 정보 포함
-    const failedResults = batchResults.filter(r => !r.success);
+    // 알람 전송 - 실패한 파일들의 상세 정보 포함 (batchResultsFull 사용)
+    const failedResultsFull = batchResultsFull.filter(r => !r.success);
     let batchFailureReport = null;
     let batchErrorSummary = null;
 
-    if (failedResults.length > 0) {
+    if (failedResultsFull.length > 0) {
       // 실패 요약
-      batchErrorSummary = failedResults.slice(0, 3).map(r =>
+      batchErrorSummary = failedResultsFull.slice(0, 3).map(r =>
         `${r.fileName}: ${r.result?.error || 'Failed'}`
       ).join('; ');
 
-      // 상세 실패 리포트 생성
-      batchFailureReport = buildBatchFailureReport(failedResults);
+      // 상세 실패 리포트 생성 (상세 정보가 포함된 배열 사용)
+      batchFailureReport = buildBatchFailureReport(failedResultsFull);
     }
+
+    // 알림용 결과 (상세 정보 포함)
+    const alertResult = {
+      started: true,
+      success: overallSuccess,
+      duration,
+      stats: finalResult.stats,
+      results: batchResultsFull,  // 알림에는 상세 정보 포함된 배열 사용
+      batchReportPath
+    };
 
     await sendAlert(overallSuccess ? 'success' : 'error', {
       jobName,
@@ -4992,7 +5008,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       exitCode: overallSuccess ? 0 : 1,
       collection: path.basename(collectionPath),
       type: 'yaml_batch',
-      result: finalResult,
+      result: alertResult,  // 알림용 상세 결과 사용
       stats: finalResult.stats,
       totalRequests: yamlFiles.length,
       passedRequests: successFiles,
