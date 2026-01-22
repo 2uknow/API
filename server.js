@@ -4795,14 +4795,20 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         individualOutStream.end();
         individualErrStream.end();
         
+        // 히스토리에는 요약 정보만 저장 (상세 결과는 HTML 리포트에 있음)
         const fileResult = {
           fileName,
           filePath,
           success: result.success,
           reportPath: result.reportPath,
-          result
+          duration: result.duration,
+          summary: result.scenarioResult?.summary ? {
+            total: result.scenarioResult.summary.total,
+            passed: result.scenarioResult.summary.passed,
+            failed: result.scenarioResult.summary.failed
+          } : null
         };
-        
+
         batchResults.push(fileResult);
         debugLog(`[YAML_BATCH] Added result to batch for: ${fileName}`, fileResult);
         
@@ -5025,13 +5031,13 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         results: batchResults
       },
       detailedStats: {
-        totalSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.total || 0), 0),
-        passedSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.passed || 0), 0),
-        failedSteps: batchResults.reduce((sum, r) => sum + (r.result?.scenarioResult?.summary?.failed || 0), 0),
+        totalSteps: batchResults.reduce((sum, r) => sum + (r.summary?.total || 0), 0),
+        passedSteps: batchResults.reduce((sum, r) => sum + (r.summary?.passed || 0), 0),
+        failedSteps: batchResults.reduce((sum, r) => sum + (r.summary?.failed || 0), 0),
         avgResponseTime: Math.round(batchResults.reduce((sum, r) => {
-          const duration = r.result?.scenarioResult?.summary?.duration || 0;
-          const total = r.result?.scenarioResult?.summary?.total || 1;
-          return sum + (total > 0 ? duration / total : 0);
+          const fileDuration = r.duration || 0;
+          const total = r.summary?.total || 1;
+          return sum + (total > 0 ? fileDuration / total : 0);
         }, 0) / Math.max(batchResults.length, 1)),
         totalDuration: duration,
         successRate: parseFloat(successRate)
