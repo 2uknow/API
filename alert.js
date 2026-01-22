@@ -330,140 +330,109 @@ export function buildRunStatusFlex(kind, data) {
   // 배치 실행 통계 (yaml_batch 타입인 경우)
   if (data.type === 'yaml_batch' && data.stats) {
     bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    bodyContents.push({
       type: 'text',
-      text: `📊 배치 실행 결과: ${data.stats.successFiles}/${data.stats.files} 파일 성공`,
+      text: `📊 결과: ${data.stats.successFiles}/${data.stats.files} 성공 (${data.stats.successRate}%)`,
       wrap: true,
       size: 'sm',
       color: data.stats.failedFiles > 0 ? '#C62828' : '#2E7D32',
-      weight: 'bold'
+      weight: 'bold',
+      margin: 'sm'
     });
 
     // 실패한 파일 목록 표시
     if (data.result && data.result.results) {
       const failedResults = data.result.results.filter(r => !r.success);
       if (failedResults.length > 0) {
+        // 실패 파일 목록 (최대 10개, 한 줄에 압축)
+        const displayCount = Math.min(failedResults.length, 10);
+        const failedFileNames = failedResults.slice(0, displayCount).map(f =>
+          f.fileName || f.file || f.jobName || 'Unknown'
+        );
         bodyContents.push({
           type: 'text',
-          text: '❌ 실패 파일:',
+          text: `❌ 실패(${failedResults.length}): ${failedFileNames.join(', ')}${failedResults.length > 10 ? ` 외 ${failedResults.length - 10}개` : ''}`,
           wrap: true,
           size: 'xs',
-          color: '#C62828',
-          margin: 'sm'
+          color: '#C62828'
         });
-        // 최대 5개까지만 표시
-        const displayCount = Math.min(failedResults.length, 5);
-        for (let i = 0; i < displayCount; i++) {
-          const failedFile = failedResults[i];
-          bodyContents.push({
-            type: 'text',
-            text: `• ${failedFile.fileName || failedFile.file || failedFile.jobName || 'Unknown'}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666'
-          });
-        }
-        if (failedResults.length > 5) {
-          bodyContents.push({
-            type: 'text',
-            text: `... 외 ${failedResults.length - 5}개 파일`,
-            wrap: true,
-            size: 'xs',
-            color: '#999999'
-          });
-        }
 
-        // 첫 번째 실패의 상세 에러 내용 표시
-        const firstFailure = failedResults[0];
-        let errorDetails = null;
+        // 각 실패 파일별 에러 상세 (최대 3개 파일)
+        const detailCount = Math.min(failedResults.length, 3);
+        for (let fi = 0; fi < detailCount; fi++) {
+          const failedFile = failedResults[fi];
+          const steps = failedFile.result?.scenarioResult?.steps || failedFile.result?.result?.steps || failedFile.result?.steps;
 
-        // scenarioResult에서 실패한 테스트 찾기
-        // result.scenarioResult.steps, result.result.steps 또는 result.steps 모두 확인
-        const steps = firstFailure.result?.scenarioResult?.steps || firstFailure.result?.result?.steps || firstFailure.result?.steps;
-        if (steps) {
-          for (const step of steps) {
-            if (step.tests) {
-              const failedTest = step.tests.find(t => !t.passed);
-              if (failedTest) {
-                // Response Body 추출 (stdout 또는 parsed 결과에서)
-                let responseBody = null;
-                if (step.response) {
-                  if (step.response.stdout) {
-                    responseBody = step.response.stdout;
-                  } else if (step.response.parsed) {
-                    // parsed 결과에서 Result와 ErrMsg 추출
-                    const parsed = step.response.parsed;
-                    if (parsed.Result !== undefined || parsed.ErrMsg) {
-                      responseBody = `Result=${parsed.Result || 'N/A'}, ErrMsg=${parsed.ErrMsg || 'N/A'}`;
+          if (steps) {
+            // 실패한 step들 모두 수집
+            const allErrors = [];
+            for (const step of steps) {
+              if (step.tests) {
+                const failedTests = step.tests.filter(t => !t.passed);
+                for (const failedTest of failedTests) {
+                  let responseInfo = '';
+                  if (step.response?.parsed) {
+                    const p = step.response.parsed;
+                    if (p.Result !== undefined || p.ErrMsg) {
+                      responseInfo = ` [Result=${p.Result || 'N/A'}, ${p.ErrMsg || ''}]`;
                     }
+                  } else if (step.response?.stdout) {
+                    responseInfo = ` [${String(step.response.stdout).substring(0, 200)}]`;
                   }
+                  allErrors.push({
+                    step: step.name,
+                    test: failedTest.name || failedTest.assertion,
+                    error: failedTest.error || failedTest.actual,
+                    response: responseInfo
+                  });
                 }
-                errorDetails = {
-                  stepName: step.name,
-                  testName: failedTest.name || failedTest.assertion,
-                  error: failedTest.error || failedTest.actual,
-                  responseBody: responseBody
-                };
-                break;
+              }
+            }
+
+            if (allErrors.length > 0) {
+              // 파일명 + 에러 개수
+              bodyContents.push({
+                type: 'text',
+                text: `[${failedFile.fileName}] ${allErrors.length}개 실패`,
+                wrap: true,
+                size: 'xs',
+                color: '#C62828',
+                weight: 'bold',
+                margin: 'xs'
+              });
+
+              // 에러 상세 (최대 5개)
+              const errorDisplayCount = Math.min(allErrors.length, 5);
+              for (let ei = 0; ei < errorDisplayCount; ei++) {
+                const err = allErrors[ei];
+                const errorText = `${ei+1}. ${err.step} > ${err.test}${err.response ? err.response.substring(0, 300) : ''}`;
+                bodyContents.push({
+                  type: 'text',
+                  text: errorText.substring(0, 500),
+                  wrap: true,
+                  size: 'xs',
+                  color: '#666666'
+                });
+              }
+              if (allErrors.length > 5) {
+                bodyContents.push({
+                  type: 'text',
+                  text: `  ... 외 ${allErrors.length - 5}개 에러`,
+                  wrap: true,
+                  size: 'xs',
+                  color: '#999999'
+                });
               }
             }
           }
         }
-
-        // 에러 상세 내용 표시
-        if (errorDetails) {
-          bodyContents.push({
-            type: 'separator',
-            margin: 'sm'
-          });
+        if (failedResults.length > 3) {
           bodyContents.push({
             type: 'text',
-            text: '📋 첫 번째 에러 상세:',
+            text: `... 외 ${failedResults.length - 3}개 파일 상세 생략`,
             wrap: true,
             size: 'xs',
-            color: '#C62828',
-            weight: 'bold',
-            margin: 'sm'
+            color: '#999999'
           });
-          bodyContents.push({
-            type: 'text',
-            text: `Step: ${errorDetails.stepName}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666'
-          });
-          bodyContents.push({
-            type: 'text',
-            text: `Test: ${errorDetails.testName}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666'
-          });
-          if (errorDetails.error) {
-            // 에러 메시지가 너무 길면 자르기
-            const errorMsg = String(errorDetails.error).substring(0, 100);
-            bodyContents.push({
-              type: 'text',
-              text: `Error: ${errorMsg}${errorDetails.error.length > 100 ? '...' : ''}`,
-              wrap: true,
-              size: 'xs',
-              color: '#C62828'
-            });
-          }
-          // Response Body 표시
-          if (errorDetails.responseBody) {
-            const responseMsg = String(errorDetails.responseBody).substring(0, 150);
-            bodyContents.push({
-              type: 'text',
-              text: `Response: ${responseMsg}${errorDetails.responseBody.length > 150 ? '...' : ''}`,
-              wrap: true,
-              size: 'xs',
-              color: '#888888'
-            });
-          }
         }
       }
     }
@@ -480,74 +449,37 @@ export function buildRunStatusFlex(kind, data) {
     });
   }
 
-  // Newman 통계 정보 추가 (성공/실패 관계없이)
+  // Newman 통계 정보 추가 (성공/실패 관계없이) - 한 줄로 압축
   if (data.newmanStats) {
-    bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    bodyContents.push({
-      type: 'text',
-      text: 'Test Results',
-      wrap: true,
-      size: 'sm',
-      color: '#333333',
-      weight: 'bold'
-    });
-
     const stats = data.newmanStats;
-    
-    // Assertions 정보
-    if (stats.assertions && stats.assertions.total > 0) {
-      const assertionColor = stats.assertions.failed > 0 ? '#C62828' : '#2E7D32';
-      const assertionText = stats.assertions.failed > 0 
-        ? `Assertions: ${stats.assertions.total - stats.assertions.failed}/${stats.assertions.total} passed`
-        : `Assertions: ${stats.assertions.total}/${stats.assertions.total} passed`;
-      
+    const parts = [];
+
+    if (stats.assertions?.total > 0) {
+      const passed = stats.assertions.total - (stats.assertions.failed || 0);
+      parts.push(`Assertions: ${passed}/${stats.assertions.total}`);
+    }
+    if (stats.requests?.total > 0) {
+      const passed = stats.requests.total - (stats.requests.failed || 0);
+      parts.push(`Requests: ${passed}/${stats.requests.total}`);
+    }
+    if (stats.testScripts?.total > 0) {
+      const passed = stats.testScripts.total - (stats.testScripts.failed || 0);
+      parts.push(`Tests: ${passed}/${stats.testScripts.total}`);
+    }
+
+    if (parts.length > 0) {
+      const hasFailed = (stats.assertions?.failed > 0) || (stats.requests?.failed > 0) || (stats.testScripts?.failed > 0);
       bodyContents.push({
         type: 'text',
-        text: assertionText,
+        text: `📊 ${parts.join(' | ')}`,
         wrap: true,
         size: 'xs',
-        color: assertionColor,
-        weight: stats.assertions.failed > 0 ? 'bold' : 'regular'
+        color: hasFailed ? '#C62828' : '#2E7D32',
+        weight: hasFailed ? 'bold' : 'regular',
+        margin: 'xs'
       });
     }
-    
-    // Requests 정보
-    if (stats.requests && stats.requests.total > 0) {
-      const requestColor = stats.requests.failed > 0 ? '#C62828' : '#2E7D32';
-      const requestText = stats.requests.failed > 0 
-        ? `Requests: ${stats.requests.total - stats.requests.failed}/${stats.requests.total} succeeded`
-        : `Requests: ${stats.requests.total}/${stats.requests.total} succeeded`;
-      
-      bodyContents.push({
-        type: 'text',
-        text: requestText,
-        wrap: true,
-        size: 'xs',
-        color: requestColor,
-        weight: stats.requests.failed > 0 ? 'bold' : 'regular'
-      });
-    }
-    
-    // Tests 정보
-    if (stats.testScripts && stats.testScripts.total > 0) {
-      const testColor = stats.testScripts.failed > 0 ? '#C62828' : '#2E7D32';
-      const testText = stats.testScripts.failed > 0 
-        ? `Tests: ${stats.testScripts.total - stats.testScripts.failed}/${stats.testScripts.total} passed`
-        : `Tests: ${stats.testScripts.total}/${stats.testScripts.total} passed`;
-      
-      bodyContents.push({
-        type: 'text',
-        text: testText,
-        wrap: true,
-        size: 'xs',
-        color: testColor,
-        weight: stats.testScripts.failed > 0 ? 'bold' : 'regular'
-      });
-    }
+
   }
 
   // 성능 정보 추가
@@ -579,216 +511,125 @@ export function buildRunStatusFlex(kind, data) {
 
   // 실패한 경우 상세 실패 정보 추가
   if (kind === 'error') {
-    bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    bodyContents.push({
-      type: 'text',
-      text: `Exit Code: ${data.exitCode}`,
-      wrap: true,
-      size: 'sm',
-      color: '#C62828',
-      weight: 'bold'
-    });
-
     // CLI에서 파싱한 상세 실패 정보 우선 표시
     if (data.detailedFailures && data.detailedFailures.length > 0) {
       bodyContents.push({
         type: 'text',
-        text: `Failed Tests (${data.detailedFailures.length} total):`,
+        text: `❌ Failed Tests (${data.detailedFailures.length}):`,
         wrap: true,
-        size: 'sm',
+        size: 'xs',
         color: '#C62828',
         weight: 'bold',
-        margin: 'sm'
+        margin: 'xs'
       });
-      
-      // 최대 4개까지 상세 실패 테스트 표시
-      data.detailedFailures.slice(0, 4).forEach(failure => {
-        bodyContents.push({
-          type: 'text',
-          text: `${failure.index}. ${failure.testName}`,
-          wrap: true,
-          size: 'xs',
-          color: '#C62828',
-          weight: 'bold',
-          margin: 'xs'
-        });
-        
+
+      // 최대 8개까지 상세 실패 테스트 표시 (압축 형태)
+      data.detailedFailures.slice(0, 8).forEach((failure, idx) => {
+        let failText = `${idx+1}. ${failure.testName}`;
         if (failure.requestName && failure.requestName !== 'Unknown Request') {
-          bodyContents.push({
-            type: 'text',
-            text: `   Request: ${failure.requestName}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666',
-            margin: 'none'
-          });
+          failText += ` (${failure.requestName})`;
         }
-        
         if (failure.errorDetails) {
-          bodyContents.push({
-            type: 'text',
-            text: `   Error: ${failure.errorDetails}`,
-            wrap: true,
-            size: 'xs',
-            color: '#888888',
-            margin: 'none'
-          });
+          failText += ` - ${String(failure.errorDetails).substring(0, 200)}`;
         }
-        
         if (failure.expectedValue && failure.actualValue) {
-          bodyContents.push({
-            type: 'text',
-            text: `   Expected: ${failure.expectedValue}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666',
-            margin: 'none'
-          });
-          bodyContents.push({
-            type: 'text',
-            text: `   Actual: ${failure.actualValue}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666',
-            margin: 'none'
-          });
+          failText += ` [Expected: ${failure.expectedValue}, Actual: ${failure.actualValue}]`;
         }
-      });
-      
-      if (data.detailedFailures.length > 4) {
         bodyContents.push({
           type: 'text',
-          text: `... and ${data.detailedFailures.length - 4} more failures. Check report for full details.`,
+          text: failText.substring(0, 500),
           wrap: true,
           size: 'xs',
-          color: '#888888',
-          style: 'italic'
+          color: '#666666'
+        });
+      });
+
+      if (data.detailedFailures.length > 8) {
+        bodyContents.push({
+          type: 'text',
+          text: `... 외 ${data.detailedFailures.length - 8}개 실패`,
+          wrap: true,
+          size: 'xs',
+          color: '#999999'
         });
       }
     } else if (data.failureDetails && data.failureDetails.length > 0) {
-      // JSON에서 파싱한 기본 실패 정보 표시 (fallback)
-      bodyContents.push({
-        type: 'text',
-        text: 'Failed Tests:',
-        wrap: true,
-        size: 'sm',
-        color: '#C62828',
-        weight: 'bold',
-        margin: 'sm'
-      });
-      
-      data.failureDetails.slice(0, 3).forEach(failure => {
+      // JSON에서 파싱한 기본 실패 정보 표시 (fallback) - 최대 6개
+      data.failureDetails.slice(0, 6).forEach((failure, idx) => {
         bodyContents.push({
           type: 'text',
-          text: `• ${failure.test}: ${failure.error}`,
+          text: `${idx+1}. ${failure.test}: ${String(failure.error).substring(0, 300)}`,
           wrap: true,
           size: 'xs',
-          color: '#666666',
-          margin: 'xs'
+          color: '#666666'
         });
       });
-      
-      if (data.failureDetails.length > 3) {
+
+      if (data.failureDetails.length > 6) {
         bodyContents.push({
           type: 'text',
-          text: `... and ${data.failureDetails.length - 3} more failures`,
+          text: `... 외 ${data.failureDetails.length - 6}개 실패`,
           wrap: true,
           size: 'xs',
-          color: '#888888',
-          style: 'italic'
+          color: '#999999'
         });
       }
     } else if (data.errorSummary) {
       bodyContents.push({
         type: 'text',
-        text: `Error: ${data.errorSummary}`,
+        text: `Error: ${String(data.errorSummary).substring(0, 500)}`,
         wrap: true,
         size: 'xs',
         color: '#666666'
       });
     }
 
-    // Response Body 표시 (failedExecutions가 있는 경우 - Newman)
+    // Response Body 표시 (failedExecutions가 있는 경우 - Newman) - 최대 4개, 1500자
     if (data.failedExecutions && data.failedExecutions.length > 0) {
       bodyContents.push({
-        type: 'separator',
-        margin: 'md'
-      });
-
-      bodyContents.push({
         type: 'text',
-        text: '📋 Response Details:',
+        text: `📋 Response (${data.failedExecutions.length}):`,
         wrap: true,
-        size: 'sm',
+        size: 'xs',
         color: '#C62828',
         weight: 'bold',
-        margin: 'sm'
+        margin: 'xs'
       });
 
-      // 최대 2개의 실패한 요청의 Response Body 표시
-      data.failedExecutions.slice(0, 2).forEach((exec, idx) => {
+      data.failedExecutions.slice(0, 4).forEach((exec, idx) => {
+        let respText = `${idx+1}. ${exec.name}`;
+        if (exec.response?.status) {
+          respText += ` [${exec.response.status}]`;
+        }
+        if (exec.response?.body) {
+          respText += `: ${String(exec.response.body).substring(0, 1500)}`;
+        }
         bodyContents.push({
           type: 'text',
-          text: `${idx + 1}. ${exec.name}`,
+          text: respText.substring(0, 2000),
           wrap: true,
           size: 'xs',
-          color: '#333333',
-          weight: 'bold',
-          margin: 'sm'
+          color: '#888888'
         });
-
-        // Status
-        if (exec.response && exec.response.status) {
-          bodyContents.push({
-            type: 'text',
-            text: `   Status: ${exec.response.status} ${exec.response.statusText || ''}`,
-            wrap: true,
-            size: 'xs',
-            color: '#666666'
-          });
-        }
-
-        // Response Body (최대 800자로 확장)
-        if (exec.response && exec.response.body) {
-          const bodyText = String(exec.response.body).substring(0, 800);
-          bodyContents.push({
-            type: 'text',
-            text: `   Response: ${bodyText}${exec.response.body.length > 800 ? '...' : ''}`,
-            wrap: true,
-            size: 'xs',
-            color: '#888888'
-          });
-        }
       });
 
-      if (data.failedExecutions.length > 2) {
+      if (data.failedExecutions.length > 4) {
         bodyContents.push({
           type: 'text',
-          text: `... and ${data.failedExecutions.length - 2} more failed requests`,
+          text: `... 외 ${data.failedExecutions.length - 4}개 요청`,
           wrap: true,
           size: 'xs',
-          color: '#999999',
-          margin: 'sm'
+          color: '#999999'
         });
       }
     }
 
-    // failureReport 표시 (텍스트 형태의 상세 리포트 - 최대 1000자)
+    // failureReport 표시 (텍스트 형태의 상세 리포트 - 최대 3000자)
     if (data.failureReport && !data.failedExecutions?.length) {
-      bodyContents.push({
-        type: 'separator',
-        margin: 'md'
-      });
-
-      // failureReport를 줄 단위로 분리하여 표시 (최대 1000자로 확장)
-      const reportText = String(data.failureReport).substring(0, 1000);
+      const reportText = String(data.failureReport).substring(0, 3000);
       bodyContents.push({
         type: 'text',
-        text: reportText + (data.failureReport.length > 1000 ? '...' : ''),
+        text: reportText + (data.failureReport.length > 3000 ? '...' : ''),
         wrap: true,
         size: 'xs',
         color: '#666666'
@@ -799,31 +640,23 @@ export function buildRunStatusFlex(kind, data) {
   // 성공한 경우 추가 정보
   if (kind === 'success' && data.reportPath) {
     bodyContents.push({
-      type: 'separator',
-      margin: 'md'
-    });
-    
-    bodyContents.push({
       type: 'text',
-      text: 'Detailed HTML report has been generated.',
+      text: '✅ HTML report generated',
       wrap: true,
       size: 'xs',
-      color: '#2E7D32'
+      color: '#2E7D32',
+      margin: 'xs'
     });
   }
 
   // 시간 정보 추가
   bodyContents.push({
-    type: 'separator',
-    margin: 'md'
-  });
-  
-  bodyContents.push({
     type: 'text',
     text: timeText,
     size: 'xs',
     color: '#888888',
-    align: 'end'
+    align: 'end',
+    margin: 'xs'
   });
 
   const flexMessage = {
