@@ -197,6 +197,24 @@ steps:
           const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
           return B_DATE.slice(0, 12) === now12;})()"
 
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        assertion: "js: (() => {
+          if (!DATE || DATE.length < 12) return false;
+
+          const tidPrefix = DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
 # 시나리오 설정
 options:
