@@ -5027,6 +5027,18 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     });
 
     // 배치 실행 결과를 히스토리에 저장
+    // batchResults를 요약 정보만 포함하도록 축소 (JSON.stringify 크기 제한 문제 방지)
+    const batchResultsSummary = batchResults.map(r => ({
+      fileName: r.fileName,
+      success: r.success,
+      duration: r.duration,
+      summary: r.summary ? {
+        total: r.summary.total,
+        passed: r.summary.passed,
+        failed: r.summary.failed
+      } : null
+    }));
+
     const historyEntry = {
       timestamp: endTime,
       job: jobName,
@@ -5035,6 +5047,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       summary: `${successFiles}/${yamlFiles.length} files passed (batch)`,
       report: batchReportPath,
       htmlReport: batchReportPath,
+      reportPath: batchReportPath,
       stdout: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
       stderr: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
       tags: ['binary', 'yaml', 'batch'],
@@ -5044,7 +5057,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         successFiles: successFiles,
         failedFiles: failedFiles,
         successRate: parseFloat(successRate),
-        results: batchResults
+        results: batchResultsSummary // 요약 정보만 저장
       },
       detailedStats: {
         totalSteps: batchResults.reduce((sum, r) => sum + (r.summary?.total || 0), 0),
