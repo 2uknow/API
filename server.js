@@ -1962,6 +1962,8 @@ function buildYamlScenarioFailureReport(failedSteps) {
 
 // Batch 실행 실패 리포트 생성 함수
 function buildBatchFailureReport(failedResults) {
+  console.log(`[BATCH_FAILURE_REPORT] === Building failure report for ${failedResults.length} failed files ===`);
+
   const lines = [];
 
   // 헤더 간소화
@@ -1969,66 +1971,106 @@ function buildBatchFailureReport(failedResults) {
 
   // 각 실패 파일의 상세 정보 (최대 8개 파일)
   failedResults.slice(0, 8).forEach((failedResult, idx) => {
+    console.log(`[BATCH_FAILURE_REPORT] Processing file ${idx + 1}: ${failedResult.fileName}`);
+    console.log(`[BATCH_FAILURE_REPORT] Has result:`, !!failedResult.result);
+    console.log(`[BATCH_FAILURE_REPORT] Result keys:`, failedResult.result ? Object.keys(failedResult.result) : 'N/A');
+
     const result = failedResult.result;
     let fileLine = `${idx + 1}. ${failedResult.fileName}`;
 
     // 에러 메시지
     if (result?.error) {
       fileLine += ` - Error: ${result.error}`;
+      console.log(`[BATCH_FAILURE_REPORT] Has error:`, result.error);
     }
 
-    // Scenario 결과가 있는 경우
-    if (result?.scenarioResult) {
-      const summary = result.scenarioResult.summary;
+    // Scenario 결과 확인
+    // result 구조: { started, success, duration, startTime, endTime, reportPath, result }
+    // 실제 시나리오 결과는 result.result에 있음
+    const scenarioResult = result?.result || result?.scenarioResult || result;
+    console.log(`[BATCH_FAILURE_REPORT] ScenarioResult exists:`, !!scenarioResult);
+    console.log(`[BATCH_FAILURE_REPORT] Has summary:`, !!scenarioResult?.summary);
+    console.log(`[BATCH_FAILURE_REPORT] Has steps:`, !!scenarioResult?.steps);
+    console.log(`[BATCH_FAILURE_REPORT] Steps count:`, scenarioResult?.steps?.length || 0);
+
+    if (scenarioResult && (scenarioResult.summary || scenarioResult.steps)) {
+      const summary = scenarioResult.summary;
       if (summary) {
         fileLine += ` (${summary.passed}/${summary.total} steps)`;
       }
 
-      // 실패한 step들의 정보 (최대 5개 step)
-      const failedSteps = (result.scenarioResult.steps || []).filter(s => !s.passed);
+
+      // 실패한 step들의 정보 (최대 3개 step)
+      const failedSteps = (scenarioResult.steps || []).filter(s => !s.passed);
+      console.log(`[BATCH_FAILURE_REPORT] Failed steps count:`, failedSteps.length);
+
       if (failedSteps.length > 0) {
         lines.push(fileLine);
 
-        failedSteps.slice(0, 5).forEach((step, stepIdx) => {
-          let stepLine = `  ${stepIdx + 1}) ${step.name}`;
+        failedSteps.slice(0, 3).forEach((step, stepIdx) => {
+          console.log(`[BATCH_FAILURE_REPORT] Processing failed step ${stepIdx + 1}:`, step.name);
+          console.log(`[BATCH_FAILURE_REPORT] Step has commandString:`, !!step.commandString);
+          console.log(`[BATCH_FAILURE_REPORT] Step has response:`, !!step.response);
+          console.log(`[BATCH_FAILURE_REPORT] Step has tests:`, !!step.tests);
 
-          // 테스트 실패 상세 (최대 3개 테스트, 한 줄에 압축)
-          if (step.tests) {
-            const failedTests = step.tests.filter(t => !t.passed);
-            if (failedTests.length > 0) {
-              const testInfo = failedTests.slice(0, 3).map(t =>
-                `${t.name}: ${t.error || 'Failed'}`
-              ).join('; ');
-              stepLine += ` | ${testInfo}`;
-              if (failedTests.length > 3) {
-                stepLine += ` (+${failedTests.length - 3} more)`;
-              }
-            }
+          lines.push(`  ─────────────────────────`);
+          lines.push(`  Step ${step.step || stepIdx + 1}: ${step.name}`);
+
+          // 요청 정보 추가
+          if (step.commandString) {
+            const reqInfo = step.commandString.substring(0, 300);
+            lines.push(`  Request: ${reqInfo}${step.commandString.length > 300 ? '...' : ''}`);
+            console.log(`[BATCH_FAILURE_REPORT] Added request info (${step.commandString.length} chars)`);
+          } else if (step.command) {
+            lines.push(`  Request: ${JSON.stringify(step.command).substring(0, 300)}`);
+            console.log(`[BATCH_FAILURE_REPORT] Added command info`);
           }
 
-          // Response 정보 (URL 디코딩 적용, 1000자로 확장)
+          // Response 정보 (URL 디코딩 적용)
           if (step.response) {
+            let responseText = '';
             if (step.response.parsed && Object.keys(step.response.parsed).length > 0) {
               // Parsed 결과 우선 (최대 8개 키)
               const parsedInfo = Object.entries(step.response.parsed).slice(0, 8).map(([key, value]) => {
                 const decodedValue = decodeUrlEncodedContent(String(value));
-                return `${key}=${decodedValue.substring(0, 100)}`;
+                return `${key}=${decodedValue.substring(0, 80)}`;
               }).join(', ');
-              stepLine += ` | Response: ${parsedInfo}`;
+              responseText = parsedInfo;
             } else if (step.response.body) {
-              const decodedBody = decodeUrlEncodedContent(step.response.body);
-              stepLine += ` | Response: ${decodedBody.substring(0, 1000)}`;
+              responseText = decodeUrlEncodedContent(step.response.body).substring(0, 400);
             } else if (step.response.stdout) {
-              const decodedStdout = decodeUrlEncodedContent(step.response.stdout);
-              stepLine += ` | Output: ${decodedStdout.substring(0, 1000)}`;
+              responseText = decodeUrlEncodedContent(step.response.stdout).substring(0, 400);
             }
+            if (responseText) {
+              lines.push(`  Response: ${responseText}${responseText.length >= 400 ? '...' : ''}`);
+              console.log(`[BATCH_FAILURE_REPORT] Added response info (${responseText.length} chars)`);
+            } else {
+              console.log(`[BATCH_FAILURE_REPORT] No response text generated`);
+            }
+          } else {
+            console.log(`[BATCH_FAILURE_REPORT] Step has no response object`);
           }
 
-          lines.push(stepLine.substring(0, 2000));  // 한 줄 최대 2000자
+          // 검증 실패 상세
+          if (step.tests) {
+            const failedTests = step.tests.filter(t => !t.passed);
+            console.log(`[BATCH_FAILURE_REPORT] Tests count: ${step.tests.length}, Failed: ${failedTests.length}`);
+            if (failedTests.length > 0) {
+              lines.push(`  Assertion Failures:`);
+              failedTests.slice(0, 3).forEach(test => {
+                lines.push(`    - ${test.name}: ${test.error || 'Failed'}`);
+              });
+              if (failedTests.length > 3) {
+                lines.push(`    ... +${failedTests.length - 3} more`);
+              }
+            }
+          } else {
+            console.log(`[BATCH_FAILURE_REPORT] Step has no tests array`);
+          }
         });
 
-        if (failedSteps.length > 5) {
-          lines.push(`  ... +${failedSteps.length - 5} more steps`);
+        if (failedSteps.length > 3) {
+          lines.push(`  ... +${failedSteps.length - 3} more failed steps`);
         }
       } else {
         lines.push(fileLine);
@@ -2042,7 +2084,14 @@ function buildBatchFailureReport(failedResults) {
     lines.push(`... +${failedResults.length - 8} more files`);
   }
 
-  return lines.join('\n');
+  const finalReport = lines.join('\n');
+  console.log(`[BATCH_FAILURE_REPORT] === Final report generated ===`);
+  console.log(`[BATCH_FAILURE_REPORT] Total lines: ${lines.length}`);
+  console.log(`[BATCH_FAILURE_REPORT] Report length: ${finalReport.length} chars`);
+  console.log(`[BATCH_FAILURE_REPORT] Report preview (first 500 chars):`);
+  console.log(finalReport.substring(0, 500));
+
+  return finalReport;
 }
 
 // Newman CLI 출력에서 통계 추출
