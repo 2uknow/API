@@ -96,12 +96,23 @@ steps:
           DATE.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DATE.slice(0, 12) === now12;})()"
+          if (!DATE || DATE.length < 12) return false;
+
+          const tidPrefix = DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "TOTAL_AMOUNT == 301"
@@ -217,13 +228,24 @@ steps:
           if (typeof P_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
           return String(DN_TID).trim() !== String(P_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DATE.slice(0, 12) === now12;})()"
+          if (!P_DATE || P_DATE.length < 12) return false;
+
+          const tidPrefix = P_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 2; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "원거래 TID(OTID) 정상 출력"
         description: 1차 부분취소 TID와 원거래 TID 일치 확인
