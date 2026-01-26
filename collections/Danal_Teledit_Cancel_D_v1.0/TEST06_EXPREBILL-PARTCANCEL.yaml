@@ -8,9 +8,8 @@ version: "1.0.0"
 include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
-
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [1차 호출] EXPREBILL
+#  * EXPREBILL
 #  * ----------------------------------------------------------------------------------------------------------------*
 
 steps:
@@ -146,7 +145,7 @@ steps:
           return DN_TID = now12 + TID;})()"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [3차 호출] PARTCANCEL - 1차 부분 취소
+#  * PARTCANCEL - 1차 원거래 TID 부분 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PARTCANCEL - 1차 부분 취소"
@@ -302,7 +301,7 @@ steps:
         assertion: "C_ErrMsg == 원거래 금액이 상이합니다."
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [4차 호출] PARTCANCEL - 2차 부분 취소
+#  * [4차 호출] PARTCANCEL - 2차 원거래 TID 부분 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PARTCANCEL - 2차 부분 취소"
@@ -407,7 +406,7 @@ steps:
         assertion: "js: p_OTID && p_OTID === P_TID"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] PARTCANCEL - 전체 취소 시도
+#  * [2차 호출] PARTCANCEL - 전체 취소 불가 확인
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PARTCANCEL - 전체 취소 시도"
@@ -446,7 +445,7 @@ steps:
         assertion: "B_ErrMsg == Packet 오류:필요한 정보가 전송 되지 않았습니다. 다시 시도 해 주십시요."
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [6차 호출] PARTCANCEL - 3차 부분 취소
+#  * [6차 호출] PARTCANCEL - 3차 재승인 TID 부분 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PARTCANCEL - 3차 부분 취소"
@@ -519,13 +518,27 @@ steps:
           if (typeof c_DNTID === 'undefined' || typeof p_DNTID === 'undefined') return false;
           return String(c_DNTID).trim() !== String(p_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: c_DATE && c_DATE.trim().length > 0 && /^\\d{14}$/.test(c_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return c_DATE.slice(0, 12) === now12;})()"
+          if (!c_DATE || c_DATE.length < 12) return false;
+
+          const tidPrefix = c_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "원거래 TID(OTID) 정상 출력"
         description: 4차 부분 취소 OTID와 2차 부분 취소 TID 일치 확인

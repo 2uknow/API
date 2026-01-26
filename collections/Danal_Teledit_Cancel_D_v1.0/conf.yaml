@@ -5,14 +5,12 @@ variables:
   SERVICE_NAME: "TELEDIT"
   USER_ID: "clienttest"
   EMAIL: "2uknow@danal.co.kr"
-  ORDER_ID: "ORD1758784400504_TEST"
   ORDER_ID_R: "{{js: 'ORD' + Date.now() + Math.floor(Math.random() * 1000).toString().padStart(3, '0')}}"
-  DYNAMIC_PREFIX: "{{js: new Date().getHours() > 12 ? 'PM' : 'AM'}}"
   IP_R: "{{js: Math.floor(Math.random()*256) + '.' + Math.floor(Math.random()*256) + '.' + Math.floor(Math.random()*256) + '.' + Math.floor(Math.random()*256)}}"
 
   # 휴대폰 정기결제 Authkey
-  # HNKIM: "20250901101636D6FFC6"
-  # TWO_UKNOW: "20201229093719D4EF17"
+  HNKIM: "20250901101636D6FFC6"
+  TWO_UKNOW: "20201229093719D4EF17"
   CJH_AUTH: "2025072315434029712F"
   SKT_AUTH: "20250115173259E06AF5"
 
@@ -61,7 +59,7 @@ variables:
   CJH_CARRIER: "CJH"
   CJH_AMOUNT: "301"
 
-  # KCT 
+  # KCT (20265-02-28 서비스 종료 예정)
   KCT_IDEN: "9002051"
   KCT_DST_ADDR: "01021376634"
   KCT_CARRIER: "KCT"
