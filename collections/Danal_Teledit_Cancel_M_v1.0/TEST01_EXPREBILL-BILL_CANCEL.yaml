@@ -177,7 +177,7 @@ steps:
         assertion: "B_RESULT == 0"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "B_ErrMsg ==No Information"
+        assertion: "B_ErrMsg == No Information"
 
       - name: "거래인증 key(ServerInfo) 정상 출력"
         assertion: "js: B_ServerInfo !== null && B_ServerInfo.trim().length > 0 && typeof B_ServerInfo !== undefined" 
@@ -189,13 +189,8 @@ steps:
         description: "원거래 DNTID와 전체 취소 DNTID 일치 확인"
         assertion: "js: B_DNTID && B_DNTID === DN_TID"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
-        assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return B_DATE.slice(0, 12) === now12;})()"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: B_DATE && B_DATE.trim().length > 0 && /^\\d{12}$/.test(B_DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
         description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
