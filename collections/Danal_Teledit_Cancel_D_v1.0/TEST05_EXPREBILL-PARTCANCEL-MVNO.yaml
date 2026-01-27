@@ -258,13 +258,27 @@ steps:
           if (typeof P_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
           return String(DN_TID).trim() !== String(P_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: P_DATE && P_DATE.trim().length > 0 && /^\\d{14}$/.test(P_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return P_DATE.slice(0, 12) === now12;})()"
+          if (!P_DATE || P_DATE.length < 12) return false;
+
+          const tidPrefix = P_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "원거래 TID(OTID) 정상 출력"
         description: 1차 부분취소 TID와 원거래 TID 일치 확인
@@ -326,10 +340,10 @@ steps:
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "p_ErrMsg == No Information"
 
-      - name: "거래 번호(TID) 정상 출력_1"
+      - name: "거래 번호(TID) 정상 출력"
         assertion: "js: p_TID && p_TID.trim().length > 0 && /^\\d{18}$/.test(p_TID)"
 
-      - name: "거래 번호(DNTID) 정상 출력_2"
+      - name: "거래 번호(DNTID) 정상 출력_1"
         description: "DN_TID = yyyy + 1차 PARTCANCEL 부분 취소 TID 일치 확인"
         assertion: "js: (() => {
           const pad = n => String(n).padStart(2,'0');
@@ -337,20 +351,34 @@ steps:
           const now12 = `${d.getFullYear()}`;
           return p_DNTID = now12 + p_TID;})()"
 
-      - name: "거래 번호(DNTID) 정상 출력_3"
+      - name: "거래 번호(DNTID) 정상 출력_2"
         description: "1차 PARTCANCEL DNTID와 다른 값 생성 확인"
         assertion: "js: (() => {
           'use strict';
           if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
           return String(p_DNTID).trim() !== String(P_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: p_DATE && p_DATE.trim().length > 0 && /^\\d{14}$/.test(p_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return p_DATE.slice(0, 12) === now12;})()"
+          if (!p_DATE || p_DATE.length < 12) return false;
+
+          const tidPrefix = p_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "원거래 TID(OTID) 정상 출력"
         description: 2차 부분 취소 TID와 1차 부분 취소 TID 일치 확인

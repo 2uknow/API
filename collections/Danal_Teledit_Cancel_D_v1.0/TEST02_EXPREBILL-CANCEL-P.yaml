@@ -88,7 +88,7 @@ steps:
         assertion: "js: DATE && DATE.trim().length > 0 && /^\\d{14}$/.test(DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
           if (!DATE || DATE.length < 12) return false;
 
@@ -97,7 +97,7 @@ steps:
           const pad = n => String(n).padStart(2, '0');
           const now = new Date();
 
-          for (let i = 0; i <= 5; i++) {
+          for (let i = 0; i <= 2; i++) {
             const d = new Date(now);
             d.setMinutes(d.getMinutes() - i);
 
@@ -309,7 +309,7 @@ steps:
           if (typeof c_DNTID === 'undefined' || typeof C_DNTID === 'undefined') return false;
           return String(c_DNTID).trim() !== String(C_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
         description: "Date가 존재하고 숫자 14자리인지 검증"
         assertion: "js: c_DATE && c_DATE.trim().length > 0 && /^\\d{14}$/.test(c_DATE)"
 
