@@ -8,7 +8,7 @@ include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [1차 호출] EXPREBILL
+#  * EXPREBILL
 #  * ----------------------------------------------------------------------------------------------------------------*
 
 steps:
@@ -96,7 +96,7 @@ steps:
           DATE.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
           if (!DATE || DATE.length < 12) return false;
 
@@ -105,7 +105,7 @@ steps:
           const pad = n => String(n).padStart(2, '0');
           const now = new Date();
 
-          for (let i = 0; i <= 5; i++) {
+          for (let i = 0; i <= 2; i++) {
             const d = new Date(now);
             d.setMinutes(d.getMinutes() - i);
 
@@ -137,7 +137,7 @@ steps:
         assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] BILL_CANCEL
+#  *  BILL_CANCEL
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "BILL_CANCEL"
@@ -193,16 +193,16 @@ steps:
         assertion: "js: B_DATE && B_DATE.trim().length > 0 && /^\\d{12}$/.test(B_DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          if (!DATE || DATE.length < 12) return false;
+          if (!B_DATE || B_DATE.length < 12) return false;
 
-          const tidPrefix = DATE.slice(0, 12);
+          const tidPrefix = B_DATE.slice(0, 12);
 
           const pad = n => String(n).padStart(2, '0');
           const now = new Date();
 
-          for (let i = 0; i <= 5; i++) {
+          for (let i = 0; i <= 2; i++) {
             const d = new Date(now);
             d.setMinutes(d.getMinutes() - i);
 

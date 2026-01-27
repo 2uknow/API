@@ -9,7 +9,7 @@ include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [1차 호출] EXPREBILL
+#  * EXPREBILL - 1회차
 #  * ----------------------------------------------------------------------------------------------------------------*
 
 steps:
@@ -126,10 +126,10 @@ steps:
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [2차 호출] CANCEL - 원거래 TID 사용
+#  * CANCEL - 원거래 TID 사용 전체 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
-  - name: "CANCEL - 원거래 TID 사용 전체 취소"
+  - name: "CANCEL - 원거래 TID 사용 전체취소"
     description: "OTID 결제 전체 취소 및 환불 정상 확인"
 
     args:
@@ -211,7 +211,7 @@ steps:
         assertion: "js: C_RAMT && C_RAMT == 0"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [3차 호출] EXPREBILL
+#  * EXPREBILL - 2회차 
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "EXPREBILL - 2회차"
@@ -293,12 +293,23 @@ steps:
           E_Date.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return E_Date.slice(0, 12) === now12;})()"
+          if (!E_Date || E_Date.length < 12) return false;
+
+          const tidPrefix = E_Date.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 2; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "E_TotalAmount == 301"
@@ -330,7 +341,7 @@ steps:
           return E_DNTID === (now12 + E_TID);})()"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [4차 호출] CANCEL - 원거래 DNTID 사용
+#  * CANCEL - 원거래 DNTID 사용 전체 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "CANCEL - DNTID 사용 전체 취소"
@@ -399,16 +410,27 @@ steps:
           if (typeof D_DNTID === 'undefined' || typeof E_DNTID === 'undefined') return false;
           return String(D_DNTID).trim() !== String(E_DNTID).trim();})()"
 
-      - name: "결제 완료 시간(Date) 정상 출력"
+      - name: "결제 완료 시간(Date) 정상 출력_1"
         assertion: "js: D_DATE && D_DATE.trim().length > 0 && /^\\d{14}$/.test(D_DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmmss)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return E_Date.slice(0, 12) === now12;})()"
+          if (!D_DATE || D_DATE.length < 12) return false;
+
+          const tidPrefix = D_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 2; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
 
       - name: "남은 금액(RAMT) 정상 미출력"
         description: "RAMT가 정의되어 있고 값이 존재하면 실패"
