@@ -228,6 +228,13 @@ steps:
           if (typeof P_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
           return String(DN_TID).trim() !== String(P_DNTID).trim();})()"
 
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: (
+          P_DATE !== null &&
+          typeof P_DATE !== 'undefined' &&
+          typeof P_DATE === 'string' &&
+          P_DATE.trim().length === 14)"
+
       - name: "결제 완료 시간(Date) 정상 출력_2"
         description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
         assertion: "js: (() => {
