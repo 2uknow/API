@@ -356,83 +356,200 @@ export function buildRunStatusFlex(kind, data) {
           color: '#C62828'
         });
 
-        // 각 실패 파일별 에러 상세 (최대 3개 파일)
-        const detailCount = Math.min(failedResults.length, 3);
-        for (let fi = 0; fi < detailCount; fi++) {
-          const failedFile = failedResults[fi];
-          const steps = failedFile.result?.scenarioResult?.steps || failedFile.result?.result?.steps || failedFile.result?.steps;
+        // ★★★ 첫 번째 실패 파일의 첫 번째 실패 step - 무조건 상세 정보 표시 ★★★
+        const firstFailedFile = failedResults[0];
+        const firstSteps = firstFailedFile.result?.scenarioResult?.steps || firstFailedFile.result?.result?.steps || firstFailedFile.result?.steps;
 
-          if (steps) {
-            // 실패한 step들 모두 수집
-            const allErrors = [];
-            for (const step of steps) {
-              if (step.tests) {
-                const failedTests = step.tests.filter(t => !t.passed);
-                for (const failedTest of failedTests) {
-                  let responseInfo = '';
-                  if (step.response?.parsed) {
-                    const p = step.response.parsed;
-                    if (p.Result !== undefined || p.ErrMsg) {
-                      responseInfo = ` [Result=${p.Result || 'N/A'}, ${p.ErrMsg || ''}]`;
-                    }
-                  } else if (step.response?.stdout) {
-                    responseInfo = ` [${String(step.response.stdout).substring(0, 200)}]`;
-                  }
-                  allErrors.push({
-                    step: step.name,
-                    test: failedTest.name || failedTest.assertion,
-                    error: failedTest.error || failedTest.actual,
-                    response: responseInfo
-                  });
-                }
+        if (firstSteps) {
+          // 첫 번째 실패한 step 찾기
+          const firstFailedStep = firstSteps.find(s => !s.passed);
+
+          if (firstFailedStep) {
+            // 구분선
+            bodyContents.push({
+              type: 'separator',
+              margin: 'md'
+            });
+
+            // 파일명 + Step명
+            bodyContents.push({
+              type: 'text',
+              text: `📋 [${firstFailedFile.fileName}] ${firstFailedStep.name}`,
+              wrap: true,
+              size: 'sm',
+              color: '#C62828',
+              weight: 'bold',
+              margin: 'sm'
+            });
+
+            // Request Command (req) - 최대 1500자
+            if (firstFailedStep.request) {
+              let reqText = '';
+              if (firstFailedStep.request.command) {
+                reqText = firstFailedStep.request.command;
+              } else if (firstFailedStep.request.args) {
+                reqText = Object.entries(firstFailedStep.request.args)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join(';');
               }
-            }
-
-            if (allErrors.length > 0) {
-              // 파일명 + 에러 개수
-              bodyContents.push({
-                type: 'text',
-                text: `[${failedFile.fileName}] ${allErrors.length}개 실패`,
-                wrap: true,
-                size: 'xs',
-                color: '#C62828',
-                weight: 'bold',
-                margin: 'xs'
-              });
-
-              // 에러 상세 (최대 5개)
-              const errorDisplayCount = Math.min(allErrors.length, 5);
-              for (let ei = 0; ei < errorDisplayCount; ei++) {
-                const err = allErrors[ei];
-                const errorText = `${ei+1}. ${err.step} > ${err.test}${err.response ? err.response.substring(0, 300) : ''}`;
+              if (reqText) {
                 bodyContents.push({
                   type: 'text',
-                  text: errorText.substring(0, 500),
+                  text: `▶ Request:`,
+                  wrap: true,
+                  size: 'xs',
+                  color: '#1976D2',
+                  weight: 'bold',
+                  margin: 'sm'
+                });
+                bodyContents.push({
+                  type: 'text',
+                  text: reqText.substring(0, 1500),
                   wrap: true,
                   size: 'xs',
                   color: '#666666'
                 });
               }
-              if (allErrors.length > 5) {
+            }
+
+            // Response Body (res) - 최대 1000자
+            if (firstFailedStep.response) {
+              let resText = '';
+              if (firstFailedStep.response.parsed && Object.keys(firstFailedStep.response.parsed).length > 0) {
+                resText = Object.entries(firstFailedStep.response.parsed)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join('\n');
+              } else if (firstFailedStep.response.stdout) {
+                resText = String(firstFailedStep.response.stdout);
+              } else if (firstFailedStep.response.body) {
+                resText = String(firstFailedStep.response.body);
+              }
+              if (resText) {
                 bodyContents.push({
                   type: 'text',
-                  text: `  ... 외 ${allErrors.length - 5}개 에러`,
+                  text: `◀ Response:`,
                   wrap: true,
                   size: 'xs',
-                  color: '#999999'
+                  color: '#2E7D32',
+                  weight: 'bold',
+                  margin: 'sm'
                 });
+                bodyContents.push({
+                  type: 'text',
+                  text: resText.substring(0, 1000),
+                  wrap: true,
+                  size: 'xs',
+                  color: '#666666'
+                });
+              }
+            }
+
+            // Assertion 상세 - 최대 5개
+            if (firstFailedStep.tests) {
+              const failedTests = firstFailedStep.tests.filter(t => !t.passed);
+              if (failedTests.length > 0) {
+                bodyContents.push({
+                  type: 'text',
+                  text: `✗ Assertion (${failedTests.length}개 실패):`,
+                  wrap: true,
+                  size: 'xs',
+                  color: '#C62828',
+                  weight: 'bold',
+                  margin: 'sm'
+                });
+
+                // 최대 5개 assertion 상세
+                failedTests.slice(0, 5).forEach((ft, idx) => {
+                  let assertText = `${idx+1}. ${ft.name || ft.assertion}`;
+                  if (ft.expected !== undefined && ft.actual !== undefined) {
+                    assertText += ` [Expected: ${ft.expected}, Actual: ${ft.actual}]`;
+                  } else if (ft.error) {
+                    assertText += ` [${ft.error}]`;
+                  }
+                  bodyContents.push({
+                    type: 'text',
+                    text: assertText.substring(0, 500),
+                    wrap: true,
+                    size: 'xs',
+                    color: '#666666'
+                  });
+                });
+
+                if (failedTests.length > 5) {
+                  bodyContents.push({
+                    type: 'text',
+                    text: `   ... 외 ${failedTests.length - 5}개 assertion`,
+                    wrap: true,
+                    size: 'xs',
+                    color: '#999999'
+                  });
+                }
               }
             }
           }
         }
-        if (failedResults.length > 3) {
+
+        // ★★★ 나머지 실패 파일들 - 가능한 한 최대한 표시 (최대 10개 파일) ★★★
+        if (failedResults.length > 1) {
           bodyContents.push({
-            type: 'text',
-            text: `... 외 ${failedResults.length - 3}개 파일 상세 생략`,
-            wrap: true,
-            size: 'xs',
-            color: '#999999'
+            type: 'separator',
+            margin: 'md'
           });
+
+          // 최대 10개 파일까지 표시
+          const remainingFiles = failedResults.slice(1, 11);
+          for (const failedFile of remainingFiles) {
+            const steps = failedFile.result?.scenarioResult?.steps || failedFile.result?.result?.steps || failedFile.result?.steps;
+            if (steps) {
+              const failedSteps = steps.filter(s => !s.passed);
+              const failedTestCount = failedSteps.reduce((sum, s) => sum + (s.tests?.filter(t => !t.passed)?.length || 0), 0);
+
+              // 첫 번째 실패 step의 응답 및 assertion 요약
+              const firstFailed = failedSteps[0];
+              let summaryText = `📋 [${failedFile.fileName}] ${firstFailed?.name || 'Unknown'}`;
+
+              // Response 요약 (Result, ErrMsg)
+              if (firstFailed?.response?.parsed) {
+                const p = firstFailed.response.parsed;
+                if (p.Result !== undefined || p.ErrMsg) {
+                  summaryText += `\n   ◀ Result=${p.Result || 'N/A'}, ${(p.ErrMsg || '').substring(0, 100)}`;
+                }
+              } else if (firstFailed?.response?.stdout) {
+                summaryText += `\n   ◀ ${String(firstFailed.response.stdout).substring(0, 150)}`;
+              }
+
+              // Assertion 요약 (첫 번째 실패한 테스트)
+              if (firstFailed?.tests) {
+                const failedTest = firstFailed.tests.find(t => !t.passed);
+                if (failedTest) {
+                  let assertInfo = failedTest.name || failedTest.assertion || 'Unknown';
+                  if (failedTest.expected !== undefined && failedTest.actual !== undefined) {
+                    assertInfo += ` [Exp: ${String(failedTest.expected).substring(0, 30)}, Act: ${String(failedTest.actual).substring(0, 30)}]`;
+                  }
+                  summaryText += `\n   ✗ ${assertInfo.substring(0, 150)}`;
+                }
+              }
+
+              bodyContents.push({
+                type: 'text',
+                text: summaryText.substring(0, 600),
+                wrap: true,
+                size: 'xs',
+                color: '#666666',
+                margin: 'sm'
+              });
+            }
+          }
+
+          if (failedResults.length > 11) {
+            bodyContents.push({
+              type: 'text',
+              text: `... 외 ${failedResults.length - 11}개 파일 상세 생략`,
+              wrap: true,
+              size: 'xs',
+              color: '#999999'
+            });
+          }
         }
       }
     }
