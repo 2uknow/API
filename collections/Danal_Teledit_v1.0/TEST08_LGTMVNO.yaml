@@ -1,5 +1,5 @@
 
-name: "LGU+ SMS 정상케이스"
+name: "LGU+ 알뜰 SMS 정상케이스"
 description: "Danal_Taldit_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -18,6 +18,7 @@ steps:
 
     args:
       Command: "ITEMSEND2"
+      IFVERSION: "V1.1.8"
       Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
       ItemType: "Amount"
@@ -50,6 +51,10 @@ steps:
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
+
+      - name: "WEBINFO"
+        pattern: "WEBINFO"
+        variable: "WEB_INFO"
     
 ########################################################### Assertion ###########################################################
 
@@ -58,10 +63,13 @@ steps:
         assertion: "RESULT_CODE == 0"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력"
-        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO  !== undefined" 
+        assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO !== undefined" 
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE == No Information"
+
+      - name: "웹 페이지로 전달 암호화 데이터(WEBINFO) 고정값 정상 출력"
+        assertion: "WEB_INFO == 70f7e5d28c85e70da05270998cd17bab6df543c04843f00036790f642f1dcad90f7b11e3e4cd588c398a"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -73,23 +81,33 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{LGT_IDEN}}"
+      IDEN: "{{LGTMVNO_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{LGT_DST_ADDR}}"
-      CARRIER: "{{LGT_CARRIER}}"
+      DSTADDR: "{{LGTMVNO_DST_ADDR}}"
+      CARRIER: "{{LGTMVNO_CARRIER}}"
       WPAGE: "WEB"
       PRCODE: ""
-      AMOUNT: "{{LGT_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      AMOUNT: "{{LGTMVNO_AMOUNT}}"
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
-      IPADDR : "10.10.52.54"
+      IPADDR : "{{IP_R}}"
       SMTOTP: "N"
-      ISCPIN: "Y"
-      CPIN: "663466"
+      # IDELIVER에서 전달하지 않고 다음 스텝에서 전달
+      ISCPIN: "N"
+      CPIN: "******"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISVACS: "Y"
+      ISAUTOVACS: "N"
+      ISPASSOPTINABLE: "Y"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -120,7 +138,7 @@ steps:
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
-
+        
       - name: "ISLGPWDUSER"
         pattern: "ISLGPWDUSER"
         variable: "ID_ISLGPWDUSER"
@@ -136,6 +154,46 @@ steps:
       - name: "ISCARRIERPROM"
         pattern: "ISCARRIERPROM"
         variable: "ID_ISCARRIERPROM"
+
+      - name: "ISCPIN"
+        pattern: "ISCPIN"
+        variable: "ID_ISCPIN"
+
+      - name: "AUTHKEY"
+        pattern: "AUTHKEY"
+        variable: "ID_AUTHKEY"
+
+      - name: "USEDPCIKRW"
+        pattern: "USEDPCIKRW"
+        variable: "ID_USEDPCIKRW"
+
+      - name: "USECOUPON"
+        pattern: "USECOUPON"
+        variable: "ID_USECOUPON"
+
+      - name: "COUPONAMT"
+        pattern: "COUPONAMT"
+        variable: "ID_COUPONAMT"
+
+      - name: "DEPOSIT_AMT"
+        pattern: "DEPOSIT_AMT"
+        variable: "ID_DEPOSIT_AMT"
+
+      - name: "ISDEPOSIT"
+        pattern: "ISDEPOSIT"
+        variable: "ID_ISDEPOSIT"
+
+      - name: "ISPASSOPTIN"
+        pattern: "ISPASSOPTIN"
+        variable: "ID_ISPASSOPTIN"
+
+      - name: "ISFDS"
+        pattern: "ISFDS"
+        variable: "ID_ISFDS"
+
+      - name: "OTP"
+        pattern: "OTP"
+        variable: "ID_OTP"
 
     
 ########################################################### Assertion ###########################################################
@@ -160,7 +218,7 @@ steps:
         assertion: "ID_CAP == 000000"
 
       - name: "안심결제 회원 여부(ANSIMMEMBER) 정상 출력"
-        assertion: "ID_ANSIMMEMBER == Y"
+        assertion: "ID_ANSIMMEMBER == N"
 
       - name: "ARS 전환 지원(ARSCHANGE) 정상 출력"
         assertion: "ID_ARSCHANGE == N"
@@ -169,7 +227,7 @@ steps:
         assertion: "ID_UAM == 0"
 
       - name: "LGU+ 휴대폰결제 비밀번호 사용 여부(ISLGPWDUSER) 정상 출력"
-        assertion: "ID_ISLGPWDUSER == Y"
+        assertion: "ID_ISLGPWDUSER == N"
 
       - name: "즉시 할인용(ISPROM) 정상 출력"
         assertion: "ID_ISPROM == N"
@@ -180,8 +238,35 @@ steps:
       - name: "통신사 프로모션 적용 여부(ISCARRIERPROM) 정상 출력"
         assertion: "ID_ISCARRIERPROM == N"
 
-      - name: "인증 방식(UAM) 정상 출력"
-        assertion: "ID_UAM == 0"
+      - name: "휴대폰결제 비밀번호 사용 여부(ISCPIN) 정상 출력"
+        assertion: "ID_ISCPIN == N"
+
+      - name: "사용자 인증 KEY(AUTHKEY) 정상 출력"
+        assertion: "ID_AUTHKEY == NA"
+
+      - name: "사용된 PCI(USEDPCIKRW) 정상 출력"
+        assertion: "ID_USEDPCIKRW == 0"
+
+      - name: "쿠폰 적용 여부(USECOUPON) 정상 출력"
+        assertion: "ID_USECOUPON == N"
+
+      - name: "쿠폰 할인 금액(COUPONAMT) 정상 출력"
+        assertion: "ID_COUPONAMT == 0"
+
+      - name: "보증금 금액(DEPOSIT_AMT) 정상 출력"
+        assertion: "ID_DEPOSIT_AMT == 0"
+
+      - name: "보증금 사용 여부(ISDEPOSIT) 정상 출력"
+        assertion: "ID_ISDEPOSIT == N"
+
+      - name: "휴대폰 결제 동의 PASS 앱 이용 대상 여부(ISPASSOPTIN) 정상 출력"
+        assertion: "ID_ISPASSOPTIN == N"
+
+      - name: "FDS 거래 여부(ISFDS) 정상 출력"
+        assertion: "ID_ISFDS == N"
+
+      - name: "승인 번호(OTP) 미출력 확인"
+        assertion: "ID_OTP == ''"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -196,12 +281,12 @@ steps:
       ServerInfo: "{{SERVER_INFO}}"
       Command: "IREPORT"
       Configure: "FAILURE"
-      IFVERSION: "V1.0.5"
+      IFVERSION: "V1.1.9"
       TERMSAGREE2: "N"
       WPRCODE: "0000"
-      ANSIMPASS: "8540"  # 안심결제 비밀번호 오입력
-      ANSIMMEMBER: "Y"
-      OTP: "000000"  # OTP 오입력 시 간헐적으로 성공 응답 (663 + 000)
+      ANSIMPASS: ""
+      ANSIMMEMBER: "N"
+      OTP: "000000"
     
     # 응답 데이터 추출
     extract:
@@ -221,11 +306,11 @@ steps:
 ########################################################### Assertion ###########################################################
 
     test:
-      - name: "결과 코드(RESULT) 446 출력 확인"
-        assertion: "IR_RESULT == 446"
+      - name: "결과 코드(RESULT) 482 출력 확인"
+        assertion: "IR_RESULT == 482"
 
       - name: "결과 메시지(ErrMsg) 불일치 출력 확인"
-        assertion: "IR_ERROR_MSG == 안심결제 비밀번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오."
+        assertion: "IR_ERROR_MSG == 승인 번호가 일치하지 않습니다. 확인 후 다시 시도해 주십시오."
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -301,7 +386,7 @@ steps:
     test:
       - name: "결과 코드(RESULT) 492 출력 확인"
         assertion: "NB_RESULT == 492"
-
+        
       - name: "결과 메시지(ErrMsg) 승인 절차 미완료 출력 확인"
         assertion: "NB_ERROR_MSG == 승인 절차를 모두 거치지 않고 거래가 시도되었습니다. 다시 시도해 주십시오."
 
