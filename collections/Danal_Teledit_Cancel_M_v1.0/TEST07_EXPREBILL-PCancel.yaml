@@ -328,7 +328,7 @@ steps:
         description: "복호화된 주문번호가 원본 주문번호와 일치하는지 확인"
         assertion: "js: PCANCEL_ORDERID && PCANCEL_ORDERID === RESPONSE_ORDER_ID"
 
-      - name: "남은 금액(REMAINAMT) 정상 미출력"
+      - name: "남은 금액(REMAINAMT) 미출력 확인"
         description: "AMTRESOPTION=1 설정에 따른 REMAINAMT 미응답 확인"
         assertion: "js: (() => {
           if (typeof  PCANCEL_REMAINAMT === 'undefined') return true;

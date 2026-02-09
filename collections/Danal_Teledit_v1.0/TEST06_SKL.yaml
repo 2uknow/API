@@ -18,6 +18,7 @@ steps:
 
     args:
       Command: "ITEMSEND2"
+      IFVERSION: "V1.1.8"
       Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
       ItemType: "Amount"
@@ -34,8 +35,7 @@ steps:
       SellerName: ""
       SellerTel: ""
       IsSubscript: "N"
-      EMAIL: "{{EMAIL}}"
-          
+      EMAIL: "{{EMAIL}}"          
     
     # 응답 데이터 추출
     extract:
@@ -50,6 +50,10 @@ steps:
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
+
+      - name: "WEBINFO"
+        pattern: "WEBINFO"
+        variable: "WEB_INFO"
     
 ########################################################### Assertion ###########################################################
 
@@ -62,6 +66,9 @@ steps:
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE == No Information"
+
+      - name: "웹 페이지로 전달 암호화 데이터(WEBINFO) 고정값 정상 출력"
+        assertion: "WEB_INFO == 70f7e5d28c85e70da05270998cd17bab6df543c04843f00036790f642f1dcad90f7b11e3e4cd588c398a"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -80,15 +87,21 @@ steps:
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{SKL_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
-      IPADDR : "10.10.52.54"
+      IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -119,7 +132,7 @@ steps:
       - name: "UAM"
         pattern: "UAM"
         variable: "ID_UAM"
-
+        
       - name: "ISLGPWDUSER"
         pattern: "ISLGPWDUSER"
         variable: "ID_ISLGPWDUSER"
@@ -135,6 +148,47 @@ steps:
       - name: "ISCARRIERPROM"
         pattern: "ISCARRIERPROM"
         variable: "ID_ISCARRIERPROM"
+
+      - name: "ISCPIN"
+        pattern: "ISCPIN"
+        variable: "ID_ISCPIN"
+
+      - name: "AUTHKEY"
+        pattern: "AUTHKEY"
+        variable: "ID_AUTHKEY"
+
+      - name: "USEDPCIKRW"
+        pattern: "USEDPCIKRW"
+        variable: "ID_USEDPCIKRW"
+
+      - name: "USECOUPON"
+        pattern: "USECOUPON"
+        variable: "ID_USECOUPON"
+
+      - name: "COUPONAMT"
+        pattern: "COUPONAMT"
+        variable: "ID_COUPONAMT"
+
+      - name: "DEPOSIT_AMT"
+        pattern: "DEPOSIT_AMT"
+        variable: "ID_DEPOSIT_AMT"
+
+      - name: "ISDEPOSIT"
+        pattern: "ISDEPOSIT"
+        variable: "ID_ISDEPOSIT"
+
+      - name: "ISPASSOPTIN"
+        pattern: "ISPASSOPTIN"
+        variable: "ID_ISPASSOPTIN"
+
+      - name: "ISFDS"
+        pattern: "ISFDS"
+        variable: "ID_ISFDS"
+
+      - name: "OTP"
+        pattern: "OTP"
+        variable: "ID_OTP"
+
     
 ########################################################### Assertion ###########################################################
 
@@ -178,8 +232,35 @@ steps:
       - name: "통신사 프로모션 적용 여부(ISCARRIERPROM) 정상 출력"
         assertion: "ID_ISCARRIERPROM == N"
 
-      - name: "인증 방식(UAM) 정상 출력"
-        assertion: "ID_UAM == 0"
+      - name: "휴대폰결제 비밀번호 사용 여부(ISCPIN) 정상 출력"
+        assertion: "ID_ISCPIN == N"
+
+      - name: "사용자 인증 KEY(AUTHKEY) 정상 출력"
+        assertion: "ID_AUTHKEY == NA"
+
+      - name: "사용된 PCI(USEDPCIKRW) 정상 출력"
+        assertion: "ID_USEDPCIKRW == 0"
+
+      - name: "쿠폰 적용 여부(USECOUPON) 정상 출력"
+        assertion: "ID_USECOUPON == N"
+
+      - name: "쿠폰 할인 금액(COUPONAMT) 정상 출력"
+        assertion: "ID_COUPONAMT == 0"
+
+      - name: "보증금 금액(DEPOSIT_AMT) 정상 출력"
+        assertion: "ID_DEPOSIT_AMT == 0"
+
+      - name: "보증금 사용 여부(ISDEPOSIT) 정상 출력"
+        assertion: "ID_ISDEPOSIT == N"
+
+      - name: "FDS 거래 여부(ISFDS) 정상 출력"
+        assertion: "ID_ISFDS  == N"
+  
+      - name: "승인 번호(OTP) 미출력 확인"
+        assertion: "ID_OTP == ''"
+
+      - name: "휴대폰 결제 동의 PASS 앱 이용 대상 여부(ISPASSOPTIN) 정상 출력"
+        assertion: "ID_ISPASSOPTIN == ''"
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -193,12 +274,16 @@ steps:
       ServerInfo: "{{SERVER_INFO}}"
       Command: "IREPORT"
       Configure: "FAILURE"
-      IFVERSION: "V1.0.5"
+      IFVERSION: "V1.1.9"
       TERMSAGREE2: "N"
       WPRCODE: "0000"
       ANSIMPASS: ""
       ANSIMMEMBER: "N"
       OTP: "000000"
+      ISCPIN: "N"
+      EMAIL: "{{EMAIL}}"
+      OUTPUTOPTION: "1"
+
     
     # 응답 데이터 추출
     extract:

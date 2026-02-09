@@ -16,6 +16,7 @@ steps:
 
     args:
       Command: "ITEMSEND2"
+      IFVERSION: "V1.1.8"
       Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
       ItemType: "Amount"
@@ -34,7 +35,6 @@ steps:
       IsSubscript: "N"
       EMAIL: "{{EMAIL}}"
           
-    
     # 응답 데이터 추출
     extract:
       - name: "result"
@@ -48,6 +48,10 @@ steps:
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE"
+
+      - name: "WEBINFO"
+        pattern: "WEBINFO"
+        variable: "WEB_INFO"
     
 ########################################################### Assertion ###########################################################
 
@@ -56,11 +60,14 @@ steps:
         assertion: "RESULT_CODE == 0"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력"
-        description: "거래 인증 key 존재하거나 null 값이 아닌지 확인"
         assertion: "js: SERVER_INFO !== null && SERVER_INFO.trim().length > 0 && typeof SERVER_INFO !== undefined" 
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE == No Information"
+
+      - name: "웹 페이지로 전달 암호화 데이터(WEBINFO) 고정값 정상 출력"
+        assertion: "WEB_INFO == 70f7e5d28c85e70da05270998cd17bab6df543c04843f00036790f642f1dcad90f7b11e3e4cd588c398a"
+
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [SKT] IDELIVER - 통신사 오입력 케이스
@@ -74,19 +81,30 @@ steps:
       IDEN: "{{SKT_IDEN}}"
       ISPREOTBILL: "N"
       DSTADDR: "{{SKT_DST_ADDR}}"
-      CARRIER: "{{LGT_CARRIER}}"  # 통신사 불일치 입력
+      CARRIER: "{{KT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{SKT_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
+      # IDELIVER에서 전달하지 않고 다음 스텝에서 전달
       ISCPIN: "N"
+      CPIN: "******"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISVACS: "Y"
+      ISAUTOVACS: "N"
+      ISPASSOPTINABLE: "Y"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -124,15 +142,26 @@ steps:
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{KT_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
+      # IDELIVER에서 전달하지 않고 다음 스텝에서 전달
       ISCPIN: "N"
+      CPIN: "******"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISVACS: "Y"
+      ISAUTOVACS: "N"
+      ISPASSOPTINABLE: "Y"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -164,23 +193,34 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{LGT_IDEN}}" 
+      IDEN: "{{LGT_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{LGT_DST_ADDR}}" 
-      CARRIER: "{{KT_CARRIER}}"    # 통신사 불일치 입력 
+      DSTADDR: "{{LGT_DST_ADDR}}"
+      CARRIER: "{{KT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{LGT_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
+      # IDELIVER에서 전달하지 않고 다음 스텝에서 전달
       ISCPIN: "N"
-    
+      CPIN: "******"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISVACS: "Y"
+      ISAUTOVACS: "N"
+      ISPASSOPTINABLE: "Y"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"    
+
     # 응답 데이터 추출
     extract:
       - name: "result"
@@ -214,19 +254,25 @@ steps:
       IDEN: "{{CJH_IDEN}}"
       ISPREOTBILL: "N"
       DSTADDR: "{{CJH_DST_ADDR}}"
-      CARRIER: "{{SKT_CARRIER}}"   # 통신사 불일치 입력
+      CARRIER: "{{LGTMVNO_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{CJH_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -242,10 +288,10 @@ steps:
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "ID_RESULT_4 == 416"
+        assertion: "ID_RESULT_4 == 405"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_4 == 사용자 인증에 실패하였습니다. 고객센터(114)로 문의 바랍니다."
+        assertion: "ID_ERROR_MSG_4 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -257,23 +303,30 @@ steps:
 
     args:
       ServerInfo: "{{SERVER_INFO}}"
-      IDEN: "{{KTMVNO_IDEN}}"  
+      IDEN: "{{KTMVNO_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{KTMVNO_DST_ADDR}}"  
+      DSTADDR: "{{KTMVNO_DST_ADDR}}"
       CARRIER: "{{SKT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{KTMVNO_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
-      TERMSAGREE2: "N|N"
-      OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
-      IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
-    
+      CPIN: "******"
+      TERMSAGREE1: "Y"
+      TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
+      OUTPUTOPTION: "1"
+      IPADDR : "{{IP_R}}"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
+
     # 응답 데이터 추출
     extract:
       - name: "result"
@@ -304,6 +357,7 @@ steps:
 
     args:
       Command: "ITEMSEND2"
+      IFVERSION: "V1.1.8"
       Configure: "FAILURE"
       SERVICE: "{{SERVICE_NAME}}"
       ItemType: "Amount"
@@ -335,6 +389,10 @@ steps:
       - name: "errMsg"
         pattern: "ErrMsg"
         variable: "ERROR_MESSAGE_1"
+
+      - name: "WEBINFO"
+        pattern: "WEBINFO"
+        variable: "WEB_INFO_1"
     
 ########################################################### Assertion ###########################################################
 
@@ -343,11 +401,13 @@ steps:
         assertion: "RESULT_CODE_1 == 0"
 
       - name: "거래 인증 key(ServerInfo) 정상 출력"
-        description: "거래 인증 key 존재하거나 null 값이 아닌지 확인"
         assertion: "js: SERVER_INFO_1 !== null && SERVER_INFO_1.trim().length > 0 && typeof SERVER_INFO_1 !== undefined" 
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ERROR_MESSAGE_1 == No Information"
+
+      - name: "웹 페이지로 전달 암호화 데이터(WEBINFO) 고정값 정상 출력"
+        assertion: "WEB_INFO_1 == 70f7e5d28c85e70da05270998cd17bab6df543c04843f00036790f642f1dcad90f7b11e3e4cd588c398a"
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [KTMVNO] IDELIVER - 통신사 오입력 케이스
@@ -361,19 +421,26 @@ steps:
       IDEN: "{{KTMVNO_IDEN}}"
       ISPREOTBILL: "N"
       DSTADDR: "{{KTMVNO_DST_ADDR}}"
-      CARRIER: "{{LGTMVNO_CARRIER}}"  # 통신사 불일치 입력
+      CARRIER: "{{SKT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{KTMVNO_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
-      TERMSAGREE2: "N|N"
-      OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
-      IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
+      CPIN: "******"
+      TERMSAGREE1: "Y"
+      TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
+      OUTPUTOPTION: "1"
+      IPADDR : "{{IP_R}}"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -390,10 +457,10 @@ steps:
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "ID_RESULT_6 == 405"
+        assertion: "ID_RESULT_6 == 416"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_6 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
+        assertion: "ID_ERROR_MSG_6 == 사용자 인증에 실패하였습니다. 고객센터(114)로 문의 바랍니다."
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [LGMVNO] IDELIVER - 통신사 오입력 케이스
@@ -406,20 +473,31 @@ steps:
       ServerInfo: "{{SERVER_INFO_1}}"
       IDEN: "{{LGTMVNO_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{KTMVNO_DST_ADDR}}"  
-      CARRIER: "{{LGTMVNO_CARRIER}}"  # 통신사 불일치 입력
+      DSTADDR: "{{LGTMVNO_DST_ADDR}}"
+      CARRIER: "{{SKT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{LGTMVNO_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
+      # IDELIVER에서 전달하지 않고 다음 스텝에서 전달
       ISCPIN: "N"
+      CPIN: "******"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISVACS: "Y"
+      ISAUTOVACS: "N"
+      ISPASSOPTINABLE: "Y"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -436,13 +514,13 @@ steps:
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "ID_RESULT_7 == 405"
+        assertion: "ID_RESULT_7 == 416"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_7 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
+        assertion: "ID_ERROR_MSG_7 == 사용자 인증에 실패하였습니다. 고객센터(114)로 문의 바랍니다."
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * [SK7] IDELIVER - 통신사 오입력 케이스
+#  * [SKL] IDELIVER - 통신사 오입력 케이스
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "IDELIVER - SKL"
@@ -452,20 +530,26 @@ steps:
       ServerInfo: "{{SERVER_INFO_1}}"
       IDEN: "{{SKL_IDEN}}"
       ISPREOTBILL: "N"
-      DSTADDR: "{{CJH_DST_ADDR}}"
-      CARRIER: "{{SKL_CARRIER}}"   # 통신사 불일치 입력
+      DSTADDR: "{{SKL_DST_ADDR}}"
+      CARRIER: "{{SKT_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{SKL_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -482,10 +566,10 @@ steps:
 
     test:
       - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "ID_RESULT_8 == 405"
+        assertion: "ID_RESULT_8 == 416"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_8 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
+        assertion: "ID_ERROR_MSG_8 == 사용자 인증에 실패하였습니다. 고객센터(114)로 문의 바랍니다."
 
 # ** ----------------------------------------------------------------------------------------------------------------
 #  * [KCT] IDELIVER - 통신사 오입력 케이스
@@ -499,19 +583,25 @@ steps:
       IDEN: "{{KCT_IDEN}}"
       ISPREOTBILL: "N"
       DSTADDR: "{{KCT_DST_ADDR}}"
-      CARRIER: "{{LGTMVNO_CARRIER}}"  # 통신사 불일치 입력
+      CARRIER: "{{CJH_CARRIER}}"  # 통신사 불일치 입력
       WPAGE: "WEB"
       PRCODE: ""
       AMOUNT: "{{KCT_AMOUNT}}"
-      TERMSAGREE3: "N"
-      IFVERSION: "V1.1.7"      
+      TERMSAGREE1: "Y"
       TERMSAGREE2: "N|N"
+      TERMSAGREE3: "N"
+      ISAPPOTP: "N"
+      IFVERSION: "V1.3.1"      
       OUTPUTOPTION: "1"
       COMMAND: "IDELIVER"
-      TERMSAGREE1: "Y"
       IPADDR : "{{IP_R}}"
       SMTOTP: "N"
       ISCPIN: "N"
+      ISSPY: "N"
+      ISLGPAY: "N"
+      ISCPINCHKABLE: "N"
+      ISIGNORECPIN: "N"
+      IsPreOtbill: "N"
     
     # 응답 데이터 추출
     extract:
@@ -531,7 +621,7 @@ steps:
         assertion: "ID_RESULT_9 == 405"
 
       - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_9 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
+        assertion: "ID_ERROR_MSG_9 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다. 헬로모바일 LGU+망을 사용하시는 고객님께서는 LGU+ 통신사를 선택 후 이용하십시오."
 
 
 # 시나리오 설정

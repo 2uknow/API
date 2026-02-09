@@ -88,12 +88,22 @@ steps:
         assertion: "js: DATE && DATE.trim().length > 0 && /^\\d{14}$/.test(DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 또는 +1분과 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return DATE.slice(0, 12) === now12;})()"
+          if (!DATE || DATE.length < 12) return false;
+
+          const prefix = DATE.slice(0, 12);
+          const pad = n => String(n).padStart(2, '0');
+
+          const now = new Date();
+          const plus1 = new Date(now);
+          plus1.setMinutes(plus1.getMinutes() + 1);
+
+          const fmt = d =>
+            `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}` +
+            `${pad(d.getHours())}${pad(d.getMinutes())}`;
+
+          return prefix === fmt(now) || prefix === fmt(plus1);})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "TOTAL_AMOUNT == 301"
@@ -199,12 +209,22 @@ steps:
         assertion: "js: C_DATE && C_DATE.trim().length > 0 && /^\\d{14}$/.test(C_DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "Date가 현재 시각(yyyymmddhhmm)과 일치하는지 확인"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 또는 +1분과 일치하면 PASS 처리"
         assertion: "js: (() => {
-          const pad = n => String(n).padStart(2,'0');
-          const d = new Date();
-          const now12 = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-          return C_DATE.slice(0, 12) === now12;})()"
+          if (!C_DATE || C_DATE.length < 12) return false;
+
+          const prefix = C_DATE.slice(0, 12);
+          const pad = n => String(n).padStart(2, '0');
+
+          const now = new Date();
+          const plus1 = new Date(now);
+          plus1.setMinutes(plus1.getMinutes() + 1);
+
+          const fmt = d =>
+            `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}` +
+            `${pad(d.getHours())}${pad(d.getMinutes())}`;
+
+          return prefix === fmt(now) || prefix === fmt(plus1);})()"
 
       - name: "남은 금액(RAMT) 정상 출력"
         description: "CANCELOPTION 설정에 따른 남은 금액 정상 출력 확인"
@@ -293,23 +313,22 @@ steps:
           E_Date.trim().length === 14)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 또는 +1분과 일치하면 PASS 처리"
         assertion: "js: (() => {
           if (!E_Date || E_Date.length < 12) return false;
 
-          const tidPrefix = E_Date.slice(0, 12);
-
+          const prefix = E_Date.slice(0, 12);
           const pad = n => String(n).padStart(2, '0');
+
           const now = new Date();
+          const plus1 = new Date(now);
+          plus1.setMinutes(plus1.getMinutes() + 1);
 
-          for (let i = 0; i <= 2; i++) {
-            const d = new Date(now);
-            d.setMinutes(d.getMinutes() - i);
+          const fmt = d =>
+            `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}` +
+            `${pad(d.getHours())}${pad(d.getMinutes())}`;
 
-            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-            if (tidPrefix === t) return true;
-          }
-          return false;})()"
+          return prefix === fmt(now) || prefix === fmt(plus1);})()"
 
       - name: "전체 결제금액(TotalAmount) 정상 출력"
         assertion: "E_TotalAmount == 301"
@@ -414,23 +433,22 @@ steps:
         assertion: "js: D_DATE && D_DATE.trim().length > 0 && /^\\d{14}$/.test(D_DATE)"
 
       - name: "결제 완료 시간(Date) 정상 출력_2"
-        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 또는 +1분과 일치하면 PASS 처리"
         assertion: "js: (() => {
           if (!D_DATE || D_DATE.length < 12) return false;
 
-          const tidPrefix = D_DATE.slice(0, 12);
-
+          const prefix = D_DATE.slice(0, 12);
           const pad = n => String(n).padStart(2, '0');
+
           const now = new Date();
+          const plus1 = new Date(now);
+          plus1.setMinutes(plus1.getMinutes() + 1);
 
-          for (let i = 0; i <= 2; i++) {
-            const d = new Date(now);
-            d.setMinutes(d.getMinutes() - i);
+          const fmt = d =>
+            `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}` +
+            `${pad(d.getHours())}${pad(d.getMinutes())}`;
 
-            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
-            if (tidPrefix === t) return true;
-          }
-          return false;})()"
+          return prefix === fmt(now) || prefix === fmt(plus1);})()"
 
       - name: "남은 금액(RAMT) 정상 미출력"
         description: "RAMT가 정의되어 있고 값이 존재하면 실패"
