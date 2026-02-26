@@ -104,6 +104,32 @@ module.exports = {
       // 프로세스 관리
       watch: false,
       kill_timeout: 3000
+    },
+
+    // === 자동 백업 (매주 일요일 새벽 2시) ===
+    {
+      name: 'auto-backup',
+      script: './scripts/auto-backup.js',
+      cwd: './',
+
+      // cron으로 주 1회 실행, 평소에는 꺼진 상태
+      cron_restart: '0 2 * * 0',
+      autorestart: false,
+
+      env: {
+        NODE_ENV: 'production',
+      },
+
+      // 로그 설정
+      error_file: './logs/backup-error.log',
+      out_file: './logs/backup-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+      merge_logs: true,
+      time: true,
+
+      max_memory_restart: '200M',
+      watch: false,
+      kill_timeout: 5000
     }
   ],
 
