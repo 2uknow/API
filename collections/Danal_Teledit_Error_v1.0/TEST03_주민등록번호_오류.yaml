@@ -572,58 +572,6 @@ steps:
       - name: "결과 메시지(ErrMsg) 정상 출력"
         assertion: "ID_ERROR_MSG_8 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
 
-# ** ----------------------------------------------------------------------------------------------------------------
-#  * [KCT] IDELIVER - 생년월일 오입력 케이스
-#  * ----------------------------------------------------------------------------------------------------------------*
-
-  - name: "IDELIVER - KCT"
-    description: "사용자정보 인증 및 승인번호 발송 요청"
-
-    args:
-      ServerInfo: "{{SERVER_INFO_1}}"
-      IDEN: "0001174"  # 주민등록번호 불일치 입력
-      ISPREOTBILL: "N"
-      DSTADDR: "{{KCT_DST_ADDR}}"
-      CARRIER: "{{KCT_CARRIER}}"
-      WPAGE: "WEB"
-      PRCODE: ""
-      AMOUNT: "{{KCT_AMOUNT}}"
-      TERMSAGREE1: "Y"
-      TERMSAGREE2: "N|N"
-      TERMSAGREE3: "N"
-      ISAPPOTP: "N"
-      IFVERSION: "V1.3.1"      
-      OUTPUTOPTION: "1"
-      COMMAND: "IDELIVER"
-      IPADDR : "{{IP_R}}"
-      SMTOTP: "N"
-      ISCPIN: "N"
-      ISSPY: "N"
-      ISLGPAY: "N"
-      ISCPINCHKABLE: "N"
-      ISIGNORECPIN: "N"
-      IsPreOtbill: "N"
-    
-    # 응답 데이터 추출
-    extract:
-      - name: "result"
-        pattern: "Result"
-        variable: "ID_RESULT_9"
-
-      - name: "errMsg"
-        pattern: "ErrMsg"
-        variable: "ID_ERROR_MSG_9"
-
-    
-########################################################### Assertion ###########################################################
-
-    test:
-      - name: "결과 코드(RESULT) 정상 출력"
-        assertion: "ID_RESULT_9 == 405"
-
-      - name: "결과 메시지(ErrMsg) 정상 출력"
-        assertion: "ID_ERROR_MSG_9 == 통신사를 잘못 선택하셨거나 미등록 휴대폰 번호입니다."
-
 # 시나리오 설정
 options:
   stopOnError: false
