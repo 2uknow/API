@@ -8465,14 +8465,6 @@
                           "\r",
                           "pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
                           "    pm.expect(parsed.TID).to.eql(pm.environment.get(\"TID\"))\r",
-                          "});\r",
-                          "\r",
-                          "pm.test(\"정보제공 동의 여부(INFOAGREE) 정상 출력\", function () {\r",
-                          "    pm.expect(parsed.INFOAGREE).to.eql(\"Y\")\r",
-                          "});\r",
-                          "\r",
-                          "pm.test(\"알뜰폰 업체명(MVNONAME) 정상 출력\", function () {\r",
-                          "    pm.expect(parsed.MVNONAME).to.eql(\"(주)미디어로그(U+유모바일)\")\r",
                           "});"
                         ],
                         "type": "text/javascript",
@@ -8491,7 +8483,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=LGT&NAME=김태욱&PHONE=01081896634&IDEN=9002051&TID={{TID}}",
+                      "raw": "{{uas-web}}?TXTYPE=DELIVER&SUBTXTYPE=MVNOCHECK&SERVICE=UAS&CARRIER=SKT&NAME=김효연&PHONE=01058616634&IDEN=9707162&TID={{TID}}",
                       "host": [
                         "{{uas-web}}"
                       ],
@@ -8510,19 +8502,19 @@
                         },
                         {
                           "key": "CARRIER",
-                          "value": "LGT"
+                          "value": "SKT"
                         },
                         {
                           "key": "NAME",
-                          "value": "김태욱"
+                          "value": "김효연"
                         },
                         {
                           "key": "PHONE",
-                          "value": "01081896634"
+                          "value": "01058616634"
                         },
                         {
                           "key": "IDEN",
-                          "value": "9002051"
+                          "value": "9707162"
                         },
                         {
                           "key": "TID",
@@ -8586,7 +8578,8 @@
                           "});"
                         ],
                         "type": "text/javascript",
-                        "packages": {}
+                        "packages": {},
+                        "requests": {}
                       }
                     }
                   ],
@@ -8604,7 +8597,7 @@
                       "urlencoded": []
                     },
                     "url": {
-                      "raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01081896634&IDEN=9002051&IPADDR=10.10.52.70&NAME=김태욱&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
+                      "raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01058616634&IDEN=9707162&IPADDR=10.10.52.70&NAME=김효연&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
                       "host": [
                         "{{uas-web}}"
                       ],
@@ -8615,11 +8608,11 @@
                         },
                         {
                           "key": "PHONE",
-                          "value": "01081896634"
+                          "value": "01058616634"
                         },
                         {
                           "key": "IDEN",
-                          "value": "9002051"
+                          "value": "9707162"
                         },
                         {
                           "key": "IPADDR",
@@ -8627,12 +8620,12 @@
                         },
                         {
                           "key": "CARRIER",
-                          "value": "LGT",
+                          "value": "SKT",
                           "disabled": true
                         },
                         {
                           "key": "NAME",
-                          "value": "김태욱"
+                          "value": "김효연"
                         },
                         {
                           "key": "TID",
@@ -8672,11 +8665,11 @@
                           "\r",
                           "// Reponse Data 확인\r",
                           "pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
-                          "    pm.expect(parsed.RETURNCODE).to.eql(\"5401\")\r",
+                          "    pm.expect(parsed.RETURNCODE).to.eql(\"1819\")\r",
                           "});\r",
                           "\r",
                           "pm.test(\"거래 결과 메시지(RETURNMSG) 정상 출력\", function () {\r",
-                          "    pm.expect(parsed.RETURNMSG).to.eql(\"[인증실패] 입력하신 정보가 올바르지 않습니다. 다시 입력하여 주십시오.\")\r",
+                          "    pm.expect(parsed.RETURNMSG).to.eql(\"[인증실패] 기타오류 (다날고객센터 1566-3360)\")\r",
                           "});\r",
                           "\r",
                           "pm.test(\"거래 TID(TID) 정상 출력\", function () {\r",
@@ -8688,7 +8681,8 @@
                           "});"
                         ],
                         "type": "text/javascript",
-                        "packages": {}
+                        "packages": {},
+                        "requests": {}
                       }
                     }
                   ],
@@ -8947,7 +8941,8 @@
                           "});"
                         ],
                         "type": "text/javascript",
-                        "packages": {}
+                        "packages": {},
+                        "requests": {}
                       }
                     }
                   ],
@@ -8965,7 +8960,7 @@
                       "urlencoded": []
                     },
                     "url": {
-                      "raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01081896634&IDEN=9002051&IPADDR=10.10.52.70&NAME=김태욱&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
+                      "raw": "{{uas-web}}?TXTYPE=DELIVER&PHONE=01081896634&IDEN=9002051&IPADDR=10.10.52.70&CARRIER=LGT&NAME=김태욱&TID={{TID}}&SUBTXTYPE=MVNODELIVER",
                       "host": [
                         "{{uas-web}}"
                       ],
@@ -8988,8 +8983,7 @@
                         },
                         {
                           "key": "CARRIER",
-                          "value": "LGT",
-                          "disabled": true
+                          "value": "LGT"
                         },
                         {
                           "key": "NAME",
@@ -9162,7 +9156,7 @@
                       "urlencoded": []
                     },
                     "url": {
-                      "raw": "{{uas-web}}?TXTYPE=SIMDELIVER&SERVICE=UAS&AUTHTYPE=36&IPADDR=10.10.52.70&CARRIER=&PHONE=01085402697&IDEN=0001174&NAME=김하늘&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234&USERID=hnkim&AGELIMIT=20&SUBTXTYPE=MVNODELIVER",
+                      "raw": "{{uas-web}}?TXTYPE=SIMDELIVER&SERVICE=UAS&AUTHTYPE=36&IPADDR=10.10.52.70&CARRIER=KT&PHONE=01085402697&NAME=김하늘&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234&USERID=hnkim&AGELIMIT=20&SUBTXTYPE=MVNODELIVER",
                       "host": [
                         "{{uas-web}}"
                       ],
@@ -9185,7 +9179,7 @@
                         },
                         {
                           "key": "CARRIER",
-                          "value": ""
+                          "value": "KT"
                         },
                         {
                           "key": "PHONE",
@@ -9193,7 +9187,8 @@
                         },
                         {
                           "key": "IDEN",
-                          "value": "0001174"
+                          "value": "0001174",
+                          "disabled": true
                         },
                         {
                           "key": "NAME",
@@ -9327,7 +9322,7 @@
                           "\r",
                           "// Reponse Data 확인\r",
                           "pm.test(\"거래 결과 코드(RETURNCODE) 정상 출력\", function () {\r",
-                          "    pm.expect(parsed.RETURNCODE).to.eql(\"3066\")\r",
+                          "    pm.expect(parsed.RETURNCODE).to.eql(\"1110\")\r",
                           "});\r",
                           "\r",
                           "pm.test(\"거래 결과 메시지(RETURNMSG) 정상 출력\", function () {\r",
@@ -9375,7 +9370,7 @@
                       "urlencoded": []
                     },
                     "url": {
-                      "raw": "{{uas-web}}?TXTYPE=SIMDELIVER&SERVICE=UAS&AUTHTYPE=36&IPADDR=10.10.52.70&CARRIER=KTF&PHONE=01085402697&IDEN=0001174&NAME=김하늘&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234&USERID=hnkim&AGELIMIT=20",
+                      "raw": "{{uas-web}}?TXTYPE=SIMDELIVER&SERVICE=UAS&AUTHTYPE=36&IPADDR=10.10.52.70&CARRIER=SKT&PHONE=01058616634&IDEN=9707162&NAME=김효연&CPID=B010010334&CPPWD=teleditcom&ORDERID=1234&USERID=hnkim&AGELIMIT=20",
                       "host": [
                         "{{uas-web}}"
                       ],
@@ -9398,19 +9393,19 @@
                         },
                         {
                           "key": "CARRIER",
-                          "value": "KTF"
+                          "value": "SKT"
                         },
                         {
                           "key": "PHONE",
-                          "value": "01085402697"
+                          "value": "01058616634"
                         },
                         {
                           "key": "IDEN",
-                          "value": "0001174"
+                          "value": "9707162"
                         },
                         {
                           "key": "NAME",
-                          "value": "김하늘"
+                          "value": "김효연"
                         },
                         {
                           "key": "CPID",
@@ -9521,7 +9516,7 @@
       "name": "ERROR06. 나이 제한 오류",
       "item": [
         {
-          "name": "TEST_01_일반 인증 (2way)",
+          "name": "TEST_01_외부 결제창_일반 인증 (2way)",
           "item": [
             {
               "name": "가맹점 정보 확인 (SIMDELIVER)",
@@ -9711,7 +9706,7 @@
           ]
         },
         {
-          "name": "TEST_02_일반 인증 (4way)",
+          "name": "TEST_02_외부 결제창_일반 인증 (4way)",
           "item": [
             {
               "name": "가맹점 정보 확인 (ITEMSEND)",
