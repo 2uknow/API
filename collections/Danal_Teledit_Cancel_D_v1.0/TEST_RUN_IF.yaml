@@ -1,0 +1,71 @@
+
+name: "run_if 블럭 조건부 Assertion 테스트"
+description: "run_if 블럭: 조건이 true일 때만 내부 assertion 실행, false면 skip"
+version: "1.0.0"
+
+
+# 공통 변수 불러오기
+include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * EXPREBILL - run_if 블럭 테스트
+#  * run_if 조건에 따라 블럭 내 assertion을 선택적으로 실행
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "EXPREBILL - run_if 블럭 테스트"
+    description: "비점유 결제 + AUTHKEY 전송 (run_if 블럭 적용)"
+
+    args:
+      Command: "EXPREBILL"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemCount: "1"
+      ItemType: "0"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      AUTHKEY: "{{SKT_AUTH}}"
+      ORDERID: "{{ORDER_ID_R}}"
+      OUTPUTOPTION: "3"
+      TIDTYPE: "1"
+      IFVERSION: "V1.1.2"
+      BILLTYPE: "1"
+
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+
+      - name: "tid"
+        pattern: "TID"
+        variable: "TID"
+
+    # run_if 블럭 + 일반 assertion 혼합 테스트
+    test:
+      # 일반 assertion (항상 실행)
+      - "RESULT_CODE exists"
+
+      # run_if 블럭: RESULT_CODE == 0일 때만 실행
+      - run_if: "RESULT_CODE == 0"
+        assertions:
+          - name: "TID 존재 확인"
+            assertion: "TID exists"
+          - name: "결과 코드 정상"
+            assertion: "RESULT_CODE == 0"
+          - "ERROR_MESSAGE exists"
+
+      # run_if 블럭: RESULT_CODE != 0일 때만 실행
+      - run_if: "RESULT_CODE != 0"
+        assertions:
+          - name: "에러 메시지 확인"
+            assertion: "ERROR_MESSAGE exists"
+          - "RESULT_CODE exists"
+
+      # 일반 assertion (항상 실행)
+      - name: "결과 존재 확인"
+        assertion: "RESULT_CODE exists"

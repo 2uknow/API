@@ -266,17 +266,28 @@ function displayResults(scenarioResult, processedScenario = null, yamlData = nul
                 console.log(); // 줄바꿈 추가
             }
             
+            // skipped step 표시
+            if (step.skipped) {
+                console.log(`⏭️  이 step은 skip되었습니다: ${step.skipReason || '(사유 없음)'}`);
+                console.log();
+            }
+
             // 테스트 결과 출력
             if (step.tests && Array.isArray(step.tests) && step.tests.length > 0) {
                 console.log(`테스트 결과:`);
                 step.tests.forEach((test, testIndex) => {
+                    // skipped assertion은 카운트에서 제외
+                    if (test.skipped) {
+                        console.log(`   ⏭️  ${test.name || 'Unknown test'} (skip: ${test.skipReason || ''})`);
+                        return;
+                    }
                     totalTests++;
                     const status = test.passed ? '✅' : '❌';
-                    
+
                     // 실행 결과의 치환된 test name 우선 사용
                     let testName = test.name || test.assertion || 'Unknown test';
                     // processedScenario보다는 실행 결과(test.name)를 우선 사용
-                    
+
                     console.log(`   ${status} ${testName}`);
                     
                     if (!test.passed) {

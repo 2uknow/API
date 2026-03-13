@@ -303,10 +303,30 @@ export class SClientScenarioEngine {
     const testResults = [];
 
     tests.forEach(test => {
-      const { name, script, description, assertion } = test;
+      const { name, script, description, assertion, runIf } = test;
       // test name에도 변수 치환 적용 (추출된 변수들도 포함)
       const resolvedTestName = this.replaceVariables(name || 'Unknown test', extracted);
-      // Debug logging removed for production
+
+      // run_if 조건 평가 — 조건이 false면 assertion을 skip 처리
+      if (runIf) {
+        const allVars = {
+          ...Object.fromEntries(this.variables),
+          ...extracted
+        };
+        const condResult = evaluateAssertion(runIf, allVars);
+        if (!condResult.passed) {
+          testResults.push({
+            name: resolvedTestName,
+            description,
+            passed: true,
+            skipped: true,
+            skipReason: `run_if condition not met: ${runIf}`,
+            assertion
+          });
+          this.log(`[TEST SKIP] ${resolvedTestName}: run_if "${runIf}" → false`);
+          return;
+        }
+      }
 
       // ⚠️ 스크립트가 비어있거나 TODO만 있는 경우, assertion을 직접 평가
       // 이렇게 하면 첫 실행에서 정확한 결과를 얻어서 validator의 "재평가 안함" 로직이 제대로 동작함
@@ -527,8 +547,44 @@ export class SClientScenarioEngine {
         // 변수 추출
         const extracted = this.extractVariables(response, request.extractors);
 
-        // 테스트 실행 (추출된 변수들도 전달)
-        const testResults = this.runTests(response, request.tests, extracted);
+        // 조건부 skip 평가 (skip_if)
+        let skipAction = null;
+        let skipReason = '';
+        let skipTarget = '';  // goto_step용 target step 이름
+        if (request.skipConditions && request.skipConditions.length > 0) {
+          // 평가용 변수 병합: 기존 축적 변수 + 현재 추출 변수
+          const allVars = {
+            ...Object.fromEntries(this.variables),
+            ...extracted
+          };
+
+          for (const sc of request.skipConditions) {
+            const evalResult = evaluateAssertion(sc.condition, allVars);
+            if (evalResult.passed) {
+              skipAction = sc.action || 'skip_tests';
+              skipReason = sc.reason || `Condition matched: ${sc.condition}`;
+              skipTarget = sc.target || '';
+              this.log(`[SKIP] ${resolvedName}: ${skipReason} (action: ${skipAction}${skipTarget ? ', target: ' + skipTarget : ''})`);
+              break; // 첫 번째 매칭 조건 적용
+            }
+          }
+        }
+
+        // 테스트 실행 (skip 조건에 따라 분기)
+        let testResults;
+        if (skipAction) {
+          // skip된 경우: 테스트를 실행하지 않고 skipped로 마킹
+          testResults = (request.tests || []).map(test => ({
+            name: this.replaceVariables(test.name || 'Unknown test', extracted),
+            description: test.description,
+            passed: true,
+            skipped: true,
+            skipReason: skipReason,
+            assertion: test.assertion
+          }));
+        } else {
+          testResults = this.runTests(response, request.tests, extracted);
+        }
 
         const stepResult = {
           step: stepNumber,
@@ -538,7 +594,9 @@ export class SClientScenarioEngine {
           response,
           extracted,
           tests: testResults,
-          passed: testResults.every(t => t.passed)
+          passed: testResults.every(t => t.passed),
+          skipAction: skipAction || undefined,
+          skipReason: skipAction ? skipReason : undefined
         };
 
         this.results.push(stepResult);
@@ -553,6 +611,91 @@ export class SClientScenarioEngine {
         scenarioResult.summary.duration += response.duration;
 
         this.emit('step-complete', stepResult);
+
+        // skip_remaining_steps: 이후 모든 step을 실행하지 않고 종료
+        if (skipAction === 'skip_remaining_steps') {
+          this.log(`[SKIP REMAINING] ${resolvedName}: 이후 step 전부 건너뜁니다 - ${skipReason}`);
+          // 남은 step들을 skipped로 마킹하여 결과에 추가
+          for (let j = i + 1; j < requests.length; j++) {
+            const skippedRequest = requests[j];
+            const skippedName = this.replaceVariables(skippedRequest.name);
+            const skippedStep = {
+              step: j + 1,
+              name: skippedName,
+              command: skippedRequest.command,
+              skipped: true,
+              skipReason: skipReason,
+              passed: true,
+              tests: [],
+              extracted: {}
+            };
+            this.results.push(skippedStep);
+            scenarioResult.steps.push(skippedStep);
+            scenarioResult.summary.passed++;
+          }
+          break;
+        }
+
+        // goto_step: target step까지 중간 step을 skip하고, target부터 실행 재개
+        if (skipAction === 'goto_step' && skipTarget) {
+          // target step의 인덱스 찾기
+          let targetIndex = -1;
+          for (let j = i + 1; j < requests.length; j++) {
+            const candidateName = this.replaceVariables(requests[j].name);
+            if (candidateName === skipTarget) {
+              targetIndex = j;
+              break;
+            }
+          }
+
+          if (targetIndex === -1) {
+            // target을 찾지 못한 경우 → skip_remaining_steps로 fallback
+            this.log(`[GOTO STEP ERROR] Target "${skipTarget}" not found, falling back to skip_remaining_steps`);
+            for (let j = i + 1; j < requests.length; j++) {
+              const skippedRequest = requests[j];
+              const skippedName = this.replaceVariables(skippedRequest.name);
+              const skippedStep = {
+                step: j + 1,
+                name: skippedName,
+                command: skippedRequest.command,
+                skipped: true,
+                skipReason: `goto_step target "${skipTarget}" not found - ${skipReason}`,
+                passed: true,
+                tests: [],
+                extracted: {}
+              };
+              this.results.push(skippedStep);
+              scenarioResult.steps.push(skippedStep);
+              scenarioResult.summary.passed++;
+            }
+            break;
+          }
+
+          this.log(`[GOTO STEP] ${resolvedName}: "${skipTarget}" (step ${targetIndex + 1})으로 점프 - ${skipReason}`);
+
+          // 중간 step들을 skipped로 마킹 (current+1 ~ target-1)
+          for (let j = i + 1; j < targetIndex; j++) {
+            const skippedRequest = requests[j];
+            const skippedName = this.replaceVariables(skippedRequest.name);
+            const skippedStep = {
+              step: j + 1,
+              name: skippedName,
+              command: skippedRequest.command,
+              skipped: true,
+              skipReason: `goto_step → "${skipTarget}"`,
+              passed: true,
+              tests: [],
+              extracted: {}
+            };
+            this.results.push(skippedStep);
+            scenarioResult.steps.push(skippedStep);
+            scenarioResult.summary.passed++;
+          }
+
+          // for 루프 인덱스를 target - 1로 설정 (루프가 i++하면 target부터 실행)
+          i = targetIndex - 1;
+          continue;
+        }
 
       } catch (err) {
         const errorStep = {

@@ -108,6 +108,7 @@ export class SClientYAMLParser {
     let currentStepProperty = null;
     let indentLevel = 0;
     let collectedVariables = {}; // 변수 수집용
+    let currentRunIfCondition = null; // run_if 블럭 내부인지 추적
     
     // 🎯 공통 설정의 모든 변수를 자동으로 collectedVariables에 추가
     this.autoLoadCommonVariables(commonData, collectedVariables);
@@ -180,7 +181,8 @@ export class SClientYAMLParser {
             type: 'sclient', // 기본값: SClient 실행
             arguments: {},
             tests: [],
-            extractors: []
+            extractors: [],
+            skipConditions: []  // 조건부 skip 설정
           };
           currentStepProperty = null;
         }
@@ -210,6 +212,11 @@ export class SClientYAMLParser {
           // test 섹션
           else if (trimmed === 'test:') {
             currentStepProperty = 'test';
+          }
+
+          // skip_if 섹션 (조건부 assertion skip)
+          else if (trimmed === 'skip_if:') {
+            currentStepProperty = 'skip_if';
           }
         }
         
@@ -247,7 +254,44 @@ export class SClientYAMLParser {
             }
           }
           
+          else if (currentStepProperty === 'skip_if' && trimmed.startsWith('- condition:')) {
+            // skip_if 항목 파싱: - condition: "..." 이후 action:, target:, reason: 읽기
+            const condition = this.extractValue(trimmed.substring(2)); // '- ' 제거 후 condition: 값 추출
+            let action = 'skip_tests'; // 기본값
+            let target = '';  // goto_step용 target step 이름
+            let reason = '';
+
+            for (let j = i + 1; j < lines.length && j < i + 8; j++) {
+              const nextLine = lines[j].trim();
+              if (nextLine.startsWith('action:')) {
+                action = this.extractValue(nextLine);
+              } else if (nextLine.startsWith('target:')) {
+                target = this.extractValue(nextLine);
+              } else if (nextLine.startsWith('reason:')) {
+                reason = this.extractValue(nextLine);
+                i = j;
+                break;
+              }
+              // 다음 항목이나 다른 섹션이 시작되면 중단
+              if (nextLine.startsWith('- ') || this.getIndentLevel(lines[j]) <= 4) {
+                i = j - 1;
+                break;
+              }
+            }
+
+            const skipItem = { condition, action, reason };
+            if (target) skipItem.target = target;
+            currentStep.skipConditions.push(skipItem);
+          }
+
+          else if (currentStepProperty === 'test' && trimmed.startsWith('- run_if:')) {
+            // run_if 블럭 시작: 조건 저장, 블럭 내 assertion은 indent 8에서 파싱
+            currentRunIfCondition = this.extractValue(trimmed.substring(2)); // '- ' 제거 후 run_if: 값 추출
+          }
+
           else if (currentStepProperty === 'test' && trimmed.startsWith('- ')) {
+            // 일반 test 항목 → run_if 블럭 종료
+            currentRunIfCondition = null;
             // 객체 형태 테스트 처리 (- name: "test name")
             if (trimmed.includes('name:')) {
               const rawTestName = this.extractValue(trimmed.substring(2));
@@ -318,9 +362,79 @@ export class SClientYAMLParser {
           }
         }
 
-        // 중첩 객체 파싱 (8-space indent) - headers 내부 키-값 처리
+        // 중첩 객체 파싱 (8-space indent) - run_if 블럭 내 assertion 또는 headers 내부 키-값 처리
         else if (currentStep && indent === 8) {
-          if (currentStepProperty === 'args' && trimmed.includes(':')) {
+          // run_if 블럭 내부 assertion 처리
+          if (currentStepProperty === 'test' && currentRunIfCondition && trimmed.startsWith('- ')) {
+            if (trimmed.includes('name:')) {
+              // 객체 형태: - name: "..." → look-ahead로 assertion, description 찾기 (indent 10)
+              const rawTestName = this.extractValue(trimmed.substring(2));
+              const testName = this.substituteVariables(rawTestName, collectedVariables);
+              let description = '';
+              let assertion = '';
+
+              for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+                const nextLine = lines[j].trim();
+                if (nextLine.startsWith('description:')) {
+                  description = this.extractValue(nextLine);
+                } else if (nextLine.startsWith('assertion:')) {
+                  assertion = this.extractValue(nextLine);
+                  i = j;
+                  break;
+                }
+              }
+
+              if (assertion) {
+                if (assertion.startsWith('js:')) {
+                  const jsCondition = assertion.substring(3).trim();
+                  const testScript = this.createAdvancedJavaScriptTest(jsCondition, testName, description);
+                  currentStep.tests.push({
+                    name: testName,
+                    description: description,
+                    script: testScript,
+                    assertion: assertion,
+                    runIf: currentRunIfCondition
+                  });
+                } else {
+                  const cleanTestScript = this.convertTestToCleanScript(assertion, currentStep.extractors, currentStep.arguments, testName);
+                  currentStep.tests.push({
+                    name: testName,
+                    description: description,
+                    script: cleanTestScript,
+                    assertion: assertion,
+                    runIf: currentRunIfCondition
+                  });
+                }
+              }
+            } else {
+              // 단순 문자열 형태: - "RESULT_CODE == 0"
+              const testExpression = trimmed.substring(2).trim().replace(/['"]/g, '').replace(/#.*$/, '').trim();
+              if (testExpression && !testExpression.startsWith('#')) {
+                if (testExpression.startsWith('js:')) {
+                  const jsCondition = testExpression.substring(3).trim();
+                  const friendlyName = this.getJavaScriptTestName(jsCondition);
+                  const testScript = this.createJavaScriptTest(jsCondition, friendlyName);
+                  currentStep.tests.push({
+                    name: friendlyName,
+                    script: testScript,
+                    assertion: testExpression,
+                    runIf: currentRunIfCondition
+                  });
+                } else {
+                  const cleanTestScript = this.convertTestToCleanScript(testExpression, currentStep.extractors, currentStep.arguments);
+                  currentStep.tests.push({
+                    name: this.getCleanTestName(testExpression),
+                    script: cleanTestScript,
+                    assertion: testExpression,
+                    runIf: currentRunIfCondition
+                  });
+                }
+              }
+            }
+          }
+
+          // 기존: args headers 처리
+          else if (currentStepProperty === 'args' && trimmed.includes(':')) {
             const [key, value] = this.splitKeyValue(trimmed);
 
             // headers 객체 확인 및 생성
@@ -335,6 +449,75 @@ export class SClientYAMLParser {
             // headers 객체에 키-값 추가
             if (lastKey === 'headers' && typeof currentStep.arguments[lastKey] === 'object') {
               currentStep.arguments[lastKey][key] = value;
+            }
+          }
+        }
+
+        // run_if 블럭의 assertions: 내부 assertion 처리 (10-space indent)
+        else if (currentStep && indent === 10) {
+          if (currentStepProperty === 'test' && currentRunIfCondition && trimmed.startsWith('- ')) {
+            if (trimmed.includes('name:')) {
+              const rawTestName = this.extractValue(trimmed.substring(2));
+              const testName = this.substituteVariables(rawTestName, collectedVariables);
+              let description = '';
+              let assertion = '';
+
+              for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+                const nextLine = lines[j].trim();
+                if (nextLine.startsWith('description:')) {
+                  description = this.extractValue(nextLine);
+                } else if (nextLine.startsWith('assertion:')) {
+                  assertion = this.extractValue(nextLine);
+                  i = j;
+                  break;
+                }
+              }
+
+              if (assertion) {
+                if (assertion.startsWith('js:')) {
+                  const jsCondition = assertion.substring(3).trim();
+                  const testScript = this.createAdvancedJavaScriptTest(jsCondition, testName, description);
+                  currentStep.tests.push({
+                    name: testName,
+                    description: description,
+                    script: testScript,
+                    assertion: assertion,
+                    runIf: currentRunIfCondition
+                  });
+                } else {
+                  const cleanTestScript = this.convertTestToCleanScript(assertion, currentStep.extractors, currentStep.arguments, testName);
+                  currentStep.tests.push({
+                    name: testName,
+                    description: description,
+                    script: cleanTestScript,
+                    assertion: assertion,
+                    runIf: currentRunIfCondition
+                  });
+                }
+              }
+            } else {
+              const testExpression = trimmed.substring(2).trim().replace(/['"]/g, '').replace(/#.*$/, '').trim();
+              if (testExpression && !testExpression.startsWith('#')) {
+                if (testExpression.startsWith('js:')) {
+                  const jsCondition = testExpression.substring(3).trim();
+                  const friendlyName = this.getJavaScriptTestName(jsCondition);
+                  const testScript = this.createJavaScriptTest(jsCondition, friendlyName);
+                  currentStep.tests.push({
+                    name: friendlyName,
+                    script: testScript,
+                    assertion: testExpression,
+                    runIf: currentRunIfCondition
+                  });
+                } else {
+                  const cleanTestScript = this.convertTestToCleanScript(testExpression, currentStep.extractors, currentStep.arguments);
+                  currentStep.tests.push({
+                    name: this.getCleanTestName(testExpression),
+                    script: cleanTestScript,
+                    assertion: testExpression,
+                    runIf: currentRunIfCondition
+                  });
+                }
+              }
             }
           }
         }
@@ -409,6 +592,24 @@ export class SClientYAMLParser {
             }
             if (test.description) {
               test.description = this.substituteVariables(test.description, variables);
+            }
+            if (test.runIf) {
+              test.runIf = this.substituteVariables(test.runIf, variables);
+            }
+          });
+        }
+
+        // skipConditions에 변수 치환 적용
+        if (request.skipConditions && Array.isArray(request.skipConditions)) {
+          request.skipConditions.forEach(sc => {
+            if (sc.condition) {
+              sc.condition = this.substituteVariables(sc.condition, variables);
+            }
+            if (sc.target) {
+              sc.target = this.substituteVariables(sc.target, variables);
+            }
+            if (sc.reason) {
+              sc.reason = this.substituteVariables(sc.reason, variables);
             }
           });
         }

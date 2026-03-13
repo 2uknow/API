@@ -152,9 +152,34 @@ export function evaluateAssertion(assertion, extractedVars) {
 export function validateTestsWithYamlData(scenarioResult, yamlData) {
     // 모든 스텝에 대해 테스트 검증 수행
     scenarioResult.steps.forEach((step, stepIndex) => {
+        // skipped된 step은 재검증 없이 통과
+        if (step.skipped) {
+            return;
+        }
+
         const yamlStep = yamlData.steps && yamlData.steps[stepIndex];
         if (yamlStep && yamlStep.test && Array.isArray(yamlStep.test)) {
-            const validatedTests = yamlStep.test.map((yamlTest, testIndex) => {
+            // run_if 블럭을 개별 assertion으로 평탄화 (yaml.load는 run_if 블럭을 단일 객체로 파싱)
+            const flattenedYamlTests = [];
+            yamlStep.test.forEach(yamlTest => {
+                if (yamlTest && yamlTest.run_if && yamlTest.assertions && Array.isArray(yamlTest.assertions)) {
+                    // run_if 블럭 → 내부 assertions를 개별 항목으로 전개
+                    yamlTest.assertions.forEach(a => {
+                        if (typeof a === 'string') {
+                            flattenedYamlTests.push(a);
+                        } else {
+                            flattenedYamlTests.push({
+                                name: a.name,
+                                assertion: a.assertion
+                            });
+                        }
+                    });
+                } else {
+                    flattenedYamlTests.push(yamlTest);
+                }
+            });
+
+            const validatedTests = flattenedYamlTests.map((yamlTest, testIndex) => {
                 const originalTestName = yamlTest.name || yamlTest;
                 const assertion = yamlTest.assertion || yamlTest;
 
@@ -171,7 +196,10 @@ export function validateTestsWithYamlData(scenarioResult, yamlData) {
                         passed: true,
                         expected: existingTest.expected,
                         actual: existingTest.actual,
-                        error: null
+                        error: null,
+                        // skip 상태 보존
+                        skipped: existingTest.skipped || false,
+                        skipReason: existingTest.skipReason || undefined
                     };
                 }
 

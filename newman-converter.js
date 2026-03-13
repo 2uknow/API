@@ -59,21 +59,24 @@ export class SClientToNewmanConverter {
       }))
     };
 
-    // Newman 실행 통계 생성
+    // skipped step 필터링 (실행 안 한 step은 리포트에서 제외)
+    const activeSteps = steps.filter(s => !s.skipped);
+
+    // Newman 실행 통계 생성 (skipped 제외)
     const stats = {
       requests: {
-        total: steps.length,  // 실행된 요청(스텝) 수
-        failed: steps.filter(s => !s.passed).length,  // 실패한 요청 수
+        total: activeSteps.length,  // 실행된 요청(스텝) 수
+        failed: activeSteps.filter(s => !s.passed).length,  // 실패한 요청 수
         pending: 0
       },
       assertions: {
-        total: this.countTotalTests(steps),
-        failed: this.countFailedTests(steps),
+        total: this.countTotalTests(activeSteps),
+        failed: this.countFailedTests(activeSteps),
         pending: 0
       },
       testScripts: {
-        total: steps.filter(s => s.tests && s.tests.length > 0).length,
-        failed: steps.filter(s => s.tests && s.tests.some(t => !t.passed)).length,
+        total: activeSteps.filter(s => s.tests && s.tests.length > 0).length,
+        failed: activeSteps.filter(s => s.tests && s.tests.some(t => !t.passed)).length,
         pending: 0
       },
       prerequestScripts: {
@@ -88,9 +91,12 @@ export class SClientToNewmanConverter {
     console.log('🔍 [EXECUTIONS] Steps count:', steps.length);
     console.log('🔍 [EXECUTIONS] Steps structure:', steps.map((s, i) => ({ index: i, name: s.name, passed: s.passed })));
     
-    const executions = steps.map((step, index) => {
+    const executions = activeSteps.map((step, index) => {
       console.log(`🔍 [EXECUTIONS] Processing step ${index + 1}: ${step.name}`);
-      
+
+      // step 내 skipped assertion 필터링 (skip된 assertion은 리포트에서 제외)
+      const activeTests = (step.tests || []).filter(t => !t.skipped);
+
       const execution = {
         id: this.generateId(),
         item: {
@@ -126,7 +132,7 @@ export class SClientToNewmanConverter {
           responseTime: step.response?.duration || step.duration || 0,
           responseSize: (step.response?.stdout || '').length
         },
-        assertions: (step.tests || []).map(test => ({
+        assertions: activeTests.map(test => ({
             assertion: test.name,
             description: test.description || null,
             originalAssertion: test.assertion || null,  // 원래 assertion 저장
@@ -139,10 +145,10 @@ export class SClientToNewmanConverter {
               stack: test.error || 'Test failed'
             }
         })),
-        testScript: step.tests && step.tests.length > 0 ? {
+        testScript: activeTests.length > 0 ? {
           id: this.generateId(),
           type: 'text/javascript',
-          exec: step.tests.map(test => test.script || `pm.test("${test.name}", function () { /* test logic */ });`)
+          exec: activeTests.map(test => test.script || `pm.test("${test.name}", function () { /* test logic */ });`)
         } : undefined,
         // 원래 step의 extracted 변수 데이터 보존
         extracted: step.extracted || {}
@@ -1375,12 +1381,19 @@ export class SClientToNewmanConverter {
   }
 
   countTotalTests(steps) {
-    return steps.reduce((total, step) => total + (step.tests ? step.tests.length : 0), 0);
+    return steps.reduce((total, step) => {
+      if (!step.tests) return total;
+      // skipped assertion 제외
+      return total + step.tests.filter(t => !t.skipped).length;
+    }, 0);
   }
 
   countFailedTests(steps) {
-    return steps.reduce((total, step) => 
-      total + (step.tests ? step.tests.filter(t => !t.passed).length : 0), 0);
+    return steps.reduce((total, step) => {
+      if (!step.tests) return total;
+      // skipped assertion 제외
+      return total + step.tests.filter(t => !t.skipped && !t.passed).length;
+    }, 0);
   }
 
   /**
