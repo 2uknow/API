@@ -83,7 +83,7 @@ function createBackup() {
   try {
     const tarPath = `${backupPath}.tar.gz`;
     execSync(`tar -czf "${tarPath}" -C "${BACKUP_DIR}" "${backupName}"`, {
-      timeout: 120000,
+      timeout: 1800000,  // 30분 (29만개+ 파일 압축 대응)
       stdio: 'pipe'
     });
     // 압축 성공 시 원본 폴더 삭제

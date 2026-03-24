@@ -530,7 +530,15 @@ function flushLogBuffer() {
 
 function histRead(){
   const p=path.join(root,'logs','history.json');
-  return fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf-8')):[];
+  if(!fs.existsSync(p)) return [];
+  try {
+    const content = fs.readFileSync(p,'utf-8').trim();
+    if(!content) return [];
+    return JSON.parse(content);
+  } catch(e) {
+    console.error(`[HIST_READ] history.json 파싱 실패: ${e.message}`);
+    return [];
+  }
 }
 
 function histWrite(arr){
@@ -570,7 +578,15 @@ function histWrite(arr){
     }
   }
 
-  fs.writeFileSync(p, JSON.stringify(arr,null,2));
+  // 임시 파일에 먼저 쓰고 성공하면 원본 교체 (ENOSPC 시 원본 보호)
+  const tmpPath = p + '.tmp';
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(arr,null,2));
+    fs.renameSync(tmpPath, p);
+  } catch(e) {
+    console.error(`[HIST_WRITE] history.json 저장 실패: ${e.message}`);
+    try { fs.unlinkSync(tmpPath); } catch(_) {}
+  }
 }
 
 function cleanupOldReports(){
