@@ -562,6 +562,23 @@ function histWrite(arr){
         fs.writeFileSync(backupPath, existing);
         console.log(`[HIST_PROTECT] Backup created: ${backupPath} (existing: ${existingArr.length}, new: ${arr.length})`);
 
+        // 오래된 history 백업 정리 (최근 3개만 유지)
+        try {
+          const HISTORY_BACKUP_KEEP = 3;
+          const backupFiles = fs.readdirSync(backupDir)
+            .filter(f => f.startsWith('history_backup_') && f.endsWith('.json'))
+            .map(f => ({ name: f, path: path.join(backupDir, f), mtime: fs.statSync(path.join(backupDir, f)).mtimeMs }))
+            .sort((a, b) => b.mtime - a.mtime);
+          if (backupFiles.length > HISTORY_BACKUP_KEEP) {
+            for (const old of backupFiles.slice(HISTORY_BACKUP_KEEP)) {
+              fs.unlinkSync(old.path);
+              console.log(`[HIST_PROTECT] Old backup removed: ${old.name}`);
+            }
+          }
+        } catch (cleanupErr) {
+          console.error(`[HIST_PROTECT] Backup cleanup error: ${cleanupErr.message}`);
+        }
+
         // 새 데이터와 기존 데이터 병합 (중복 제거)
         const merged = [...existingArr];
         for (const item of arr) {

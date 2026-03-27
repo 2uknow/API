@@ -2,10 +2,11 @@
  * 자동 백업 스크립트 (PM2 cron 용)
  *
  * reports, logs/history.json, config, jobs 폴더를 날짜별로 백업합니다.
- * 백업은 삭제하지 않고 영구 보관합니다. (디스크 관리는 수동으로)
+ * 최근 3개 백업만 유지하고 오래된 백업은 자동 삭제합니다.
  *
  * 환경변수:
  *   BACKUP_DIR: 백업 저장 경로 (기본: ./backups)
+ *   BACKUP_KEEP: 유지할 백업 개수 (기본: 3)
  */
 
 import fs from 'fs';
@@ -18,6 +19,7 @@ const __dirname = path.dirname(__filename);
 const projectDir = path.resolve(__dirname, '..');
 
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(projectDir, 'backups');
+const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP, 10) || 3;
 
 function nowKST() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -99,6 +101,52 @@ function createBackup() {
   return true;
 }
 
+function cleanupOldBackups() {
+  if (!fs.existsSync(BACKUP_DIR)) return;
+
+  const entries = fs.readdirSync(BACKUP_DIR)
+    .filter(name => name.startsWith('backup_'))
+    .map(name => ({
+      name,
+      path: path.join(BACKUP_DIR, name),
+      isDir: fs.statSync(path.join(BACKUP_DIR, name)).isDirectory(),
+      mtime: fs.statSync(path.join(BACKUP_DIR, name)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime); // 최신순 정렬
+
+  // 압축 파일(.tar.gz)과 폴더를 각각 분리하여 관리
+  const archives = entries.filter(e => !e.isDir && e.name.endsWith('.tar.gz'));
+  const folders = entries.filter(e => e.isDir);
+
+  // 압축 파일: 최근 BACKUP_KEEP개만 유지
+  if (archives.length > BACKUP_KEEP) {
+    const toDelete = archives.slice(BACKUP_KEEP);
+    for (const item of toDelete) {
+      try {
+        fs.unlinkSync(item.path);
+        log(`  오래된 압축 백업 삭제: ${item.name}`);
+      } catch (e) {
+        log(`  압축 백업 삭제 실패: ${item.name} - ${e.message}`);
+      }
+    }
+    log(`압축 백업 정리: ${toDelete.length}개 삭제, ${Math.min(archives.length, BACKUP_KEEP)}개 유지`);
+  }
+
+  // 폴더 백업: 최근 BACKUP_KEEP개만 유지
+  if (folders.length > BACKUP_KEEP) {
+    const toDelete = folders.slice(BACKUP_KEEP);
+    for (const item of toDelete) {
+      try {
+        deleteDirSync(item.path);
+        log(`  오래된 폴더 백업 삭제: ${item.name}`);
+      } catch (e) {
+        log(`  폴더 백업 삭제 실패: ${item.name} - ${e.message}`);
+      }
+    }
+    log(`폴더 백업 정리: ${toDelete.length}개 삭제, ${Math.min(folders.length, BACKUP_KEEP)}개 유지`);
+  }
+}
+
 function reportBackupStatus() {
   if (!fs.existsSync(BACKUP_DIR)) return;
 
@@ -114,11 +162,7 @@ function reportBackupStatus() {
 
   const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
   const sizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
-  log(`현재 백업 현황: ${count}개, 총 ${sizeMB}MB (${sizeGB}GB)`);
-
-  if (totalSize > 10 * 1024 * 1024 * 1024) {
-    log(`[경고] 백업 용량이 10GB를 초과했습니다. 수동으로 오래된 백업 정리를 권장합니다.`);
-  }
+  log(`현재 백업 현황: ${count}개, 총 ${sizeMB}MB (${sizeGB}GB), 유지 정책: 최근 ${BACKUP_KEEP}개`);
 }
 
 function getDirSize(dir) {
@@ -180,6 +224,7 @@ log(`백업 경로: ${BACKUP_DIR}`);
 
 try {
   createBackup();
+  cleanupOldBackups();
   reportBackupStatus();
   log('=== 자동 백업 완료 ===');
 } catch (e) {
