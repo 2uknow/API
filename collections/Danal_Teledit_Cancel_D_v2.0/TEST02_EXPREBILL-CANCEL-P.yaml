@@ -1,0 +1,620 @@
+
+name: "EXPREBILL-CANCEL SMS 비점유결제 부분취소"
+description: "Danal_Taldit_Cancel_v1.0 자동화 테스트"
+version: "1.0.0"
+
+
+# 공통 변수 불러오기
+include: Danal_Teledit_Cancel_D_v2.0/conf.yaml
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * EXPREBILL - 1회차
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "EXPREBILL - 1회차"
+    description: "비점유 결제 + AUTHKEY 전송"
+
+    args:
+      Command: "EXPREBILL"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      ItemCount: "1"
+      ItemType: "0"
+      ItemInfo: "2|301|1|22S0HZ0100|상품명"
+      AUTHKEY: "{{LGT_AUTH}}"
+      ORDERID: "{{ORDER_ID_R}}"
+      OUTPUTOPTION: "3"
+      TIDTYPE: "1"
+      IFVERSION: "V1.1.2"
+      BILLTYPE: "1"
+
+    # 응답 데이터 추출
+    extract:
+      - name: "result"
+        pattern: "Result"
+        variable: "RESULT_CODE"
+
+      - name: "errMsg"
+        pattern: "ErrMsg"
+        variable: "ERROR_MESSAGE"
+
+      - name: "tid"
+        pattern: "TID"
+        variable: "TID"
+
+      - name: "date"
+        pattern: "Date"
+        variable: "DATE"
+
+      - name: "totalAmount"
+        pattern: "TotalAmount"
+        variable: "TOTAL_AMOUNT"
+
+      - name: "cap"
+        pattern: "Cap"
+        variable: "CAP"
+        
+      - name: "orderid"
+        pattern: "Orderid"
+        variable: "ORDER_ID"
+
+      - name: "dstAddr"
+        pattern: "DstAddr"
+        variable: "DSTADDR"
+
+      - name: "carrier"
+        pattern: "Carrier"
+        variable: "CARRIER"
+
+      - name: "dntid"
+        pattern: "Dntid"
+        variable: "DN_TID"
+    
+####################################################### Assertion ###########################################################
+
+    test:
+      # LGU+ 휴대폰결제 미동의 상태인 경우 해당 검증만 진행
+      - run_if: "RESULT_CODE == 531"
+        assertions:
+          - name: "결과 코드(RESULT) 정상 출력"
+            assertion: "RESULT_CODE == 531"
+
+          - name: "결과 메시지(ErrMsg) 정상 출력" 
+            assertion: "ERROR_MESSAGE == 휴대폰결제 이용 미동의 상태입니다. 해당 통신사 고객센터(114)/홈페이지/고객센터 APP에서 휴대폰결제 이용 동의 후 이용하십시오."
+      
+      # LGU+ 휴대폰결제 차단 상태인 경우 해당 검증만 진행
+      - run_if: "RESULT_CODE == 422"
+        assertions:
+          - name: "결과 코드(RESULT) 정상 출력"
+            assertion: "RESULT_CODE == 422"
+
+          - name: "결과 메시지(ErrMsg) 정상 출력" 
+            assertion: "ERROR_MESSAGE == 고객 요청에 의한 휴대폰결제 차단 상태입니다. 해당 통신사 고객센터(114)/홈페이지/고객센터 APP에서 휴대폰결제 차단 해제 후 이용하십시오."
+
+      # 성공(0)인 경우 실행
+      - run_if: "RESULT_CODE == 0"
+        assertions:
+          - name: "결과 코드(RESULT) 정상 출력"
+            assertion: "RESULT_CODE == 0"
+
+          - name: "결과 메시지(ErrMsg) 정상 출력" 
+            assertion: "ERROR_MESSAGE == No Information"
+                
+          - name: "거래 번호(TID) 정상 출력"
+            assertion: "js: TID && TID.trim().length > 0 && /^\\d{18}$/.test(TID)"
+
+          - name: "결제 완료 시간(Date) 정상 출력_1"
+            assertion: "js: DATE && DATE.trim().length > 0 && /^\\d{14}$/.test(DATE)"
+
+          - name: "결제 완료 시간(Date) 정상 출력_2"
+            description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
+            assertion: "js: (() => {
+              if (!DATE || DATE.length < 12) return false;
+
+              const tidPrefix = DATE.slice(0, 12);
+
+              const pad = n => String(n).padStart(2, '0');
+              const now = new Date();
+
+              for (let i = 0; i <= 2; i++) {
+                const d = new Date(now);
+                d.setMinutes(d.getMinutes() - i);
+
+                const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+                if (tidPrefix === t) return true;
+              }
+              return false;})()"
+
+          - name: "전체 결제금액(TotalAmount) 정상 출력"
+            assertion: "TOTAL_AMOUNT == 301"
+          
+          - name: "거래 전 한도 금액(CAP) 정상 출력"
+            assertion: "CAP == 000000"
+
+          - name: "CP 주문번호(ORDERID) 정상 출력"
+            assertion: "js: (
+              typeof ORDER_ID !== 'undefined' &&
+              typeof ORDER_ID === 'string' &&
+              ORDER_ID.trim().length > 0 &&
+              ORDER_ID.includes('ORD'))"
+
+          - name: "사용자 전화번호(DstAddr) 정상 출력"
+            assertion: "DSTADDR == 01076746634"
+
+          - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
+            assertion: "CARRIER == LGT"
+
+          - name: "거래 번호(DNTID) 정상 출력_1"
+            assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
+
+          - name: "거래 번호(DNTID) 정상 출력_2"
+            description: "DN_TID = yyyy + 원거래 TID 일치 확인"
+            assertion: "js: (() => {
+              const pad = n => String(n).padStart(2,'0');
+              const d = new Date();
+              const now12 = `${d.getFullYear()}`;
+              return DN_TID = now12 + TID;})()"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * CANCEL - 1차 원거래 TID 사용 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "CANCEL - 1차 부분 취소"
+    description: "원거래 TID 사용 1차 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      OTID: "{{TID}}"  # 원거래 TID를 이용
+      CANCELTYPE: "P"  # 부분 취소 설정
+      AMOUNT: "100"
+      CANCELOPTION: "1"  # RAMT 응답 설정
+      sleepDuration: 20000   # 데이터 적재 대기 시간 (밀리초)
+  
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "C_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "C_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "C_OTID"  
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "C_ServerInfo" 
+
+      - name: "DNTID"
+        pattern: "DNTID"
+        variable: "C_DNTID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "C_DATE"
+
+      - name: "RAMT"
+        pattern: "RAMT"
+        variable: "C_RAMT"
+
+
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+####################################################### Assertion ###########################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "C_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "C_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 1차 부분취소 TID와 원거래 TID 일치 확인
+        assertion: "js: C_OTID && C_OTID === TID"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: C_ServerInfo !== null && C_ServerInfo.trim().length > 0 && typeof C_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: C_DNTID && C_DNTID.trim().length > 0 && /^\\d{22}$/.test(C_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "EXPREBILL DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof C_DNTID === 'undefined' || typeof DN_TID === 'undefined') return false;
+          return String(C_DNTID).trim() !== String(DN_TID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하고 숫자 14자리인지 검증"
+        assertion: "js: C_DATE && C_DATE.trim().length > 0 && /^\\d{14}$/.test(C_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!C_DATE || C_DATE.length < 12) return false;
+
+          const tidPrefix = C_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+      - name: "남은 금액(RAMT) 정상 출력"
+        description: "CANCELOPTION 설정에 따른 남은 금액 정상 출력 확인"
+        assertion: "js: C_RAMT && C_RAMT == 201"
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * CANCEL - 2차 원거래 DNTID 사용 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "CANCEL - 2차 부분 취소"
+    description: "원거래 DNTID 사용 2차 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      OTID: "{{DN_TID}}"  # 원거래 DNTID를 사용
+      CANCELTYPE: "P"  # 부분 취소 설정
+      AMOUNT: "50"
+      CANCELOPTION: "1"  # RAMT 응답 설정
+      sleepDuration: 20000   # 데이터 적재 대기 시간 (밀리초)
+  
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "c_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "c_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "c_OTID"  
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "c_ServerInfo" 
+
+      - name: "DNTID"
+        pattern: "DNTID"
+        variable: "c_DNTID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "c_DATE"
+
+      - name: "RAMT"
+        pattern: "RAMT"
+        variable: "c_RAMT"
+
+
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+####################################################### Assertion ###########################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "c_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "c_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 2차 부분 취소 TID와 1차 부분 취소 TID 일치 확인
+        assertion: "js: c_OTID && c_OTID === C_OTID"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: c_ServerInfo !== null && c_ServerInfo.trim().length > 0 && typeof c_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: c_DNTID && c_DNTID.trim().length > 0 && /^\\d{22}$/.test(c_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "1차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof c_DNTID === 'undefined' || typeof C_DNTID === 'undefined') return false;
+          return String(c_DNTID).trim() !== String(C_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하고 숫자 14자리인지 검증"
+        assertion: "js: c_DATE && c_DATE.trim().length > 0 && /^\\d{14}$/.test(c_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!c_DATE || c_DATE.length < 12) return false;
+
+          const tidPrefix = c_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+      - name: "남은 금액(RAMT) 정상 출력"
+        description: "CANCELOPTION 설정에 따른 남은 금액 정상 출력 확인"
+        assertion: "js: c_RAMT && c_RAMT == 151"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * CANCEL - 3차 원거래 TID 사용 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "CANCEL - 3차 부분 취소"
+    description: "원거래 TID 사용 3차 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      OTID: "{{c_OTID}}"  # 원거래 TID를 이용
+      CANCELTYPE: "P"  # 부분 취소 설정
+      AMOUNT: "10"
+      CANCELOPTION: "0"  # RAMT 응답 미설정
+      sleepDuration: 20000   # 데이터 적재 대기 시간 (밀리초)
+  
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "P_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "P_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "P_OTID"  
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "P_ServerInfo" 
+
+      - name: "DNTID"
+        pattern: "DNTID"
+        variable: "P_DNTID"
+
+      - name: "DNTID"
+        pattern: "js: String(vars.P_DNTID).slice(4)"
+        variable: "NEW_TID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "P_DATE"
+
+      - name: "RAMT"
+        pattern: "RAMT"
+        variable: "P_RAMT"
+
+
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+####################################################### Assertion ###########################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "P_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "P_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 3차 부분 취소 TID와 2차 부분 취소 TID 일치 확인
+        assertion: "js: P_OTID && P_OTID === c_OTID"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: P_ServerInfo !== null && P_ServerInfo.trim().length > 0 && typeof P_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: P_DNTID && P_DNTID.trim().length > 0 && /^\\d{22}$/.test(P_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "2차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof P_DNTID === 'undefined' || typeof c_DNTID === 'undefined') return false;
+          return String(c_DNTID).trim() !== String(P_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하며 14자리 숫자 검증"
+        assertion: "js: P_DATE && P_DATE.trim().length > 0 && /^\\d{14}$/.test(P_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!P_DATE || P_DATE.length < 12) return false;
+
+          const tidPrefix = P_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+      - name: "남은 금액(RAMT) 정상 미출력"
+        description: "RAMT가 정의되어 있고 값이 존재하면 실패"
+        assertion: "js: (() => {
+          if (typeof D_RAMT === 'undefined') return true;
+          if (D_RAMT === null) return true;
+          if (String(D_RAMT).trim() === '') return true;
+          return false;})()"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * CANCEL - 4차 재승인 TID 사용 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "CANCEL - 4차 부분 취소"
+    description: "재승인 TID 사용 4차 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "CANCEL"
+      IFVERSION: "V0.0.0"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      OTID: "{{NEW_TID}}"  # 마지막 재승인 TID를 이용
+      CANCELTYPE: "P"  # 부분 취소 설정
+      AMOUNT: "50"
+      CANCELOPTION: "0"  # RAMT 응답 미설정
+      sleepDuration: 20000   # 데이터 적재 대기 시간 (밀리초)
+
+  
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "p_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "p_ErrMsg"
+
+      - name: "OTID"
+        pattern: "OTID"
+        variable: "p_OTID"  
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "p_ServerInfo" 
+
+      - name: "DNTID"
+        pattern: "DNTID"
+        variable: "p_DNTID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "p_DATE"
+
+      - name: "RAMT"
+        pattern: "RAMT"
+        variable: "p_RAMT"
+
+
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+####################################################### Assertion ###########################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "p_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "p_ErrMsg == No Information"
+
+      - name: "원거래 번호(OTID) 정상 출력"
+        description: 3차 부분 취소 TID와 4차 부분 취소 TID 일치 확인
+        assertion: "js: p_OTID && p_OTID === P_OTID"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: p_ServerInfo !== null && p_ServerInfo.trim().length > 0 && typeof p_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: p_DNTID && p_DNTID.trim().length > 0 && /^\\d{22}$/.test(p_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "3차 CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof p_DNTID === 'undefined' || typeof P_DNTID === 'undefined') return false;
+          return String(P_DNTID).trim() !== String(p_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        description: "Date가 존재하며 14자리 숫자 검증"
+        assertion: "js: p_DATE && p_DATE.trim().length > 0 && /^\\d{14}$/.test(p_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!p_DATE || p_DATE.length < 12) return false;
+
+          const tidPrefix = p_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 5; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+      - name: "남은 금액(RAMT) 정상 미출력"
+        description: "RAMT가 정의되어 있고 값이 존재하면 실패"
+        assertion: "js: (() => {
+          if (typeof D_RAMT === 'undefined') return true;
+          if (D_RAMT === null) return true;
+          if (String(D_RAMT).trim() === '') return true;
+          return false;})()"
+
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 40000
+  retryCount: 0

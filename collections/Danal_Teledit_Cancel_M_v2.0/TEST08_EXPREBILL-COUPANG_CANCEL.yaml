@@ -4,7 +4,7 @@ version: "1.0.0"
 
 
 # 공통 변수 불러오기
-include: Danal_Teledit_Cancel_D_v1.0/conf.yaml
+include: Danal_Teledit_Cancel_D_v2.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
@@ -22,7 +22,7 @@ steps:
       ItemCount: "1"
       ItemType: "0"
       ItemInfo: "2|3001|1|22S0HZ0100|상품명"
-      AUTHKEY: "{{SKT_AUTH}}"
+      AUTHKEY: "{{LGT_AUTH}}"
       ORDERID: "{{ORDER_ID_R}}"
       OUTPUTOPTION: "3"  # 응답 옵션
       TIDTYPE: "1"
@@ -76,7 +76,7 @@ steps:
 
 
     test:
-      # SKT 휴대폰결제 미동의 상태인 경우 해당 검증만 진행
+      # LGU+ 휴대폰결제 미동의 상태인 경우 해당 검증만 진행
       - run_if: "RESULT_CODE == 531"
         assertions:
           - name: "결과 코드(RESULT) 정상 출력"
@@ -85,7 +85,7 @@ steps:
           - name: "결과 메시지(ErrMsg) 정상 출력" 
             assertion: "ERROR_MESSAGE == 휴대폰결제 이용 미동의 상태입니다. 해당 통신사 고객센터(114)/홈페이지/고객센터 APP에서 휴대폰결제 이용 동의 후 이용하십시오."
       
-      # SKT 휴대폰결제 차단 상태인 경우 해당 검증만 진행
+      # LGU+ 휴대폰결제 차단 상태인 경우 해당 검증만 진행
       - run_if: "RESULT_CODE == 422"
         assertions:
           - name: "결과 코드(RESULT) 정상 출력"
@@ -150,10 +150,10 @@ steps:
               RESPONSE_ORDER_ID.includes('ORD'))"
 
           - name: "사용자 전화번호(DstAddr) 정상 출력"
-            assertion: "DSTADDR == 01079266634"
+            assertion: "DSTADDR == 01076746634"
 
           - name: "인증 받은 통신사 정보(Carrier) 정상 출력"
-            assertion: "CARRIER == SKT"
+            assertion: "CARRIER == LGT"
 
           - name: "거래 번호(DNTID) 정상 출력_1"
             assertion: "js: DN_TID && DN_TID.trim().length > 0 && /^\\d{22}$/.test(DN_TID)"
@@ -187,11 +187,11 @@ steps:
         pattern: "result"
         variable: "ENCRYPTED_CPCENCEL_DATA"
 
-    # SKT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
     skip_if:
       - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
         action: "skip_remaining_steps"
-        reason: "SKT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
 
     test:
       - name: "COUPANG CANCEL 데이터 암호화 성공 확인"
@@ -231,11 +231,11 @@ steps:
         pattern: "DATA=(.+)"
         variable: "SERVER_ENCRYPTED_DATA"
 
-    # SKT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
     skip_if:
       - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
         action: "skip_remaining_steps"
-        reason: "SKT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
 
     # 테스트 검증
     test:
@@ -293,11 +293,11 @@ steps:
         pattern: "orderid"
         variable: "CPCENCEL_ORDERID"
 
-    # SKT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    # LGU+ 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
     skip_if:
       - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
         action: "skip_remaining_steps"
-        reason: "SKT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+        reason: "LGU+ 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
 
 ####################################################### Assertion ###########################################################
 
