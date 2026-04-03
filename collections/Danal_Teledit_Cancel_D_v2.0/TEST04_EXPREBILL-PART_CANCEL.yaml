@@ -1,5 +1,5 @@
 
-name: "EXPREBILL-PART_CANCEL SMS 비점유결제 부분취소"
+name: "EXPREBILL-PART_CANCEL SMS 비점유결제 부분 취소"
 description: "Danal_Taldit_PART_CANCEL_v1.0 자동화 테스트"
 version: "1.0.0"
 
@@ -9,7 +9,7 @@ include: Danal_Teledit_Cancel_D_v2.0/conf.yaml
 
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * EXPREBILL
+#  * [EXPREBILL - 1회차
 #  * ----------------------------------------------------------------------------------------------------------------*
 
 steps:
@@ -72,9 +72,7 @@ steps:
         pattern: "Dntid"
         variable: "DN_TID"
     
-
 ####################################################### Assertion ###########################################################
-
 
     test:
       # KT 휴대폰결제 미동의 상태인 경우 해당 검증만 진행
@@ -167,7 +165,7 @@ steps:
               return DN_TID === (now12 + TID);})()"
 
 # ** ----------------------------------------------------------------------------------------------------------------
-#  * PART_CANCEL - 원거래 TID 사용 부분 취소
+#  * PART_CANCEL - 1차 원거래 TID 사용 부분 취소
 #  * ----------------------------------------------------------------------------------------------------------------*
 
   - name: "PART_CANCEL - 1차 부분 취소"
@@ -266,6 +264,193 @@ steps:
       - name: "원거래 TID(O_TID) 정상 출력"
         description: 1차 부분취소 TID와 원거래 TID 일치 확인
         assertion: "js: P_O_TID && P_O_TID === TID"
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * PART_CANCEL - 원거래 DNTID 사용 부분 취소 불가 확인
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PART_CANCEL - 원거래 DNTID 사용 부분 취소 시도"
+    description: "원거래 DNTID 사용 부분 취소 및 환불 불가 확인"
+
+    args:
+      Command: "PART_CANCEL"
+      IFVERSION: "V1.2.1"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      O_TID: "{{DN_TID}}"  # 원거래 DNTID를 사용 불가 > 재승인 OTID/DNTID 사용 가능
+      CAMT: "100"
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "E_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "E_ErrMsg"
+
+
+    # KT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "KT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+##############################################  Assertion  ###################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "E_RESULT == 507"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "E_ErrMsg == 이미 취소된 거래 건입니다."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * PART_CANCEL - 원거래 OTID 사용 부분 취소 불가 확인
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PART_CANCEL - 원거래 OTID 사용 부분 취소 시도"
+    description: "원거래 OTID 사용 부분 취소 및 환불 불가 확인"
+
+    args:
+      Command: "PART_CANCEL"
+      IFVERSION: "V1.2.1"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      O_TID: "{{P_O_TID}}"  # 원거래 OTID를 사용 불가 > 재승인 OTID/DNTID 사용 가능
+      CAMT: "100"
+      sleepDuration: 5000   # 2차 부분 취소를 위한 데이터 적재 대기 시간 (밀리초)
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "p_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "p_ErrMsg"
+
+
+    # KT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "KT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+##############################################  Assertion  ###################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "p_RESULT == 507"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "p_ErrMsg == 이미 취소된 거래 건입니다."
+
+
+# ** ----------------------------------------------------------------------------------------------------------------
+#  * PART_CANCEL - 2차 재승인 TID 사용 부분 취소
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+  - name: "PART_CANCEL - 2차 부분 취소"
+    description: "2차 재승인 TID 사용 부분 취소 및 환불 정상 확인"
+
+    args:
+      Command: "PART_CANCEL"
+      IFVERSION: "V1.2.1"
+      ID: "{{MERCHANT_ID}}"
+      PWD: "{{MERCHANT_PWD}}"
+      O_TID: "{{NEW_TID}}"  # 마지막 재승인 TID를 사용
+      CAMT: "100"
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "N_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "N_ErrMsg"
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "N_ServerInfo" 
+
+      - name: DNTID"
+        pattern: "DNTID"
+        variable: "N_DNTID"
+
+      - name: "Date"
+        pattern: "Date"
+        variable: "N_DATE"
+
+      - name: "O_TID"
+        pattern: "O_TID"
+        variable: "N_O_TID"
+
+
+    # KT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "KT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+##############################################  Assertion  ###################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "N_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "N_ErrMsg ==No Information"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: N_ServerInfo !== null && N_ServerInfo.trim().length > 0 && N_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: N_DNTID && N_DNTID.trim().length > 0 && /^\\d{22}$/.test(N_DNTID)"
+
+      - name: "거래 번호(DNTID) 정상 출력_2"
+        description: "1차 PART_CANCEL 부분 취소 DNTID와 다른 값 생성 확인"
+        assertion: "js: (() => {
+          'use strict';
+          if (typeof N_DNTID === 'undefined' || typeof N_DNTID === 'undefined') return false;
+          return String(N_DNTID).trim() !== String(P_DNTID).trim();})()"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: N_DATE && N_DATE.trim().length > 0 && /^\\d{14}$/.test(N_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)가 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!N_DATE || N_DATE.length < 12) return false;
+
+          const tidPrefix = N_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 2; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+      - name: "원거래 TID(O_TID) 정상 출력"
+        description: 4차 부분취소 TID와 원거래 TID 불일치 확인
+        assertion: "js: N_O_TID && N_O_TID !== TID"
 
 # 시나리오 설정
 options:
