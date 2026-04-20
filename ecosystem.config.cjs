@@ -118,6 +118,7 @@ module.exports = {
 
       env: {
         NODE_ENV: 'production',
+        BACKUP_KEEP: '1',  // 최근 1개 백업만 유지 (용량 절약)
       },
 
       // 로그 설정

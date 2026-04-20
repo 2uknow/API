@@ -52,30 +52,74 @@
       transition: all 0.3s ease;
     }
     
+    /* === 로그 콘솔 공통 스타일 === */
+    .log-console {
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+    .log-console::-webkit-scrollbar {
+      width: 10px;
+    }
+    .log-console::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 5px;
+    }
+    .log-console::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 5px;
+    }
+    .log-console::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* 로그 라인 스타일 */
+    .log-line {
+      padding: 2px 6px 2px 10px;
+      border-left: 3px solid transparent;
+      margin: 1px 0;
+      line-height: 1.6;
+      transition: background 0.15s;
+    }
+    .log-line:hover {
+      background: rgba(51, 65, 85, 0.4);
+    }
+    .log-line-system { border-left-color: #3b82f6 !important; }
+    .log-line-error { border-left-color: #ef4444 !important; }
+    .log-line-job-0 { border-left-color: #10b981 !important; }
+    .log-line-job-1 { border-left-color: #f59e0b !important; }
+    .log-line-job-2 { border-left-color: #8b5cf6 !important; }
+    .log-line-job-3 { border-left-color: #06b6d4 !important; }
+    .log-line-job-4 { border-left-color: #ec4899 !important; }
+    .log-line-job-5 { border-left-color: #f97316 !important; }
+
+    /* 로그 탭 바 */
+    .log-tabs-bar {
+      scrollbar-width: thin;
+      scrollbar-color: #475569 transparent;
+    }
+    .log-tabs-bar::-webkit-scrollbar {
+      height: 4px;
+    }
+    .log-tabs-bar::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+
+    /* 모달 풀스크린 */
     #modalConsole {
       height: 100% !important;
       max-height: 100% !important;
       overflow-y: auto !important;
       overflow-x: hidden !important;
     }
-    #modalConsole::-webkit-scrollbar {
-      width: 8px;
-    }
-    #modalConsole::-webkit-scrollbar-track {
-      background: #1e293b;
-      border-radius: 4px;
-    }
-    #modalConsole::-webkit-scrollbar-thumb {
-      background: #475569;
-      border-radius: 4px;
-    }
-    #modalConsole::-webkit-scrollbar-thumb:hover {
-      background: #64748b;
-    }
-    #logModal .flex-1 {
+    #logModal .modal-console-wrapper {
       display: flex !important;
       flex-direction: column !important;
       overflow: hidden !important;
+      min-height: 0 !important;
+      flex: 1 !important;
     }
     
     .glass-effect {
@@ -149,6 +193,28 @@
     
     .pagination-ellipsis {
       color: var(--text-secondary) !important;
+    }
+    
+    /* 로그 탭 스타일 */
+    .log-tab {
+      cursor: pointer;
+      opacity: 0.5;
+      border: 1px solid transparent;
+    }
+    .log-tab:hover {
+      opacity: 0.8;
+    }
+    .log-tab.active {
+      opacity: 1 !important;
+    }
+    
+    /* 실행 중 Job 아이템 */
+    .running-job-item {
+      animation: pulse-border 2s infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(59, 130, 246, 0.3); }
+      50% { border-color: rgba(59, 130, 246, 0.8); }
     }
   </style>
 </head>
@@ -270,18 +336,13 @@
         <div class="text-sm font-medium" style="color: var(--text-secondary);">Current Job Configuration</div>
         <div id="jobSummary" class="text-sm border rounded-xl p-4 min-h-[50px]" style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"></div>
         
-        <!-- 실시간 로그 -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold" style="color: var(--text-primary);">Real-time Log</span>
-            <div class="flex items-center space-x-3">
-              <button id="expandLogModal" class="text-sm text-blue-600 hover:text-blue-800 px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-all duration-300 font-medium">전체화면</button>
-              <button id="clearConsole" class="text-sm text-gray-600 hover:text-gray-800 px-3 py-1.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-300 font-medium">Clear</button>
-              <div id="logIndicator" class="w-3 h-3 bg-gray-400 rounded-full"></div>
-              <span class="text-sm font-medium" style="color: var(--text-secondary);">연결</span>
-            </div>
+        <!-- 실행 중 Jobs 패널 -->
+        <div id="runningJobsPanel" class="hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-semibold" style="color: var(--text-primary);">Running Jobs</span>
+            <span id="runningJobsCount" class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">0</span>
           </div>
-          <div id="console" class="bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 rounded-xl h-48 overflow-y-auto font-mono leading-relaxed border border-slate-700"></div>
+          <div id="runningJobsList" class="space-y-2 max-h-40 overflow-y-auto"></div>
         </div>
 
         <!-- 알람 상태 -->
@@ -380,6 +441,35 @@
         </div>
       </div>
     </section>
+
+    <!-- 실시간 로그 (전체 너비) -->
+    <section class="glass-effect rounded-2xl p-6 neo-shadow">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg">
+            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold" style="color: var(--text-primary);">Real-time Log</h2>
+            <div class="flex items-center space-x-2">
+              <div id="logIndicator" class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+              <span class="text-xs font-medium" style="color: var(--text-secondary);">SSE 연결</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button id="expandLogModal" class="text-sm px-3 py-1.5 rounded-lg transition-all duration-300 font-medium" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;" onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.1)'">전체화면</button>
+          <button id="clearConsole" class="text-sm px-3 py-1.5 rounded-lg transition-all duration-300 font-medium" style="background: var(--bg-tertiary); color: var(--text-secondary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">Clear</button>
+        </div>
+      </div>
+      <!-- 로그 탭 바 -->
+      <div id="logTabs" class="flex gap-1 overflow-x-auto pb-1 mb-1 log-tabs-bar">
+        <button class="log-tab active text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" data-tab="all" style="background: #1e293b; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>
+      </div>
+      <div id="console" class="log-console bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 rounded-xl overflow-y-auto font-mono leading-relaxed border border-slate-700" style="border-top-left-radius: 0; height: 320px; min-height: 200px; max-height: 600px; resize: vertical;"></div>
+    </section>
   </div>
 
   <!-- Footer with developer names -->
@@ -447,21 +537,34 @@
   </div>
 
   <!-- 로그 전체화면 모달 -->
-  <div id="logModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-50">
-    <div class="glass-effect rounded-2xl w-full h-full max-w-7xl max-h-[95vh] mx-4 flex flex-col neo-shadow">
-      <div class="flex items-center justify-between p-6 border-b" style="border-color: var(--border-color);">
-        <h3 class="text-xl font-bold" style="color: var(--text-primary);">실시간 로그</h3>
-        <div class="flex items-center space-x-4">
-          <button id="clearModalConsole" class="px-4 py-2 text-sm rounded-lg transition-all duration-300 font-medium" style="background: var(--bg-tertiary); color: var(--text-primary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">Clear</button>
-          <button id="closeLogModal" class="p-2 rounded-lg transition-all duration-300" style="color: var(--text-secondary);" onmouseover="this.style.background='var(--bg-tertiary)'; this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-secondary)'">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+  <div id="logModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="w-full h-full flex flex-col" style="background: var(--bg-primary);">
+      <!-- 모달 헤더 -->
+      <div class="flex items-center justify-between px-6 py-3 border-b flex-shrink-0" style="border-color: var(--border-color); background: var(--bg-secondary);">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
+            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
+          </div>
+          <h3 class="text-lg font-bold" style="color: var(--text-primary);">실시간 로그</h3>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button id="clearModalConsole" class="px-4 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium" style="background: var(--bg-tertiary); color: var(--text-primary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">Clear</button>
+          <button id="closeLogModal" class="px-4 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium" style="background: rgba(239,68,68,0.1); color: #ef4444;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
+            닫기 (ESC)
           </button>
         </div>
       </div>
-      <div class="flex-1 p-6 overflow-hidden">
-        <div id="modalConsole" class="bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 rounded-xl font-mono leading-relaxed border border-slate-700"></div>
+      <!-- 모달 탭 바 -->
+      <div class="px-6 pt-2 pb-1 flex-shrink-0" style="background: var(--bg-secondary);">
+        <div id="modalLogTabs" class="flex gap-1 overflow-x-auto log-tabs-bar">
+          <button class="log-tab active text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" data-tab="all" style="background: #1e293b; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>
+        </div>
+      </div>
+      <!-- 모달 콘솔 -->
+      <div class="modal-console-wrapper flex-1 px-6 pb-4 overflow-hidden" style="min-height: 0;">
+        <div id="modalConsole" class="log-console bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 font-mono leading-relaxed border border-slate-700 h-full overflow-y-auto" style="border-top-left-radius: 0; border-top-right-radius: 0;"></div>
       </div>
     </div>
   </div>
@@ -472,11 +575,26 @@ let jobs = [];
 let historyRaw = [];
 let historyView = [];
 let running = null;
+let runningJobs = []; // 병렬 실행 중인 job 목록
 let currentPage = 1;
 let pageSize = 10;
 let totalItems = 0;
 let totalPages = 0;
 let isModalOpen = false;
+let activeLogTab = 'all';
+let logsByJob = {};
+let runningJobsTimer = null;
+const jobColorMap = new Map();
+let nextJobColorIndex = 0;
+
+function getJobColorIndex(jobName) {
+  if (!jobName || jobName === 'SYSTEM' || jobName === 'ERROR' || jobName === '_default') return 0;
+  if (!jobColorMap.has(jobName)) {
+    jobColorMap.set(jobName, nextJobColorIndex % 6);
+    nextJobColorIndex++;
+  }
+  return jobColorMap.get(jobName);
+}
 
 // 통합 SSE 연결 (단일 연결로 state + logs 모두 처리)
 let unifiedEventSource;
@@ -533,12 +651,28 @@ async function init() {
     fetchHistory(),
     checkAlertStatus(),
     loadSchedules(),
-    fetchTodayStats() // 오늘 통계 추가
+    fetchTodayStats(),
+    fetchRunningJobs()
   ]);
   
-  // SSE 연결은 Job 실행 시에만 활성화 (HTTP 연결 절약)
-  console.log('[INIT] SSE 연결은 Job 실행 시 활성화됩니다');
+  // SSE 연결을 페이지 로드 시 즉시 활성화 (Newman 등 빠른 로그 유실 방지)
+  setupSSE();
+  console.log('[INIT] SSE 통합 연결 활성화');
   updateCurrentDate();
+  
+  // 실행 중 jobs 경과시간 실시간 업데이트 (1초마다)
+  runningJobsTimer = setInterval(() => {
+    if (runningJobs.length > 0) {
+      runningJobs.forEach(j => {
+        if (j._localStartTs) {
+          j.elapsed = Math.round((Date.now() - j._localStartTs) / 1000);
+        } else {
+          j.elapsed = (j.elapsed || 0) + 1;
+        }
+      });
+      renderRunningJobs();
+    }
+  }, 1000);
 }
 
 // 오늘 날짜 업데이트
@@ -617,22 +751,22 @@ function setupUnifiedSSE() {
       try {
         updateSSEHeartbeat();
         const data = JSON.parse(e.data);
-        console.log('[SSE] State 메시지:', data);
         running = data.running;
-        setStatusChip();
         
-        // 실행 완료 시 버튼 상태 복구
-        if (!running) {
-          console.log('[SSE] Job completed, restoring button state');
-          const runBtn = document.getElementById('runBtn');
-          runBtn.disabled = false;
-          runBtn.textContent = 'Run';
-          runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 transition-all duration-300 font-semibold glow-on-hover';
-          runBtn.style.background = 'var(--btn-primary)';
-          runBtn.onmouseover = () => { runBtn.style.background = 'var(--btn-primary-hover)'; };
-          runBtn.onmouseout = () => { runBtn.style.background = 'var(--btn-primary)'; };
-          runBtn.dataset.currentlyRunning = 'false';
+        // runningJobs 배열 업데이트 (로컬 startTs 보존)
+        if (data.runningJobs) {
+          const newJobs = data.runningJobs.map(sj => {
+            const existing = runningJobs.find(lj => lj.job === sj.job);
+            return {
+              ...sj,
+              _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
+            };
+          });
+          runningJobs = newJobs;
+          renderRunningJobs();
         }
+        
+        setStatusChip();
       } catch (err) {
         console.error('[SSE] State 파싱 오류:', err);
       }
@@ -666,20 +800,8 @@ function setupUnifiedSSE() {
             data.line.includes('exit=')) {
           console.log('[SSE] 실행 완료 신호 수신:', data.line);
           
-          running = null;
-          setStatusChip();
-          
-          // 버튼 상태 즉시 복구
-          const runBtn = document.getElementById('runBtn');
-          runBtn.disabled = false;
-          runBtn.textContent = 'Run';
-          runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 transition-all duration-300 font-semibold glow-on-hover';
-          runBtn.style.background = 'var(--btn-primary)';
-          runBtn.onmouseover = () => { runBtn.style.background = 'var(--btn-primary-hover)'; };
-          runBtn.onmouseout = () => { runBtn.style.background = 'var(--btn-primary)'; };
-          runBtn.dataset.currentlyRunning = 'false';
-          
           setTimeout(() => {
+            fetchRunningJobs();
             fetchHistory();
             fetchTodayStats();
           }, 300);
@@ -715,28 +837,16 @@ function setupUnifiedSSE() {
         
         // 실행 완료 신호 감지 (확장된 신호 감지)
         if (data.type === 'execution_done' || 
-            data.line.includes('[DONE]') || 
+            (data.line && (data.line.includes('[DONE]') || 
             data.line.includes('[EXECUTION_COMPLETE]') ||
             data.line.includes('[JOB_FINISHED]') ||
             data.line.includes('[YAML SCENARIO DONE]') ||
             data.line.includes('[BINARY DONE]') ||
-            data.line.includes('exit=')) {
+            data.line.includes('exit=')))) {
           console.log('[SSE] 실행 완료 신호 수신:', data.line);
           
-          running = null;
-          setStatusChip();
-          
-          // 버튼 상태 즉시 복구
-          const runBtn = document.getElementById('runBtn');
-          runBtn.disabled = false;
-          runBtn.textContent = 'Run';
-          runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 transition-all duration-300 font-semibold glow-on-hover';
-          runBtn.style.background = 'var(--btn-primary)';
-          runBtn.onmouseover = () => { runBtn.style.background = 'var(--btn-primary-hover)'; };
-          runBtn.onmouseout = () => { runBtn.style.background = 'var(--btn-primary)'; };
-          runBtn.dataset.currentlyRunning = 'false';
-          
           setTimeout(() => {
+            fetchRunningJobs();
             fetchHistory();
             fetchTodayStats();
           }, 300);
@@ -834,59 +944,208 @@ function closeLogModal() {
   modal.classList.remove('flex');
 }
 
-function addLogToConsole(line, jobName) {
-  console.log('[LOG] 로그 추가:', line.substring(0, 50) + '...', 'jobName:', jobName);
+// === Running Jobs 관리 ===
+async function fetchRunningJobs() {
+  try {
+    const res = await fetch('/api/running');
+    const data = await res.json();
+    if (data.ok) {
+      const serverJobs = data.running || [];
+      // 서버 데이터와 병합 (로컬 startTs 보존)
+      const merged = serverJobs.map(sj => {
+        const existing = runningJobs.find(lj => lj.job === sj.job);
+        return {
+          ...sj,
+          _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
+        };
+      });
+      runningJobs = merged;
+      renderRunningJobs();
+      setStatusChip();
+    }
+  } catch (e) {
+    console.error('[RUNNING] Fetch failed:', e);
+  }
+}
+
+function renderRunningJobs() {
+  const panel = document.getElementById('runningJobsPanel');
+  const list = document.getElementById('runningJobsList');
+  const count = document.getElementById('runningJobsCount');
   
+  if (runningJobs.length === 0) {
+    panel.classList.add('hidden');
+    return;
+  }
+  
+  panel.classList.remove('hidden');
+  count.textContent = runningJobs.length;
+  
+  list.innerHTML = runningJobs.map(job => {
+    // _localStartTs가 있으면 실시간 계산, 없으면 서버 값 사용
+    const elapsed = job._localStartTs 
+      ? Math.round((Date.now() - job._localStartTs) / 1000)
+      : (job.elapsed || 0);
+    const hours = Math.floor(elapsed / 3600);
+    const mins = Math.floor((elapsed % 3600) / 60);
+    const secs = elapsed % 60;
+    const elapsedStr = hours > 0 
+      ? `${hours}h${String(mins).padStart(2,'0')}m${String(secs).padStart(2,'0')}s`
+      : mins > 0 
+        ? `${mins}m${String(secs).padStart(2,'0')}s` 
+        : `${secs}s`;
+    const typeLabels = { yaml_batch: 'Batch', yaml_scenario: 'YAML', newman: 'Newman', binary: 'Binary', sclient_scenario: 'SClient', pending: '...' };
+    const typeLabel = typeLabels[job.type] || job.type;
+    
+    return `
+      <div class="running-job-item flex items-center justify-between p-2 rounded-lg border text-xs" style="background: var(--bg-secondary); border-color: var(--border-color);">
+        <div class="flex items-center space-x-2 flex-1 min-w-0">
+          <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></span>
+          <span class="font-semibold truncate" style="color: var(--text-primary);" title="${job.job}">${job.job}</span>
+          <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">${typeLabel}</span>
+        </div>
+        <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+          <span style="color: var(--text-secondary);">${elapsedStr}</span>
+          <button onclick="stopJob('${job.job}')" class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-all font-medium" title="중지">Stop</button>
+        </div>
+      </div>`;
+  }).join('');
+  
+  updateLogTabs();
+}
+
+async function stopJob(jobName) {
+  if (!confirm(`"${jobName}" Job을 중지하시겠습니까?`)) return;
+  
+  try {
+    const res = await fetch(`/api/stop/${encodeURIComponent(jobName)}`, { method: 'POST' });
+    const result = await res.json();
+    
+    if (result.ok) {
+      showNotification(`${jobName} 중지됨`, 'success');
+      addLogToConsole(`🛑 ${jobName} 사용자에 의해 중지됨`, 'SYSTEM');
+      setTimeout(() => fetchRunningJobs(), 500);
+    } else {
+      showNotification(result.message || '중지 실패', 'error');
+    }
+  } catch (e) {
+    showNotification('중지 요청 실패', 'error');
+  }
+}
+
+// === 로그 탭 관리 ===
+function updateLogTabs() {
+  const tabBars = [document.getElementById('logTabs'), document.getElementById('modalLogTabs')];
+  const jobNames = runningJobs.map(j => j.job);
+  const allJobNames = [...new Set([...jobNames, ...Object.keys(logsByJob).filter(k => k !== '_default' && k !== 'SYSTEM' && k !== 'ERROR')])];
+  
+  tabBars.forEach(tabBar => {
+    if (!tabBar) return;
+    
+    let html = `<button class="log-tab ${activeLogTab === 'all' ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" onclick="switchLogTab('all')" style="background: ${activeLogTab === 'all' ? '#1e293b' : '#334155'}; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>`;
+    
+    const jobColors = ['#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+    allJobNames.forEach((name, idx) => {
+      const safeName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const shortName = name.length > 20 ? name.substring(0, 18) + '..' : name;
+      const isRunning = jobNames.includes(name);
+      const isActive = activeLogTab === name;
+      const colorIdx = getJobColorIndex(name);
+      const tabColor = jobColors[colorIdx];
+      html += `<button class="log-tab ${isActive ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" onclick="switchLogTab('${safeName}')" style="background: ${isActive ? '#1e293b' : '#334155'}; color: ${isActive ? tabColor : '#e2e8f0'}; border: 1px solid #334155; border-bottom: none; ${isActive ? 'border-top: 2px solid ' + tabColor : ''};" title="${name.replace(/"/g, '&quot;')}">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${isRunning ? tabColor : '#6b7280'};margin-right:4px;${isRunning ? 'animation:pulse-border 2s infinite;' : ''}"></span>${shortName}
+      </button>`;
+    });
+    
+    tabBar.innerHTML = html;
+  });
+}
+
+function switchLogTab(tabName) {
+  activeLogTab = tabName;
+  updateLogTabs();
+  renderFilteredLogs();
+}
+
+function renderFilteredLogs() {
   const main = document.getElementById('console');
   const modal = document.getElementById('modalConsole');
   
-  // console element를 찾을 수 없어도 계속 진행
-  if (!main) {
-    console.error('[LOG] console element 없음 - 브라우저 콘솔에만 출력:', line);
-    // DOM element가 없어도 진행 - 적어도 브라우저 콘솔에서는 볼 수 있음
+  let allLines;
+  if (activeLogTab === 'all') {
+    allLines = Object.values(logsByJob).flat().sort((a, b) => a.ts - b.ts);
+  } else {
+    allLines = logsByJob[activeLogTab] || [];
   }
   
-  // jobName이 'SYSTEM'이나 'ERROR'인 경우 특별한 스타일 적용
+  const html = allLines.map(l => l.html).join('');
+  if (main) { main.innerHTML = html; setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10); }
+  if (isModalOpen && modal) { modal.innerHTML = html; setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10); }
+}
+
+function addLogToConsole(line, jobName) {
+  const main = document.getElementById('console');
+  const modal = document.getElementById('modalConsole');
+  
   let prefix = '';
   let colorClass = '';
+  let borderClass = '';
   
   if (jobName === 'SYSTEM') {
     prefix = '[SYSTEM] ';
     colorClass = 'text-blue-400';
+    borderClass = 'log-line-system';
   } else if (jobName === 'ERROR') {
     prefix = '[ERROR] ';
     colorClass = 'text-red-400';
+    borderClass = 'log-line-error';
   } else if (jobName) {
     prefix = `[${jobName}] `;
     colorClass = 'text-green-400';
+    const colorIdx = getJobColorIndex(jobName);
+    borderClass = `log-line-job-${colorIdx}`;
   }
   
   const coloredLine = ansi_up.ansi_to_html(prefix + line);
-  const logLine = `<div class="${colorClass}">${coloredLine}</div>`;
+  const logHtml = `<div class="log-line ${borderClass} ${colorClass}">${coloredLine}</div>`;
   
-  // main element가 있을 때만 DOM 조작
-  if (main) {
-    main.insertAdjacentHTML('beforeend', logLine);
-    
-    // 자동 스크롤
-    setTimeout(() => {
-      main.scrollTop = main.scrollHeight;
-    }, 10);
+  // job별 로그 저장
+  const logKey = jobName || '_default';
+  if (!logsByJob[logKey]) logsByJob[logKey] = [];
+  logsByJob[logKey].push({ html: logHtml, ts: Date.now() });
+  
+  // 로그 크기 제한 (job당 최대 2000줄)
+  if (logsByJob[logKey].length > 2000) {
+    logsByJob[logKey] = logsByJob[logKey].slice(-1500);
   }
   
-  if (isModalOpen && modal) {
-    modal.insertAdjacentHTML('beforeend', logLine);
-    
-    // 모달 자동 스크롤
-    setTimeout(() => {
-      modal.scrollTop = modal.scrollHeight;
-    }, 10);
+  // 새 job 탭이면 탭 업데이트
+  if (jobName && jobName !== 'SYSTEM' && jobName !== 'ERROR' && jobName !== '_default') {
+    updateLogTabs();
+  }
+  
+  // 현재 활성 탭에 맞는 로그만 표시
+  const shouldShow = activeLogTab === 'all' || activeLogTab === logKey;
+  
+  if (shouldShow && main) {
+    main.insertAdjacentHTML('beforeend', logHtml);
+    setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10);
+  }
+  
+  if (shouldShow && isModalOpen && modal) {
+    modal.insertAdjacentHTML('beforeend', logHtml);
+    setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10);
   }
 }
 
 function clearAllConsoles() {
   document.getElementById('console').innerHTML = '';
   document.getElementById('modalConsole').innerHTML = '';
+  logsByJob = {};
+  jobColorMap.clear();
+  nextJobColorIndex = 0;
+  activeLogTab = 'all';
+  updateLogTabs();
 }
 
 // 스케줄 관리
@@ -1070,31 +1329,39 @@ function setStatusChip() {
   const chip = document.getElementById('statusChip');
   const runBtn = document.getElementById('runBtn');
   
-  console.log('[STATUS] Setting status chip, running:', running);
-  
-  if (running && running.job) {
+  if (runningJobs.length > 1) {
+    chip.textContent = `Running: ${runningJobs.length} jobs`;
+    chip.className = "text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 font-medium";
+    chip.style = '';
+  } else if (runningJobs.length === 1) {
+    chip.textContent = 'Running: ' + runningJobs[0].job;
+    chip.className = "text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 font-medium";
+    chip.style = '';
+  } else if (running && running.job) {
     chip.textContent = 'Running: ' + running.job;
     chip.className = "text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 font-medium";
-    
-    // Job이 실행 중일 때 Run 버튼 비활성화
-    runBtn.disabled = true;
-    runBtn.textContent = 'Running...';
-    runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 cursor-not-allowed';
-    runBtn.style.background = 'var(--btn-disabled)';
-    runBtn.onmouseover = null;
-    runBtn.onmouseout = null;
-    runBtn.dataset.currentlyRunning = 'true';
+    chip.style = '';
   } else {
     chip.textContent = 'Standby';
     chip.className = "text-xs px-3 py-1.5 rounded-full font-medium";
     chip.style.background = "var(--bg-tertiary)";
     chip.style.color = "var(--text-primary)";
-    
-    // 대기 중일 때 Run 버튼 활성화
+  }
+  
+  // 선택된 job이 실행 중이면 Run 버튼 비활성화, 아니면 활성
+  const selectedJob = document.getElementById('jobSelect').value;
+  const isSelectedRunning = runningJobs.some(j => j.job === selectedJob);
+  
+  if (isSelectedRunning) {
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 cursor-not-allowed';
+    runBtn.style.background = 'var(--btn-disabled)';
+  } else {
     runBtn.disabled = false;
     runBtn.textContent = 'Run';
     runBtn.className = 'px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white disabled:opacity-50 flex-1 hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold glow-on-hover';
-    runBtn.dataset.currentlyRunning = 'false';
+    runBtn.style.background = '';
   }
 }
 
@@ -1310,7 +1577,10 @@ function showNotification(message, type = 'info') {
 }
 
 // 이벤트 리스너 설정
-document.getElementById('jobSelect').onchange = updateJobSummary;
+document.getElementById('jobSelect').onchange = () => {
+  updateJobSummary();
+  setStatusChip(); // 선택된 job에 따라 Run 버튼 상태 재계산
+};
 
 document.getElementById('runBtn').onclick = async () => {
   const name = document.getElementById('jobSelect').value;
@@ -1321,44 +1591,40 @@ document.getElementById('runBtn').onclick = async () => {
     return; 
   }
   
-  // 서버에서 이미 다른 Job이 실행 중인지 확인
-  if (running && running.job) {
-    alert(`다른 Job이 실행 중입니다: ${running.job}\n실행을 기다리거나 완료 후 다시 시도해주세요.`);
+  // 같은 Job이 이미 실행 중인지 체크 (다른 Job은 허용)
+  if (runningJobs.some(j => j.job === name)) {
+    alert(`같은 Job이 이미 실행 중입니다: ${name}\n완료 후 다시 시도해주세요.`);
     return;
   }
   
-  // Job 실행 전 SSE 연결 활성화
-  console.log('[RUN] Job 실행을 위한 통합 SSE 연결 확인');
+  // SSE 연결 확인 및 대기 (로그 유실 방지)
   if (!unifiedEventSource || unifiedEventSource.readyState !== EventSource.OPEN) {
-    console.log('[RUN] 통합 SSE 연결 재설정');
     setupSSE();
+    // SSE 연결이 열릴 때까지 최대 2초 대기
+    await new Promise(resolve => {
+      const checkInterval = setInterval(() => {
+        if (unifiedEventSource?.readyState === EventSource.OPEN) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 50);
+      setTimeout(() => { clearInterval(checkInterval); resolve(); }, 2000);
+    });
   }
   
   // 실행 중 UI 변경
   runBtn.disabled = true;
-  runBtn.textContent = 'Running...';
-  runBtn.className = 'px-6 py-3 rounded-xl text-white disabled:opacity-50 flex-1 cursor-not-allowed';
+  runBtn.textContent = 'Starting...';
   runBtn.style.background = 'var(--btn-disabled)';
-  runBtn.onmouseover = null;
-  runBtn.onmouseout = null;
-  runBtn.dataset.currentlyRunning = 'true';
   
-  // 로그 콘솔 클리어 및 시작 메시지
-  clearAllConsoles();
+  // 병렬 실행 시 로그를 클리어하지 않음 (탭으로 분리)
   addLogToConsole(`=== Starting job: ${name} ===`, 'SYSTEM');
   addLogToConsole(`Timestamp: ${new Date().toLocaleString('ko-KR')}`, 'SYSTEM');
-  addLogToConsole('', 'SYSTEM'); // 빈 줄
   
   try {
-    console.log('[RUN] Sending GET request to /api/run/' + name);
-    
-    // Newman job은 실행 시간이 오래 걸릴 수 있으므로 타임아웃 제거
-    const response = await fetch(`/api/run/${name}`, {
+    const response = await fetch(`/api/run/${encodeURIComponent(name)}`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      }
-      // 타임아웃 제거하여 Newman 장시간 실행 허용
+      headers: { 'Accept': 'application/json' }
     });
     
     if (!response.ok) {
@@ -1366,52 +1632,34 @@ document.getElementById('runBtn').onclick = async () => {
     }
     
     const result = await response.json();
-    console.log('[RUN] Success response:', result);
-    addLogToConsole(`✅ 실행 요청 성공! 로그를 확인하세요.`, 'SYSTEM');
+    addLogToConsole(`✅ ${name} 실행 요청 성공!`, 'SYSTEM');
     
-    // 통계 즉시 업데이트
-    setTimeout(() => {
-      fetchTodayStats();
-    }, 1000);
+    // 즉시 로컬 runningJobs에 추가 (서버 응답 대기 없이 UI 즉시 반영)
+    if (!runningJobs.some(j => j.job === name)) {
+      runningJobs.push({
+        job: name,
+        startAt: new Date().toLocaleString('ko-KR'),
+        type: 'pending',
+        elapsed: 0,
+        _localStartTs: Date.now()
+      });
+      renderRunningJobs();
+      setStatusChip();
+    }
     
-    // Binary Job 등 빠른 실행을 위한 fallback 체크 (2초, 5초 후)
-    [2000, 5000].forEach(delay => {
-      setTimeout(() => {
-        if (runBtn.dataset.currentlyRunning === 'true') {
-          console.log(`[FALLBACK] Checking job status after ${delay}ms...`);
-          fetch('/api/history?page=1&size=1')
-            .then(res => res.json())
-            .then(data => {
-              // 최근 실행이 완료되었다면 상태 복구
-              if (data.items && data.items.length > 0) {
-                const latestJob = data.items[0];
-                if (latestJob.job === name && latestJob.exitCode !== undefined) {
-                  console.log(`[FALLBACK] Job completed at ${delay}ms, restoring button state`);
-                  running = null;
-                  setStatusChip();
-                  fetchTodayStats();
-                }
-              }
-            })
-            .catch(err => console.log('[FALLBACK] Check failed:', err));
-        }
-      }, delay);
+    // 서버와 동기화 (서버 등록 확인)
+    setTimeout(() => fetchRunningJobs(), 1000);
+    setTimeout(() => fetchTodayStats(), 1500);
+    
+    // Fallback 동기화
+    [3000, 6000].forEach(delay => {
+      setTimeout(() => fetchRunningJobs(), delay);
     });
     
   } catch (error) {
-    console.error('[RUN] Request error:', error);
     addLogToConsole(`❌ 요청 실패: ${error.message}`, 'ERROR');
     alert(`요청 실패: ${error.message}`);
-  } finally {
-    // Job 완료 후 30초 후 SSE 연결 정리 (HTTP 연결 절약)
-    setTimeout(() => {
-      console.log('[RUN] Job 완료 후 통합 SSE 연결 정리');
-      if (unifiedEventSource) {
-        unifiedEventSource.close();
-        unifiedEventSource = null;
-      }
-      updateSSEIndicator();
-    }, 30000);
+    setStatusChip(); // 버튼 상태 복구
   }
 };
 
@@ -1539,8 +1787,15 @@ document.addEventListener('visibilitychange', () => {
       unifiedEventSource = null;
     }
   } else {
-    // 탭이 포그라운드로 오면 필요시 SSE 재연결은 job 실행 시에만
-    console.log('[SSE] 탭 포그라운드, SSE는 job 실행 시 활성화');
+    // 탭이 포그라운드로 오면 항상 SSE 재연결 (로그 유실 방지)
+    console.log('[SSE] 탭 포그라운드, SSE 재연결');
+    if (!unifiedEventSource || unifiedEventSource.readyState !== EventSource.OPEN) {
+      setupSSE();
+    }
+    // running jobs 및 히스토리 새로고침
+    fetchRunningJobs();
+    fetchHistory();
+    fetchTodayStats();
   }
 });
 

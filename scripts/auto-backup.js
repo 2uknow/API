@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 const projectDir = path.resolve(__dirname, '..');
 
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(projectDir, 'backups');
-const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP, 10) || 3;
+const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP, 10) || 1;
 
 function nowKST() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -114,13 +114,39 @@ function cleanupOldBackups() {
     }))
     .sort((a, b) => b.mtime - a.mtime); // 최신순 정렬
 
-  // 압축 파일(.tar.gz)과 폴더를 각각 분리하여 관리
   const archives = entries.filter(e => !e.isDir && e.name.endsWith('.tar.gz'));
   const folders = entries.filter(e => e.isDir);
 
-  // 압축 파일: 최근 BACKUP_KEEP개만 유지
-  if (archives.length > BACKUP_KEEP) {
-    const toDelete = archives.slice(BACKUP_KEEP);
+  // 1단계: tar.gz가 존재하는 폴더는 중복이므로 무조건 삭제
+  for (const folder of folders) {
+    const matchingArchive = `${folder.name}.tar.gz`;
+    if (archives.some(a => a.name === matchingArchive)) {
+      try {
+        deleteDirSync(folder.path);
+        log(`  중복 폴더 삭제 (압축본 존재): ${folder.name}`);
+      } catch (e) {
+        log(`  중복 폴더 삭제 실패: ${folder.name} - ${e.message}`);
+      }
+    }
+  }
+
+  // 2단계: 남은 항목 재조회 (중복 폴더 삭제 후)
+  const remaining = fs.readdirSync(BACKUP_DIR)
+    .filter(name => name.startsWith('backup_'))
+    .map(name => ({
+      name,
+      path: path.join(BACKUP_DIR, name),
+      isDir: fs.statSync(path.join(BACKUP_DIR, name)).isDirectory(),
+      mtime: fs.statSync(path.join(BACKUP_DIR, name)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  const remainingArchives = remaining.filter(e => !e.isDir && e.name.endsWith('.tar.gz'));
+  const remainingFolders = remaining.filter(e => e.isDir);
+
+  // 3단계: 압축 파일 — 최근 BACKUP_KEEP개만 유지
+  if (remainingArchives.length > BACKUP_KEEP) {
+    const toDelete = remainingArchives.slice(BACKUP_KEEP);
     for (const item of toDelete) {
       try {
         fs.unlinkSync(item.path);
@@ -129,12 +155,12 @@ function cleanupOldBackups() {
         log(`  압축 백업 삭제 실패: ${item.name} - ${e.message}`);
       }
     }
-    log(`압축 백업 정리: ${toDelete.length}개 삭제, ${Math.min(archives.length, BACKUP_KEEP)}개 유지`);
+    log(`압축 백업 정리: ${toDelete.length}개 삭제, ${BACKUP_KEEP}개 유지`);
   }
 
-  // 폴더 백업: 최근 BACKUP_KEEP개만 유지
-  if (folders.length > BACKUP_KEEP) {
-    const toDelete = folders.slice(BACKUP_KEEP);
+  // 4단계: 폴더 백업 (압축 실패한 경우만 남음) — 최근 BACKUP_KEEP개만 유지
+  if (remainingFolders.length > BACKUP_KEEP) {
+    const toDelete = remainingFolders.slice(BACKUP_KEEP);
     for (const item of toDelete) {
       try {
         deleteDirSync(item.path);
@@ -143,7 +169,7 @@ function cleanupOldBackups() {
         log(`  폴더 백업 삭제 실패: ${item.name} - ${e.message}`);
       }
     }
-    log(`폴더 백업 정리: ${toDelete.length}개 삭제, ${Math.min(folders.length, BACKUP_KEEP)}개 유지`);
+    log(`폴더 백업 정리: ${toDelete.length}개 삭제, ${BACKUP_KEEP}개 유지`);
   }
 }
 
