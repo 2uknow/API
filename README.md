@@ -1,23 +1,23 @@
 ﻿# Danal External API Monitor
 
-Newman(Postman CLI)과 SClient 바이너리를 지원하는 실시간 API 모니터링 및 네이버웍스 알람 시스템.
+Newman(Postman CLI) 및 SClient 바이너리를 지원하는 실시간 API 모니터링 대시보드.  
+네이버웍스 알람, Cron 스케줄링, HTML 리포트를 제공한다.
 
 ---
 
 ## 목차
 
 1. [설치](#설치)
-2. [설정](#설정)
-3. [실행](#실행)
-4. [Job 설정](#job-설정)
+2. [실행](#실행)
+3. [설정](#설정)
+4. [Job 정의](#job-정의)
 5. [YAML 테스트 작성](#yaml-테스트-작성)
 6. [skip_if / run_if](#skip_if--run_if)
-7. [SClient 커맨드 레퍼런스](#sclient-커맨드-레퍼런스)
-8. [스케줄링 및 배치 실행](#스케줄링-및-배치-실행)
+7. [여러 Job 묶어서 실행](#여러-job-묶어서-실행)
+8. [스케줄링](#스케줄링)
 9. [PM2 운영](#pm2-운영)
-10. [알람 설정](#알람-설정)
-11. [API 레퍼런스](#api-레퍼런스)
-12. [문제 해결](#문제-해결)
+10. [API 레퍼런스](#api-레퍼런스)
+11. [문제 해결](#문제-해결)
 
 ---
 
@@ -25,37 +25,77 @@ Newman(Postman CLI)과 SClient 바이너리를 지원하는 실시간 API 모니
 
 ### 사전 요구사항 (Windows)
 
-1. **Node.js v18+** — https://nodejs.org 에서 LTS 버전 설치 (설치 시 "Add to PATH" 필수 체크)
-2. **PM2** — 설치 후 새 터미널에서 확인
+- Node.js v18 이상 — https://nodejs.org/ (LTS, **Add to PATH** 체크)
+- PM2 (전역 설치)
 
 ```bash
 npm install -g pm2
-pm2 --version
 ```
 
-3. **방화벽 포트 오픈** (PowerShell 관리자)
-
-```powershell
-New-NetFirewallRule -DisplayName "API Monitor" -Direction Inbound -Port 3001 -Protocol TCP -Action Allow
-```
-
-### 프로젝트 설치
+### 프로젝트 설정
 
 ```bash
 git clone https://github.com/danal-rnd/danal-external-api-monitor.git
 cd danal-external-api-monitor
 
-npm run setup              # 의존성 설치 + 디렉토리 생성
-npm run install-reporters  # Newman + htmlextra 리포터 설치
+# 의존성 설치 + 필요 디렉토리 생성
+npm run setup
+
+# Newman HTML 리포터 설치
+npm run install-reporters
+```
+
+### 방화벽 설정 (필요 시)
+
+```powershell
+# 관리자 권한 PowerShell에서 실행
+New-NetFirewallRule -DisplayName "API Monitor" -Direction Inbound -Port 3001 -Protocol TCP -Action Allow
+```
+
+---
+
+## 실행
+
+### PM2로 실행 (권장)
+
+```bash
+# 서버 + 헬스체크 데몬 동시 시작
+pm2 start ecosystem.config.cjs
+
+# 재부팅 후 자동 시작 등록
+pm2 save
+```
+
+`ecosystem.config.cjs`로 시작하면 두 프로세스가 함께 뜬다:
+- **2uknow-api-monitor** — 메인 서버, 매일 04:00 자동 재시작
+- **pm2-healthcheck** — 좀비 프로세스 감지 및 자동 복구 (5분 주기)
+
+웹 대시보드: `http://localhost:3001`
+
+### 개발 모드
+
+```bash
+npm run dev      # nodemon (파일 변경 시 자동 재시작)
+npm start        # 일반 실행
+```
+
+### PM2 기본 명령어
+
+```bash
+pm2 status                        # 상태 확인
+pm2 logs 2uknow-api-monitor       # 실시간 로그
+pm2 restart 2uknow-api-monitor    # 재시작
+pm2 stop ecosystem.config.cjs     # 전체 중지
+pm2 kill                          # PM2 데몬 종료
 ```
 
 ---
 
 ## 설정
 
-### config/settings.json
+### `config/settings.json`
 
-서버 최초 실행 시 자동 생성됩니다. 주요 항목:
+서버 첫 실행 시 자동 생성된다.
 
 ```json
 {
@@ -73,74 +113,36 @@ npm run install-reporters  # Newman + htmlextra 리포터 설치
 ```
 
 | 항목 | 설명 |
-|---|---|
-| `site_port` | 웹 서버 포트 (기본 3001) |
-| `webhook_url` | 네이버웍스 웹훅 URL |
+|------|------|
+| `site_port` | 웹 서버 포트 |
+| `webhook_url` | 네이버웍스 웹훅 URL (필수) |
 | `alert_method` | `"flex"` 또는 `"text"` |
-| `history_keep` | 유지할 실행 이력 개수 |
+| `history_keep` | 실행 이력 보관 개수 |
 | `report_keep_days` | HTML 리포트 보관 일수 |
 
 ### 환경변수
 
-| 변수 | 설명 |
-|---|---|
-| `NW_HOOK` | 웹훅 URL (settings.json보다 우선) |
-| `TEXT_ONLY=true` | 텍스트 알람 강제 |
-| `DASHBOARD_URL` | 대시보드 베이스 URL |
-| `NODE_ENV=development` | 상세 로깅 + 메모리 모니터링 |
+설정 파일보다 우선 적용된다.
+
+```bash
+NW_HOOK=https://...               # 웹훅 URL 오버라이드
+TEXT_ONLY=true                    # 텍스트 알람 강제
+DASHBOARD_URL=https://...        # 리포트 링크용 베이스 URL
+NODE_ENV=development              # 상세 로깅 + 메모리 모니터링
+BACKUP_KEEP=1                     # 백업 보관 개수
+```
 
 ---
 
-## 실행
+## Job 정의
 
-### PM2 (권장 — 프로덕션)
-
-```bash
-pm2 start ecosystem.config.cjs   # 서버 + 헬스체크 데몬 시작
-pm2 save                          # 현재 상태 저장 (재부팅 후 자동 시작)
-pm2 startup                       # Windows 서비스 등록
-```
-
-`ecosystem.config.cjs`로 시작하면 두 프로세스가 함께 실행됩니다:
-- `2uknow-api-monitor` — 메인 서버 (매일 04:00 자동 재시작)
-- `pm2-healthcheck` — 좀비 프로세스 자동 감지 및 복구 (5분 주기)
-
-```bash
-# 상태 확인
-pm2 status
-pm2 monit                      # 실시간 CPU/메모리
-
-# 로그
-pm2 logs                       # 전체
-pm2 logs 2uknow-api-monitor    # 서버만
-pm2 logs --err --lines 50      # 에러 로그
-
-# 재시작 / 중지
-pm2 restart ecosystem.config.cjs
-pm2 stop ecosystem.config.cjs
-```
-
-### 개발 모드
-
-```bash
-npm run dev        # nodemon (파일 변경 시 자동 재시작)
-npm start          # 단순 실행
-npm run start:env  # dotenv 로드 후 실행
-```
-
-**웹 대시보드**: `http://localhost:3001`
-
----
-
-## Job 설정
-
-Job 파일은 `jobs/*.json`에 위치합니다.
+`jobs/` 폴더에 JSON 파일로 정의한다.
 
 ### Newman Job (Postman Collection)
 
 ```json
 {
-  "name": "본인확인서비스_정상",
+  "name": "본인확인_정상",
   "type": "newman",
   "collection": "collections/Danal_Uas_v1.0.postman_collection.json",
   "environment": "environments/Danal_Uas_v1.0.postman_environment.json",
@@ -149,45 +151,29 @@ Job 파일은 `jobs/*.json`에 위치합니다.
 }
 ```
 
-### Binary Job (YAML 디렉토리 배치)
-
-`collection` 경로의 모든 YAML 파일을 순서대로 실행합니다.
+### Binary Job (YAML 폴더 전체 실행)
 
 ```json
 {
   "name": "휴대폰결제_정상",
   "type": "binary",
-  "collection": "collections/Danal_Teledit_v2.0",
-  "excludePatterns": ["conf*", "_*"],
+  "collection": "collections/Danal_Teledit_v2.0/",
+  "generateHtmlReport": true,
   "timeout": 60000,
-  "encoding": "cp949",
-  "generateHtmlReport": true
+  "encoding": "cp949"
 }
 ```
+
+`collection` 폴더 내 `TEST*.yaml` 파일을 알파벳 순서로 전부 실행한다.  
+`excludePatterns` 배열로 제외할 파일 패턴 지정 가능.
 
 ### SClient Scenario Job (단일 YAML 파일)
 
 ```json
 {
-  "name": "결제_시나리오",
+  "name": "결제_단건테스트",
   "type": "sclient_scenario",
-  "yaml": "collections/Danal_Teledit_v2.0/TEST_SKT.yaml"
-}
-```
-
-### 배치 실행 — 특정 파일만 지정
-
-`collection` 대신 `yamlFiles` 배열을 사용하면 실행 순서를 직접 지정할 수 있습니다.
-
-```json
-{
-  "name": "payment_batch",
-  "type": "binary",
-  "yamlFiles": [
-    "collections/Danal_Teledit_v2.0/TEST_SKT.yaml",
-    "collections/Danal_Teledit_v2.0/TEST_KT.yaml"
-  ],
-  "generateHtmlReport": true
+  "yaml": "collections/Danal_Teledit_v2.0/TEST_payment.yaml"
 }
 ```
 
@@ -201,13 +187,8 @@ Job 파일은 `jobs/*.json`에 위치합니다.
 name: "시나리오 이름"
 description: "시나리오 설명"
 
-# 공통 변수 파일 참조
-include:
-  - "conf.yaml"
-
 variables:
   MERCHANT_ID: "A010002002"
-  AMOUNT: "1000"
   ORDER_ID: "{{$timestamp}}_{{$randomInt}}"
 
 steps:
@@ -216,12 +197,12 @@ steps:
       Command: "ITEMSEND2"
       SERVICE: "TELEDIT"
       ID: "{{MERCHANT_ID}}"
-      AMOUNT: "{{AMOUNT}}"
       ORDERID: "{{ORDER_ID}}"
+      AMOUNT: "1000"
 
     extract:
       - name: "result"
-        pattern: "Result"
+        pattern: "Result"           # 키워드만 입력 (정규식 불필요)
         variable: "RESULT_CODE"
       - name: "serverInfo"
         pattern: "ServerInfo"
@@ -234,323 +215,352 @@ steps:
         assertion: "SERVER_INFO exists"
 ```
 
-### Variables — 동적 변수
+### 변수
 
-| 패턴 | 설명 |
-|---|---|
-| `{{VARIABLE_NAME}}` | variables 섹션에 정의된 변수 |
-| `{{$timestamp}}` | Unix 타임스탬프 (밀리초) |
-| `{{$randomInt}}` | 랜덤 정수 (0–9999) |
-| `{{$date}}` | 현재 날짜 (YYYYMMDD) |
-| `{{$time}}` | 현재 시간 (HHMMSS) |
-| `{{$uuid}}` | UUID v4 |
-| `{{js: new Date().getHours()}}` | JavaScript 실행 결과 |
-| `{{RESULT_CODE}}` | 이전 step에서 추출된 변수 |
+| 패턴 | 예시 | 설명 |
+|------|------|------|
+| YAML 변수 | `{{MERCHANT_ID}}` | `variables` 섹션 정의 값 |
+| 동적 변수 | `{{$timestamp}}` | 실행 시점 자동 생성 |
+| JS 표현식 | `{{js: new Date().getHours()}}` | JavaScript 실행 결과 |
+| 추출 변수 | `{{RESULT_CODE}}` | 이전 step에서 추출된 값 |
 
-### Extract — 응답값 추출
+**내장 동적 변수:**
 
-키워드 방식(권장)과 정규식 방식 모두 지원합니다.
+| 변수 | 설명 |
+|------|------|
+| `$timestamp` | Unix 타임스탬프 (ms) |
+| `$randomId` | 고유 랜덤 ID |
+| `$randomInt` | 랜덤 정수 (0-9999) |
+| `$date` | 현재 날짜 YYYYMMDD |
+| `$time` | 현재 시간 HHMMSS |
+| `$uuid` | UUID v4 |
 
-```yaml
-extract:
-  # 키워드 방식 (권장) — 대소문자 무관
-  - name: "result"
-    pattern: "Result"
-    variable: "RESULT_CODE"
-  - name: "serverInfo"
-    pattern: "ServerInfo"
-    variable: "SERVER_INFO"
-  - name: "errMsg"
-    pattern: "ErrMsg"
-    variable: "ERROR_MESSAGE"
-
-  # 정규식 방식 (기존 호환)
-  - name: "tid"
-    pattern: "TID=([A-Za-z0-9]+)"
-    variable: "TRANSACTION_ID"
-```
-
-**자주 추출하는 필드**: `Result`, `ServerInfo`, `ErrMsg`, `AuthKey`, `TID`, `CAP`, `ANSIMMEMBER`
-
-### Test — Assertion 문법
+### Assertion 문법
 
 ```yaml
 test:
   # 단순 비교
-  - "RESULT_CODE == 0"
-  - "RESULT_CODE != 531"
+  - assertion: "RESULT_CODE == 0"
+  - assertion: "RESULT_CODE != 531"
+  - assertion: "SERVER_INFO exists"
 
-  # 값 존재 확인
-  - "SERVER_INFO exists"
-
-  # 이름 붙은 assertion
-  - name: "응답코드 정상"
+  # 이름 + 설명 포함
+  - name: "응답코드 확인"
+    description: "정상 처리 여부 확인"
     assertion: "RESULT_CODE == 0"
 
   # JavaScript 표현식
-  - name: "복합 조건"
-    assertion: "js: RESULT_CODE == '0' && SERVER_INFO.length > 10"
+  - assertion: "js: RESULT_CODE == '0' && SERVER_INFO.length > 0"
+  - assertion: "js: ['0', '531'].includes(RESULT_CODE)"
 ```
 
-### 변수명 컨벤션
+### step 간 값 체이닝
 
-- 대문자 + 언더스코어: `MERCHANT_ID`, `RESULT_CODE`, `SERVER_INFO`
-- step 이름: 한국어 + 커맨드명 포함 (`"SKT ITEMSEND2 결제 요청"`)
-- 파일명: `TEST_[통신사].yaml` 또는 의미 있는 영문명
+이전 step의 `extract` 변수를 다음 step의 `args`에 그대로 사용한다.
+
+```yaml
+steps:
+  - name: "ITEMSEND2"
+    args:
+      Command: "ITEMSEND2"
+    extract:
+      - pattern: "ServerInfo"
+        variable: "SERVER_INFO"
+
+  - name: "IDELIVER"
+    args:
+      Command: "IDELIVER"
+      ServerInfo: "{{SERVER_INFO}}"
+      AUTHKEY: "{{AUTH_KEY}}"
+```
+
+### `conf.yaml` 공통 변수
+
+같은 폴더에 `conf.yaml`이 있으면 자동으로 include되어 공통 변수를 공유한다.
+
+```yaml
+# collections/Danal_Teledit_v2.0/conf.yaml
+variables:
+  MERCHANT_ID: "A010002002"
+  MERCHANT_PWD: "..."
+```
 
 ---
 
 ## skip_if / run_if
 
-SClient 실행 **이후**, test 평가 **이전**에 조건을 검사하여 흐름을 제어합니다.
+step 실행 후 응답값에 따라 assertion을 건너뛰거나 흐름을 분기한다.
+
+> 실행 순서: `args 실행` → `extract 추출` → **`skip_if 평가`** → `test 실행`
 
 ### action 종류
 
-| action | 현재 step test | 이후 step |
-|---|---|---|
-| `skip_tests` | ⏭️ skip | ▶️ 정상 실행 |
-| `skip_remaining_steps` | ⏭️ skip | ⏭️ 전부 skip |
-| `goto_step` | ⏭️ skip | target까지 skip → target부터 재개 |
+| action | 현재 step test | 다음 step |
+|--------|----------------|-----------|
+| `skip_tests` | skip | 정상 실행 |
+| `skip_remaining_steps` | skip | 전부 skip |
+| `goto_step` | skip | target까지 skip, target부터 실행 |
 
-> 어떤 경우든 **현재 step 자체(SClient 실행 + extract)는 항상 실행**됩니다.
+> 어느 action이든 현재 step 자체(args 실행, extract 추출)는 항상 실행된다.
 
-### 사용 예시
+### `skip_tests` — 이 step의 assertion만 skip
 
 ```yaml
-    extract:
-      - name: "result"
-        pattern: "Result"
-        variable: "RESULT_CODE"
-
     skip_if:
-      # 위에서부터 순서대로 평가, 첫 매칭만 적용
+      - condition: "RESULT_CODE == 531"
+        action: "skip_tests"
+        reason: "531 인증실패는 허용 가능한 응답"
+```
+
+### `skip_remaining_steps` — 이후 step 전부 skip
+
+```yaml
+    skip_if:
+      - condition: "js: RESULT_CODE != '0' && RESULT_CODE !== undefined"
+        action: "skip_remaining_steps"
+        reason: "실패 시 이후 step 불필요"
+```
+
+### `goto_step` — 특정 step으로 점프
+
+```yaml
+    skip_if:
+      - condition: "RESULT_CODE == 531"
+        action: "goto_step"
+        target: "531 전용 처리"    # step name과 정확히 일치해야 함
+        reason: "531 전용 흐름으로 이동"
+```
+
+target을 찾지 못하면 `skip_remaining_steps`로 자동 fallback된다.  
+이전 step으로 돌아가는 건 불가하다.
+
+### 다중 조건 (우선순위)
+
+위에서부터 평가하고 첫 번째 매칭만 적용된다. 구체적인 조건 → 일반적인 조건 순서로 작성한다.
+
+```yaml
+    skip_if:
       - condition: "RESULT_CODE == 531"
         action: "goto_step"
         target: "531 전용 처리"
-        reason: "531 인증실패"
-
       - condition: "RESULT_CODE == 999"
         action: "skip_remaining_steps"
-        reason: "999 서비스 불가"
-
+        reason: "서비스 불가"
       - condition: "js: RESULT_CODE != '0'"
         action: "skip_tests"
         reason: "기타 에러"
-
-    test:
-      - name: "결과코드 정상"
-        assertion: "RESULT_CODE == 0"
-
-  - name: "531 전용 처리"
-    args: { ... }
-    test:
-      - name: "에러 메시지 확인"
-        assertion: "ERROR_MESSAGE exists"
 ```
 
-> **주의사항**
-> - `js:` 표현식에서 변수값은 **문자열** → `== '0'` 권장
-> - `goto_step`의 `target`은 step `name`과 **정확히 일치** 필요
-> - target을 찾지 못하면 `skip_remaining_steps`로 자동 fallback
+### `run_if` — 블럭 단위 조건부 assertion
 
-### run_if — 블럭 단위 조건부 assertion
-
-test 섹션 안에서 조건이 true일 때만 특정 assertion 블럭을 실행합니다.
+조건에 맞을 때만 특정 assertion 블럭을 실행한다.
 
 ```yaml
     test:
       - run_if: "RESULT_CODE == 0"
         tests:
-          - name: "TID 존재 확인"
-            assertion: "TRANSACTION_ID exists"
+          - name: "TID 존재"
+            assertion: "TID exists"
 
       - run_if: "RESULT_CODE == 531"
         tests:
-          - name: "531 에러 메시지 확인"
-            assertion: "ERROR_MESSAGE exists"
+          - name: "531 에러메시지 확인"
+            assertion: "ERROR_MSG exists"
 ```
 
 ---
 
-## SClient 커맨드 레퍼런스
+## 여러 Job 묶어서 실행
 
-### 주요 커맨드 흐름
+### 방법 1 — 스케줄에 여러 Job 등록 (순차 실행)
 
-| 결제 유형 | 흐름 |
-|---|---|
-| 표준 소액결제 | `ITEMSEND2` → `IDELIVER` → `IREPORT` → `NCONFIRM` → `NBILL` |
-| 정기/간편결제 | `EXPREBILL` (AUTHKEY + BILLTYPE) |
-| 기본 재결제 | `REBILL` (AUTHKEY) |
-| 전체 취소 | `BILL_CANCEL` |
-| 부분 취소 | `PART_CANCEL` |
-| 폰빌 | `ITEMSEND2` → `PBILL_DELIVER` → `PB_CONFIRM` → `NCONFIRM` → `NBILL` |
-| KT PASS 앱결제 (PC) | `ITEMSEND2` → `IDELIVER` → `APP_CONFIRM` → `IREPORT` → `NCONFIRM` → `NBILL` |
+같은 cron 시간대에 여러 job을 등록하면 큐를 통해 순차적으로 실행된다.
 
-### 커맨드별 핵심 파라미터
-
-| 커맨드 | 필수 파라미터 |
-|---|---|
-| `ITEMSEND2` | `SERVICE`, `ID`, `PWD`, `ItemInfo`, `ORDERID` |
-| `IDELIVER` | `ServerInfo`, `CARRIER`, `DSTADDR`, `IDEN` |
-| `IREPORT` | `ServerInfo`, `OTP` (또는 `ANSIMPASS`) |
-| `NCONFIRM` | `ServerInfo`, `CPID`, `AMOUNT` |
-| `NBILL` | `ServerInfo`, `BillOption` |
-| `EXPREBILL` | `ID`, `PWD`, `AUTHKEY`, `BILLTYPE`, `ItemInfo` |
-| `REBILL` | `ID`, `PWD`, `AUTHKEY`, `ItemInfo` |
-| `BILL_CANCEL` | `ID`, `PWD`, `TID` |
-| `PART_CANCEL` | `ID`, `PWD`, `O_TID`, `CAMT` |
-| `EBILL` | `ServerInfo`, `CONFIRMOPTION`, `AMOUNT`, `CPID` (NCONFIRM+NBILL 통합) |
-
-### 통신사 코드
-
-| 코드 | 통신사 |
-|---|---|
-| `SKT` | SK텔레콤 |
-| `KT` / `KTF` | KT |
-| `LGT` | LG U+ |
-| `CJH` | CJ헬로 (알뜰폰) |
-| `SKL` | SK세븐모바일 |
-| `KTMVNO` | KT 알뜰폰 (통합) |
-| `LGTMVNO` | LG U+ 알뜰폰 (통합) |
-
-### 주요 Result 코드
-
-| 코드 | 의미 | 처리 |
-|---|---|---|
-| `0` | 성공 | 정상 흐름 |
-| `531` | 인증 실패 | 허용 가능, `skip_if`로 처리 |
-| `999` | 서비스 불가 | 허용 가능, 이후 step 불필요 |
-| 기타 | 오류 | `ErrMsg` 필드 확인 |
-
----
-
-## 스케줄링 및 배치 실행
-
-### 스케줄 등록
-
-**웹 대시보드**: 스케줄 관리 → Job + Cron 표현식 입력
-
-**API**:
-```bash
-curl -X POST http://localhost:3001/api/schedule \
-  -H "Content-Type: application/json" \
-  -d '{"name": "휴대폰결제_정상", "cronExpr": "0 9 * * *"}'
-```
-
-**파일 직접 수정** (`config/schedules.json`):
 ```json
 [
-  { "name": "휴대폰결제_정상",     "cronExpr": "0 9 * * *" },
-  { "name": "본인확인서비스_정상", "cronExpr": "0 9 * * *" },
-  { "name": "다날페이카드",        "cronExpr": "0 9 * * *" }
+  { "name": "휴대폰결제_정상", "cronExpr": "0 9 * * *" },
+  { "name": "휴대폰결제_오류", "cronExpr": "0 9 * * *" },
+  { "name": "본인확인서비스_정상", "cronExpr": "0 9 * * *" }
 ]
 ```
 
-같은 시간에 등록된 job들은 **큐 시스템**으로 순차 실행됩니다.
+### 방법 2 — Binary Job으로 폴더 전체 배치 실행
 
-### Cron 표현식 (5자리: 분 시 일 월 요일)
+```json
+{
+  "name": "결제_전체배치",
+  "type": "binary",
+  "collection": "collections/payment_tests/",
+  "excludePatterns": ["*_backup.yaml", "_*"],
+  "timeout": 120000,
+  "generateHtmlReport": true
+}
+```
+
+폴더 내 YAML 파일을 알파벳 순서로 전부 실행하고 하나의 통합 HTML 리포트를 생성한다.
+
+### 방법 3 — 특정 YAML 파일만 선택 실행
+
+```json
+{
+  "name": "결제_선택배치",
+  "type": "binary",
+  "yamlFiles": [
+    "collections/TEST_SKT_payment.yaml",
+    "collections/TEST_KT_payment.yaml"
+  ],
+  "generateHtmlReport": true
+}
+```
+
+### 권장 폴더 구조
 
 ```
-0 9 * * *      매일 오전 9시
-0 9 * * 1-5    평일 오전 9시
-0 9,14 * * *   오전 9시 + 오후 2시
-*/30 * * * *   30분마다
+collections/
+├── payment/
+│   ├── conf.yaml
+│   ├── TEST_01_SKT.yaml
+│   └── TEST_02_KT.yaml
+└── settlement/
+    ├── conf.yaml
+    └── TEST_daily.yaml
+
+jobs/
+├── payment_batch.json
+└── settlement_batch.json
 ```
 
-### 병렬 실행
+---
 
-서로 다른 Job은 동시 실행 가능합니다. 같은 이름의 Job만 중복 차단됩니다.
+## 스케줄링
+
+### Cron 표현식
+
+```
+분  시  일  월  요일
+0   9  *   *   *        매일 오전 9시
+0   9  *   *   1-5      평일 오전 9시
+0  */3  *   *   *        3시간마다
+0  9,18  *   *   *      오전 9시 + 오후 6시
+```
+
+### 스케줄 관리
+
+**웹 대시보드**: 스케줄 관리 메뉴에서 추가/삭제
+
+**API**:
 
 ```bash
-# 실행 중인 Job 확인
-curl http://localhost:3001/api/running
+# 추가
+curl -X POST http://localhost:3001/api/schedule \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"job_name\", \"cronExpr\": \"0 9 * * *\"}"
 
-# 특정 Job 중지
-curl -X POST http://localhost:3001/api/stop/휴대폰결제_정상
+# 삭제
+curl -X DELETE http://localhost:3001/api/schedule/job_name
 ```
+
+**파일 직접 수정**: `config/schedules.json` 수정 후 서버 재시작
 
 ---
 
 ## PM2 운영
 
-### 로그 로테이션 설정
+### 상태 확인 및 모니터링
+
+```bash
+pm2 status                          # 프로세스 목록
+pm2 monit                           # 실시간 CPU/메모리 대시보드
+pm2 logs --lines 200                # 최근 200줄 로그
+pm2 logs --err                      # 에러 로그만
+pm2 show 2uknow-api-monitor         # 상세 정보
+```
+
+### Cron 자동 재시작
+
+`ecosystem.config.cjs` 수정 후 재적용:
+
+```javascript
+cron_restart: '0 4 * * *',   // 매일 새벽 4시 재시작
+```
+
+```bash
+pm2 delete 2uknow-api-monitor
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+### 로그 로테이션
 
 ```bash
 pm2 install pm2-logrotate
-pm2 set pm2-logrotate:max_size 10M   # 파일당 최대 크기
-pm2 set pm2-logrotate:retain 30      # 보관 파일 수
-pm2 set pm2-logrotate:compress true  # gzip 압축
+pm2 set pm2-logrotate:max_size 10M
+pm2 set pm2-logrotate:retain 30
+pm2 set pm2-logrotate:compress true
 ```
 
-### 주요 명령어
+### Windows 재부팅 후 자동 시작
 
 ```bash
-pm2 status                            # 프로세스 상태
-pm2 monit                             # 실시간 CPU/메모리
-pm2 logs --lines 100                  # 최근 로그
-pm2 logs --err --lines 50             # 에러 로그
-pm2 flush                             # 로그 비우기
-pm2 restart 2uknow-api-monitor        # 서버 재시작
-pm2 kill && pm2 start ecosystem.config.cjs  # PM2 완전 재시작
-```
-
-### cron 재시작 시간 변경
-
-`ecosystem.config.cjs` 수정:
-```javascript
-cron_restart: '0 4 * * *',  // 새벽 4시
-```
-적용: `pm2 delete 2uknow-api-monitor && pm2 start ecosystem.config.cjs && pm2 save`
-
----
-
-## 알람 설정
-
-### 웹 UI
-
-1. 헤더의 **Alert Settings** 클릭
-2. 네이버웍스 웹훅 URL 입력 후 저장
-3. 알람 트리거 설정 (시작 / 성공 / 실패)
-4. 알람 방식: Flex 메시지 / 텍스트
-
-> 웹훅 URL 변경 후 서버 재시작 필요
-
-### 알람 테스트
-
-```bash
-curl -X POST http://localhost:3001/api/alert/test
+pm2 startup   # 출력된 명령어를 관리자 PowerShell에서 실행
+pm2 save
 ```
 
 ---
 
 ## API 레퍼런스
 
+### Job 실행 관리
+
 | Method | Endpoint | 설명 |
-|---|---|---|
-| `GET` | `/api/jobs` | Job 목록 |
+|--------|----------|------|
+| `GET` | `/api/jobs` | Job 목록 조회 |
 | `GET` | `/api/run/:name` | Job 실행 |
 | `GET` | `/api/running` | 현재 실행 중인 Job 목록 |
-| `POST` | `/api/stop/:name` | 특정 Job 중지 |
+| `POST` | `/api/stop/:name` | 실행 중인 Job 중지 |
+| `POST` | `/api/reset-state` | 상태 강제 초기화 |
+
+### 이력 및 통계
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
 | `GET` | `/api/history` | 실행 이력 (페이지네이션) |
-| `GET` | `/api/statistics/today` | 오늘 통계 |
-| `GET` | `/api/stream/unified` | 통합 SSE (state + log) |
-| `GET` | `/api/stream/state` | 상태 SSE (레거시) |
-| `GET` | `/api/stream/logs` | 로그 SSE (레거시) |
+| `GET` | `/api/statistics/today` | 오늘의 통계 |
+
+### 스케줄
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
 | `GET` | `/api/schedule` | 스케줄 목록 |
 | `POST` | `/api/schedule` | 스케줄 등록 |
 | `DELETE` | `/api/schedule/:name` | 스케줄 삭제 |
+
+### 알람 설정
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
 | `GET` | `/api/alert/config` | 알람 설정 조회 |
 | `POST` | `/api/alert/config` | 알람 설정 저장 |
-| `POST` | `/api/alert/test` | 알람 테스트 |
-| `POST` | `/api/reset-state` | 강제 상태 초기화 |
+| `POST` | `/api/alert/test` | 웹훅 연결 테스트 |
+
+### 실시간 스트리밍 (SSE)
+
+| Endpoint | 설명 |
+|----------|------|
+| `/api/stream/unified` | 상태 + 로그 통합 (권장) |
+| `/api/stream/state` | 상태 전용 |
+| `/api/stream/logs` | 로그 전용 |
 
 ---
 
 ## 문제 해결
 
-### PM2 좀비 프로세스 (online이지만 접속 안됨)
+### PM2 좀비 프로세스 (online이지만 접속 불가)
 
-**증상**: `pm2 status`에서 `pid: N/A`, `mem: 0b`
+```bash
+pm2 status
+# pid: N/A, mem: 0b  ← 좀비 상태
+```
 
 ```bash
 pm2 kill
@@ -558,7 +568,13 @@ pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-> `ecosystem.config.cjs`로 시작하면 `pm2-healthcheck` 데몬이 자동 감지/복구합니다.
+`pm2-healthcheck` 데몬이 자동으로 감지하여 복구한다.
+
+### Newman 실행 실패
+
+```bash
+npm run install-reporters
+```
 
 ### 포트 충돌
 
@@ -567,69 +583,24 @@ netstat -ano | findstr :3001
 taskkill /PID <PID번호> /F
 ```
 
-또는 `config/settings.json`에서 `site_port` 변경.
+또는 `config/settings.json`의 `site_port` 변경.
 
-### Newman 실행 실패
-
-```bash
-npm run install-reporters
-```
-
-### 알람 미수신
+### 네이버웍스 알람 미수신
 
 1. `config/settings.json`의 `webhook_url` 확인
-2. `run_event_alert: true` 확인
-3. `pm2 logs --err`에서 알람 전송 오류 확인
+2. 웹 UI 알람 설정에서 활성화 상태 확인
+3. `POST /api/alert/test`로 웹훅 직접 테스트
 
 ### 스케줄 미동작
 
-- Cron 표현식 형식 확인 (5자리)
-- Job 파일이 `jobs/` 폴더에 존재하는지 확인
+- Cron 표현식 5자리 형식 확인
+- `/api/schedule`로 등록 여부 확인
+- 서버 재시작 후 재시도
 
-### 실시간 로그 안 보임
-
-브라우저 개발자 도구 → Network → EventSource 연결 확인. 방화벽/프록시가 SSE 차단 여부 확인.
-
-### Node.js 인식 안됨
-
-Node.js 재설치 (Add to PATH 체크) 후 **새 터미널** 열기.
-
----
-
-## 프로젝트 구조
-
-```
-danal-external-api-monitor/
-├── server.js               # Express 서버 (SSE, API, 스케줄링)
-├── alert.js                # 네이버웍스 웹훅 알람
-├── sclient-engine.js       # SClient 바이너리 실행 엔진
-├── simple-yaml-parser.js   # YAML 파서 및 변수 치환
-├── newman-converter.js     # HTML 리포트 생성
-├── run-yaml.js             # YAML 테스트 직접 실행
-├── ecosystem.config.cjs    # PM2 설정
-├── collections/            # YAML 테스트 & Postman Collection
-├── environments/           # Postman Environment
-├── jobs/                   # Job 정의 파일 (.json)
-├── config/
-│   ├── settings.json       # 서버 설정
-│   └── schedules.json      # 스케줄 설정
-├── public/
-│   ├── index.html          # 메인 대시보드
-│   └── alert-config.html   # 알람 설정 페이지
-├── reports/                # HTML 리포트
-├── logs/                   # 실행 로그 & 히스토리
-├── binaries/
-│   ├── windows/SClient.exe
-│   └── linux/SClient
-└── scripts/                # 유틸리티 스크립트
-```
-
-### 유틸리티 스크립트
+### YAML 테스트 assertion 실패 디버깅
 
 ```bash
-npm run setup              # 의존성 설치 + 디렉토리 생성
-npm run install-reporters  # Newman + htmlextra 설치
-npm run clean              # logs/, reports/ 비우기
-npm run backup             # tar.gz 백업 생성
-npm run healthcheck        # PM2 헬스체크 수동 실행
+node run-yaml.js collections/TEST_파일명.yaml
 ```
+
+추출된 변수값과 assertion 평가 과정을 상세하게 출력한다.
