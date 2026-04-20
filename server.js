@@ -117,11 +117,46 @@ if (!fs.existsSync(logsDir))    fs.mkdirSync(logsDir,    { recursive: true });
 
 // SSE + history (최적화된 버전)
 const state = { 
-  runningJobs: new Map(), // jobName -> { startTime, process } 형태로 관리
+  running: null, // 하위호환용 (단일 job 추적) - 현재 실행 중인 job 중 마지막 시작된 것
+  runningJobs: new Map(), // jobName -> { startTime, type, proc } 형태로 병렬 관리
   batchMode: false, // 배치 모드 플래그 - true일 때는 중복 실행 체크 우회
   scheduleQueue: [], // 스케줄 대기 큐: [{jobName, timestamp, retryCount}]
   processingQueue: false // 큐 처리 중 플래그
-};const stateClients = new Set(); 
+};
+
+// 병렬 실행 관리 헬퍼 함수
+function registerRunningJob(jobName, startTime, type = 'unknown', proc = null) {
+  state.runningJobs.set(jobName, { startTime, type, proc, startTs: Date.now() });
+  state.running = { job: jobName, startAt: startTime };
+  broadcastRunningJobs();
+}
+
+function unregisterRunningJob(jobName) {
+  state.runningJobs.delete(jobName);
+  // running은 남은 job 중 하나로 갱신, 없으면 null
+  if (state.runningJobs.size > 0) {
+    const last = [...state.runningJobs.entries()].pop();
+    state.running = { job: last[0], startAt: last[1].startTime };
+  } else {
+    state.running = null;
+  }
+  broadcastRunningJobs();
+}
+
+function broadcastRunningJobs() {
+  const runningList = [];
+  for (const [name, info] of state.runningJobs) {
+    runningList.push({ 
+      job: name, 
+      startAt: info.startTime, 
+      type: info.type,
+      elapsed: Math.round((Date.now() - info.startTs) / 1000)
+    });
+  }
+  broadcastState({ running: state.running, runningJobs: runningList });
+}
+
+const stateClients = new Set(); 
 const logClients = new Set();
 
 // 스케줄 큐 관리 함수들
@@ -214,19 +249,16 @@ function finalizeJobCompletion(jobName, exitCode, success = null) {
   return new Promise((resolve) => {
     console.log(`[FINALIZE] Starting job completion for ${jobName}, exitCode: ${exitCode}, success: ${success}`);
     
-    // 1. 확실한 완료 신호 전송 (다중 신호로 확실성 보장)
-    broadcastLog(`[DONE] exit=${exitCode}`, 'SYSTEM');
+    // 1. 확실한 완료 신호 전송 (다중 신호로 확실성 보장, jobName 포함)
+    broadcastLog(`[DONE] ${jobName} exit=${exitCode}`, 'SYSTEM');
     broadcastLog(`[EXECUTION_COMPLETE] ${jobName}`, 'SYSTEM');
     broadcastLog(`[JOB_FINISHED] ${jobName} with code ${exitCode}`, 'SYSTEM');
     
-    // 2. 상태 초기화 (즉시 + 지연 처리로 이중 보장)
-    console.log(`[FINALIZE] Before state reset - current state:`, state.running);
+    // 2. runningJobs에서 제거 (병렬 실행 안전)
+    console.log(`[FINALIZE] Before state reset - runningJobs:`, [...state.runningJobs.keys()]);
+    unregisterRunningJob(jobName);
     
-    // 즉시 초기화
-    state.running = null;
-    broadcastState({ running: null });
-    
-    console.log(`[FINALIZE] Job completion finalized for ${jobName}, final state:`, state.running);
+    console.log(`[FINALIZE] Job completion finalized for ${jobName}, remaining jobs:`, [...state.runningJobs.keys()]);
     
     // 3. 히스토리 업데이트 신호 및 완료 (대기 시간 단축)
     setTimeout(() => {
@@ -234,15 +266,21 @@ function finalizeJobCompletion(jobName, exitCode, success = null) {
       
       // 최종 확인 후 resolve (대기 시간 단축)
       setTimeout(() => {
-        if (state.running && state.running.job === jobName) {
-          console.log(`[FINALIZE] Final backup state reset for ${jobName}`);
-          state.running = null;
-          broadcastState({ running: null });
+        // 혹시 남아있으면 정리
+        if (state.runningJobs.has(jobName)) {
+          console.log(`[FINALIZE] Final backup cleanup for ${jobName}`);
+          unregisterRunningJob(jobName);
         }
         console.log(`[FINALIZE] Completion process finished for ${jobName}`);
         
         // 작업 완료 후 스케줄 큐 처리
         setTimeout(() => processScheduleQueue(), 2000);
+        
+        // 모든 Job이 완료되면 로그 히스토리 초기화
+        if (state.runningJobs.size === 0) {
+          recentLogHistory.length = 0;
+          console.log(`[FINALIZE] All jobs done - log history cleared`);
+        }
         
         resolve();
       }, 50);
@@ -283,6 +321,10 @@ let logBuffer = [];
 let broadcastTimeoutId = null;
 const BATCH_SIZE = 10; // 한 번에 보낼 로그 수
 const BATCH_INTERVAL = 50; // 배치 전송 간격 (ms)
+
+// 최근 로그 히스토리 (신규 SSE 클라이언트에게 재전송용)
+const recentLogHistory = [];
+const MAX_LOG_HISTORY = 200; // 최대 보관 로그 수
 
 // SSE 헤더 최적화
 function sseHeaders(res) {
@@ -360,6 +402,12 @@ function broadcastLog(line, jobName = '') {
   };
   
   const data = `event: log\ndata: ${JSON.stringify(logData)}\n\n`;
+  
+  // 최근 로그 히스토리에 저장 (신규 SSE 클라이언트 재전송용)
+  recentLogHistory.push(data);
+  if (recentLogHistory.length > MAX_LOG_HISTORY) {
+    recentLogHistory.splice(0, recentLogHistory.length - MAX_LOG_HISTORY);
+  }
   
   // logClients에 전송
   const deadLogClients = new Set();
@@ -866,7 +914,7 @@ async function sendAlert(type, data) {
   }
 }
 
-// Newman JSON 리포트 파싱 함수 추가
+// Newman JSON 리포트 파싱 함수
 function parseNewmanJsonReport(jsonReportPath) {
   try {
     if (!fs.existsSync(jsonReportPath)) {
@@ -1087,8 +1135,16 @@ app.post('/api/reset-state', (req, res) => {
   console.log('[API] Force reset state requested');
   const previousState = state.running;
   
+  // 모든 실행 중인 job 정리
+  for (const [jobName, info] of state.runningJobs) {
+    if (info.proc && !info.proc.killed) {
+      try { info.proc.kill('SIGTERM'); } catch (e) { /* ignore */ }
+    }
+  }
+  state.runningJobs.clear();
   state.running = null;
-  broadcastState({ running: null });
+  state.batchMode = false;
+  broadcastRunningJobs();
   broadcastLog('[SYSTEM] State forcefully reset by user', 'SYSTEM');
   
   res.json({ 
@@ -1098,6 +1154,52 @@ app.post('/api/reset-state', (req, res) => {
   });
   
   console.log('[API] State reset completed, previous state:', previousState);
+});
+
+// 현재 실행 중인 Job 목록 API
+app.get('/api/running', (req, res) => {
+  const runningList = [];
+  for (const [name, info] of state.runningJobs) {
+    runningList.push({
+      job: name,
+      startAt: info.startTime,
+      type: info.type,
+      elapsed: Math.round((Date.now() - info.startTs) / 1000),
+      hasPid: !!(info.proc && info.proc.pid)
+    });
+  }
+  res.json({ ok: true, running: runningList, count: runningList.length });
+});
+
+// 특정 Job 중지 API
+app.post('/api/stop/:name', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  console.log(`[API] Stop request for job: ${name}`);
+  
+  const jobInfo = state.runningJobs.get(name);
+  if (!jobInfo) {
+    return res.status(404).json({ ok: false, reason: 'not_running', message: `Job '${name}'이(가) 실행 중이 아닙니다.` });
+  }
+  
+  // 프로세스 종료
+  if (jobInfo.proc && !jobInfo.proc.killed) {
+    try {
+      jobInfo.proc.kill('SIGTERM');
+      console.log(`[API] Sent SIGTERM to job: ${name} (PID: ${jobInfo.proc.pid})`);
+      broadcastLog(`[STOPPED] ${name} - 사용자에 의해 중지됨`, 'SYSTEM');
+    } catch (e) {
+      console.error(`[API] Failed to kill process for ${name}:`, e.message);
+      // 강제 kill 시도
+      try { jobInfo.proc.kill('SIGKILL'); } catch (e2) { /* ignore */ }
+    }
+  }
+  
+  // Map에서 제거 & 상태 업데이트
+  unregisterRunningJob(name);
+  broadcastLog(`[EXECUTION_COMPLETE] ${name}`, 'SYSTEM');
+  broadcastLog(`[JOB_FINISHED] ${name} with code -1 (stopped)`, 'SYSTEM');
+  
+  res.json({ ok: true, message: `Job '${name}'이(가) 중지되었습니다.` });
 });
 
 // 현재 서버 상태 확인 API
@@ -1312,11 +1414,30 @@ app.get('/api/stream/unified', (req, res) => {
   setTimeout(() => {
     if (!res.destroyed && !res.finished) {
       try {
-        // 현재 상태 전송
+        // 현재 상태 전송 (runningJobs 포함)
+        const runningJobsList = [];
+        for (const [jobName, info] of state.runningJobs) {
+          runningJobsList.push({
+            job: jobName,
+            startAt: info.startTime,
+            type: info.type || 'unknown',
+            elapsed: Math.round((Date.now() - info.startTs) / 1000)
+          });
+        }
+        
         res.write(`event: state\ndata: ${JSON.stringify({ 
           running: state.running,
+          runningJobs: runningJobsList,
           timestamp: Date.now()
         })}\n\n`);
+        
+        // 실행 중인 Job이 있으면 최근 로그 히스토리 재전송
+        if (state.runningJobs.size > 0 && recentLogHistory.length > 0) {
+          console.log(`[SSE] Replaying ${recentLogHistory.length} recent logs to new client`);
+          for (const logEntry of recentLogHistory) {
+            res.write(logEntry);
+          }
+        }
         
         // 연결 확인 핑
         res.write(`event: ping\ndata: ${Date.now()}\n\n`);
@@ -2379,9 +2500,9 @@ app.get('/api/statistics/today', (req, res) => {
 async function runJob(jobName, fromSchedule = false){
   console.log(`[RUNJOB] Starting job execution: ${jobName}, fromSchedule: ${fromSchedule}`);
   
-  // 스케줄 실행이 아니고 배치 모드가 아닐 때만 중복 실행 체크
-  if (state.running && !state.batchMode && !fromSchedule) {
-    console.log(`[RUNJOB] Job rejected - already running: ${state.running.job}`);
+  // 같은 이름의 job이 이미 실행 중이면 차단 (다른 job은 허용)
+  if (state.runningJobs.has(jobName) && !state.batchMode) {
+    console.log(`[RUNJOB] Job rejected - same job already running: ${jobName}`);
     return { started:false, reason:'already_running' };
   }
   
@@ -2407,6 +2528,14 @@ async function runJob(jobName, fromSchedule = false){
   if (!['newman', 'binary', 'sclient_scenario'].includes(job.type)) {
     console.log(`[RUNJOB] Unsupported job type: ${job.type}`);
     return { started:false, reason:'unsupported_type' };
+  }
+
+  // 바이너리/시나리오 타입은 위임 전에 먼저 runningJob 등록
+  // (클라이언트가 500ms 후 fetchRunningJobs 호출 시 이미 등록되어 있어야 Run 버튼이 계속 비활성 상태 유지)
+  if (job.type === 'binary' || job.type === 'sclient_scenario') {
+    const earlyStartTime = nowInTZString();
+    registerRunningJob(jobName, earlyStartTime, job.type, null);
+    console.log(`[RUNJOB] Early registered running job: ${jobName} (type: ${job.type})`);
   }
 
   // 바이너리 타입 처리
@@ -2441,9 +2570,8 @@ async function runJob(jobName, fromSchedule = false){
   const startTime = nowInTZString();
   const startTs = Date.now();
 
-  state.running = { job: jobName, startAt: startTime };
-  broadcastState({ running: state.running });
-  broadcastLog(`[START] ${jobName}`);
+  registerRunningJob(jobName, startTime, 'newman', null);
+  broadcastLog(`[START] ${jobName}`, jobName);
 
   // 시작 알람 전송
   await sendAlert('start', {
@@ -2468,6 +2596,10 @@ async function runJob(jobName, fromSchedule = false){
 
   return new Promise((resolve)=>{
     const proc = spawnNewmanCLI(args);
+    // 프로세스 참조를 runningJobs에 저장
+    if (state.runningJobs.has(jobName)) {
+      state.runningJobs.get(jobName).proc = proc;
+    }
     let errorOutput = '';
 
     proc.stdout.on('data', d => {
@@ -2477,7 +2609,7 @@ async function runJob(jobName, fromSchedule = false){
       s.split(/\r?\n/).forEach(line => {
         if (line) {
           console.log('[NEWMAN STDOUT LINE]', line.substring(0, 50) + '...');
-          broadcastLog(line);
+          broadcastLog(line, jobName);
         }
       });
     });
@@ -2490,7 +2622,7 @@ async function runJob(jobName, fromSchedule = false){
       s.split(/\r?\n/).forEach(line => {
         if (line) {
           console.log('[NEWMAN STDERR LINE]', line.substring(0, 50) + '...');
-          broadcastLog(line);
+          broadcastLog(line, jobName);
         }
       });
     });
@@ -2506,7 +2638,7 @@ proc.on('close', async (code) => {
   const endTime = nowInTZString();
   const duration = Math.round((Date.now() - startTs) / 1000);
   
-  broadcastLog(`[DONE] exit=${code}`);
+  broadcastLog(`[DONE] ${jobName} exit=${code}`, jobName);
 
   // Newman JSON 리포트에서 상세 통계 정보 추출
   let summary = `exit=${code}`;
@@ -2999,10 +3131,9 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 
   // 히스토리 저장 후 추가 상태 확인 및 초기화
   console.log(`[HIST_SAVE] Newman job ${jobName} saved to history, checking state...`);
-  if (state.running && state.running.job === jobName) {
-    console.log(`[HIST_SAVE] Forcing state reset after history save for ${jobName}`);
-    state.running = null;
-    broadcastState({ running: null });
+  if (state.runningJobs.has(jobName)) {
+    console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
+    unregisterRunningJob(jobName);
   }
 
   // 알람 데이터 준비 - 훨씬 풍부한 정보 포함
@@ -3151,9 +3282,8 @@ async function runBinaryJob(jobName, job) {
     const startTime = nowInTZString();
     const startTs = Date.now();
 
-    state.running = { job: jobName, startAt: startTime };
-    broadcastState({ running: state.running });
-    broadcastLog(`[BINARY START] ${jobName}`);
+    registerRunningJob(jobName, startTime, 'binary', null);
+    broadcastLog(`[BINARY START] ${jobName}`, jobName);
 
     // 시작 알람 전송
     await sendAlert('start', {
@@ -3186,6 +3316,10 @@ async function runBinaryJob(jobName, job) {
 
     return new Promise((resolve) => {
       const proc = spawnBinaryCLI(binaryPath, args);
+      // 프로세스 참조를 runningJobs에 저장
+      if (state.runningJobs.has(jobName)) {
+        state.runningJobs.get(jobName).proc = proc;
+      }
       let stdout = '';
       let stderr = '';
       let errorOutput = '';
@@ -3241,7 +3375,7 @@ async function runBinaryJob(jobName, job) {
         if (!proc.killed) {
           console.log(`[BINARY TIMEOUT] Killing process after ${timeout}ms`);
           proc.kill('SIGTERM');
-          broadcastLog(`[BINARY TIMEOUT] Process killed after ${timeout}ms`);
+          broadcastLog(`[BINARY TIMEOUT] Process killed after ${timeout}ms`, jobName);
         }
       }, timeout);
 
@@ -3410,10 +3544,9 @@ async function runBinaryJob(jobName, job) {
         
         // 히스토리 저장 후 추가 상태 확인 및 초기화
         console.log(`[HIST_SAVE] Binary job ${jobName} saved to history, checking state...`);
-        if (state.running && state.running.job === jobName) {
-          console.log(`[HIST_SAVE] Forcing state reset after history save for ${jobName}`);
-          state.running = null;
-          broadcastState({ running: null });
+        if (state.runningJobs.has(jobName)) {
+          console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
+          unregisterRunningJob(jobName);
         }
         
         // 강화된 History 업데이트 신호
@@ -3521,9 +3654,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       const startTime = nowInTZString();
       const startTs = Date.now();
       
-      state.running = { job: jobName, startAt: startTime };
-      broadcastState({ running: state.running });
-      broadcastLog(`[YAML SCENARIO START] ${jobName} - ${scenario.info.name}`);
+      registerRunningJob(jobName, startTime, 'yaml_scenario', null);
+      broadcastLog(`[YAML SCENARIO START] ${jobName} - ${scenario.info.name}`, jobName);
       
       // 시작 알람 전송
       await sendAlert('start', {
@@ -3699,10 +3831,9 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           
           // 히스토리 저장 후 추가 상태 확인 및 초기화
           console.log(`[HIST_SAVE] YAML scenario ${jobName} saved to history, checking state...`);
-          if (state.running && state.running.job === jobName) {
-            console.log(`[HIST_SAVE] Forcing state reset after history save for ${jobName}`);
-            state.running = null;
-            broadcastState({ running: null });
+          if (state.runningJobs.has(jobName)) {
+            console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
+            unregisterRunningJob(jobName);
           }
           
           // 강화된 History 업데이트 신호
@@ -3857,20 +3988,19 @@ app.get('/api/run/:name', async (req,res)=>{
   console.log(`[API] GET /api/run/${name} - Job execution request received`);
 
   try {
-    // 상태 검증 및 강제 초기화 로직 추가
-    if (state.running) {
-      const runningTime = Date.now() - new Date(state.running.startAt).getTime();
-
-      // 배치 모드일 때는 더 긴 시간 허용 (30초), 일반 작업은 10초
+    // 같은 이름의 job이 이미 실행 중인지 체크 (다른 job은 허용)
+    if (state.runningJobs.has(name)) {
+      const jobInfo = state.runningJobs.get(name);
+      const runningTime = Date.now() - jobInfo.startTs;
+      
+      // 타임아웃 감지 시 강제 정리
       const timeoutLimit = state.batchMode ? 30000 : 10000;
       if (runningTime > timeoutLimit) {
-        console.log(`[API] Job ${state.running.job} running too long (${runningTime}ms), forcing reset`);
-        state.running = null;
-        state.batchMode = false;
-        broadcastState({ running: null });
-        broadcastLog(`[SYSTEM] Forced state reset due to stale job state (${runningTime}ms)`, 'SYSTEM');
+        console.log(`[API] Job ${name} running too long (${runningTime}ms), forcing cleanup`);
+        unregisterRunningJob(name);
+        broadcastLog(`[SYSTEM] Forced cleanup of stale job ${name} (${runningTime}ms)`, 'SYSTEM');
       } else {
-        console.log(`[API] Job execution rejected - already running: ${state.running.job}`);
+        console.log(`[API] Job execution rejected - same job already running: ${name}`);
         return res.status(400).json({ ok: false, reason: 'already_running' });
       }
     }
@@ -4377,8 +4507,10 @@ app.get('/', (req, res) => {
 });
 
 // YAML 단일 파일 실행 함수 (state.running 체크 없음)
-async function runSingleYamlFile(jobName, job, collectionPath, paths) {
-  console.log(`[SINGLE_YAML] Starting: ${jobName}`);
+async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJobName) {
+  // broadcastJobName: 부모 배치 job 이름 (탭에 표시될 이름). 없으면 jobName 사용
+  const logJobName = broadcastJobName || jobName;
+  console.log(`[SINGLE_YAML] Starting: ${jobName} (broadcast as: ${logJobName})`);
   
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
   
@@ -4415,8 +4547,8 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
       const startTime = nowInTZString();
       const startTs = Date.now();
       
-      // 개별 파일용 로그 브로드캐스트
-      broadcastLog(`[SINGLE_YAML START] ${jobName} - ${scenario.info.name}`);
+      // 개별 파일용 로그 브로드캐스트 (logJobName = 부모 배치 job 이름 또는 자기 자신)
+      broadcastLog(`[SINGLE_YAML START] ${jobName} - ${scenario.info.name}`, logJobName);
       
       // SClient 엔진 초기화
       const engine = new SClientScenarioEngine({
@@ -4434,10 +4566,10 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
       fs.writeFileSync(tempScenarioPath, JSON.stringify(scenario, null, 2));
       console.log('[SINGLE_YAML] Temp scenario written to:', tempScenarioPath);
       
-      // 실시간 로그 이벤트 연결
+      // 실시간 로그 이벤트 연결 (logJobName 사용하여 부모 탭에 표시)
       engine.on('log', (data) => {
         outStream.write(data.message + '\n');
-        broadcastLog(data.message, jobName);
+        broadcastLog(data.message, logJobName);
       });
     
       engine.on('stdout', (data) => {
@@ -4445,7 +4577,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
         const lines = data.text.split(/\r?\n/);
         lines.forEach(line => {
           if (line.trim()) {
-            broadcastLog(line.trim(), jobName);
+            broadcastLog(line.trim(), logJobName);
           }
         });
       });
@@ -4455,7 +4587,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
         const lines = data.text.split(/\r?\n/);
         lines.forEach(line => {
           if (line.trim()) {
-            broadcastLog(`[ERROR] ${line.trim()}`, jobName);
+            broadcastLog(`[ERROR] ${line.trim()}`, logJobName);
           }
         });
       });
@@ -4577,7 +4709,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
       // 완료 로그
       const statusIcon = success ? '✅' : '❌';
       const message = `${statusIcon} ${jobName}: ${success ? 'SUCCESS' : 'FAILED'} (${duration}ms)`;
-      broadcastLog(message);
+      broadcastLog(message, logJobName);
       
       // HTML 리포트 생성 완료 후 resolve
       debugLog(`[SINGLE_YAML] Final resolve for: ${jobName}`, {
@@ -4604,7 +4736,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths) {
         name: error.name
       });
       console.error(`[SINGLE_YAML] Error in ${jobName}:`, error);
-      broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`);
+      broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`, logJobName);
       
       const errorResult = {
         started: true,
@@ -4722,9 +4854,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     const startTime = nowInTZString();
     const startTs = Date.now();
 
-    state.running = { job: jobName, startAt: startTime };
-    broadcastState({ running: state.running });
-    broadcastLog(`[YAML_BATCH START] ${jobName} - ${yamlFiles.length} files`);
+    registerRunningJob(jobName, startTime, 'yaml_batch', null);
+    broadcastLog(`[YAML_BATCH START] ${jobName} - ${yamlFiles.length} files`, jobName);
     
     // 전체 배치 로그에 시작 정보 기록
     outStream.write(`\n🚀 === YAML BATCH EXECUTION START ===\n`);
@@ -4759,11 +4890,11 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       const filePath = path.join(collectionPath, fileName);
 
       console.log(`[YAML_BATCH] Processing ${i + 1}/${yamlFiles.length}: ${fileName}`);
-      broadcastLog(`📋 [${i + 1}/${yamlFiles.length}] Starting ${fileName}...`);
+      broadcastLog(`📋 [${i + 1}/${yamlFiles.length}] Starting ${fileName}...`, jobName);
 
       // 진행률 표시
       const progressPercent = Math.round(((i + 1) / yamlFiles.length) * 100);
-      broadcastLog(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)`);
+      broadcastLog(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)`, jobName);
       
       // 전체 배치 로그에도 진행률 기록
       outStream.write(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)\n`);
@@ -4814,7 +4945,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         // 전체 배치 로그에 개별 파일 시작 로그 기록
         outStream.write(`\n=== [${i + 1}/${yamlFiles.length}] Starting ${fileName} ===\n`);
 
-        const result = await runSingleYamlFile(`${jobName}_${fileName}`, job, filePath, filePaths);
+        const result = await runSingleYamlFile(`${jobName}_${fileName}`, job, filePath, filePaths, jobName);
 
         // 전체 배치 로그에 개별 파일 완료 로그 기록
         const fileStatusIcon = result.success ? '✅' : '❌';
@@ -4862,12 +4993,12 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
           'No steps';
         const message = `${statusIcon} ${fileName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${stepInfo})`;
         console.log(`[YAML_BATCH] ${message}`);
-        broadcastLog(message);
+        broadcastLog(message, jobName);
         
         // 개별 파일 상세 진행 상황 브로드캐스트
         if (result.scenarioResult?.summary) {
           const detailMessage = `[${fileName}] Steps: ${result.scenarioResult.summary.passed}✅ ${result.scenarioResult.summary.failed}❌ Duration: ${result.duration}ms`;
-          broadcastLog(detailMessage);
+          broadcastLog(detailMessage, jobName);
         }
         
         debugLog(`[YAML_BATCH] Broadcasted result for: ${fileName}`, { statusIcon, success: result.success, stepInfo });
@@ -4904,7 +5035,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         });
         
         overallSuccess = false;
-        broadcastLog(`❌ ${fileName}: ERROR - ${error.message}`);
+        broadcastLog(`❌ ${fileName}: ERROR - ${error.message}`, jobName);
       }
       
       // 각 파일 처리 후 상태 확인
@@ -4953,16 +5084,16 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     });
 
     debugLog(`[YAML_BATCH] Clearing state.running and broadcasting null state`);
-    console.log(`[YAML_BATCH] About to clear state.running - current:`, state.running);
+    console.log(`[YAML_BATCH] About to clear runningJobs - current:`, [...state.runningJobs.keys()]);
     console.log(`[YAML_BATCH] About to deactivate batch mode - current:`, state.batchMode);
     
-    state.running = null;
+    unregisterRunningJob(jobName);
     state.batchMode = false; // 배치 모드 비활성화
     
     console.log(`[YAML_BATCH] State cleared - running:`, state.running, 'batchMode:', state.batchMode);
-    console.log(`[YAML_BATCH] About to broadcast null state`);
+    console.log(`[YAML_BATCH] About to broadcast state`);
     try {
-      broadcastState({ running: null });
+      broadcastRunningJobs();
       console.log(`[YAML_BATCH] State broadcast completed`);
     } catch (broadcastError) {
       console.error(`[YAML_BATCH] WARNING: broadcastState failed:`, broadcastError.message);
@@ -5148,7 +5279,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       batchReportPath: finalResult.batchReportPath
     });
     console.log(`[BATCH_COMPLETE] About to broadcast completion message`);
-    broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`);
+    broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`, jobName);
     console.log(`[BATCH_COMPLETE] About to return finalResult`);
 
     return finalResult;
@@ -5156,9 +5287,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
   } catch (error) {
     console.error(`[YAML_BATCH] Batch execution error:`, error.message);
 
-    state.running = null;
+    unregisterRunningJob(jobName);
     state.batchMode = false;
-    broadcastState({ running: null });
     
     return {
       started: false,
@@ -5186,9 +5316,8 @@ async function runSClientScenarioJob(jobName, job) {
     const startTime = nowInTZString();
     const startTs = Date.now();
     
-    state.running = { job: jobName, startAt: startTime };
-    broadcastState({ running: state.running });
-    broadcastLog(`[SCENARIO START] ${jobName} - ${collectionPath}`);
+    registerRunningJob(jobName, startTime, 'sclient_scenario', null);
+    broadcastLog(`[SCENARIO START] ${jobName} - ${collectionPath}`, jobName);
     
     // 시작 알람
     await sendAlert('start', {
@@ -5208,11 +5337,11 @@ async function runSClientScenarioJob(jobName, job) {
 
     // 실시간 이벤트 핸들링
     engine.on('log', (data) => {
-      broadcastLog(`[SCENARIO] ${data.message}`);
+      broadcastLog(`[SCENARIO] ${data.message}`, jobName);
     });
 
     engine.on('step-start', (data) => {
-      broadcastLog(`[STEP START] ${data.name}`);
+      broadcastLog(`[STEP START] ${data.name}`, jobName);
       broadcastState({ 
         running: { 
           ...state.running, 
@@ -5223,11 +5352,11 @@ async function runSClientScenarioJob(jobName, job) {
     });
 
     engine.on('step-end', (data) => {
-      broadcastLog(`[STEP END] ${data.name} - Duration: ${data.duration}ms, Exit: ${data.exitCode}`);
+      broadcastLog(`[STEP END] ${data.name} - Duration: ${data.duration}ms, Exit: ${data.exitCode}`, jobName);
     });
 
     engine.on('step-error', (data) => {
-      broadcastLog(`[STEP ERROR] ${data.name} - ${data.error}`);
+      broadcastLog(`[STEP ERROR] ${data.name} - ${data.error}`, jobName);
     });
 
     // 시나리오 실행
