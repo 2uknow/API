@@ -6,16 +6,23 @@ import path from 'path';
 import { root, readCfg } from '../utils/config.js';
 
 function spawnNewmanCLI(args) {
+  // npx 경유 제거 — 로컬 newman 직접 실행 (첫 실행 렉 해소)
+  // npx는 매 호출마다 패키지 탐색/버전 해석/PATH 구성 오버헤드 발생
+  const newmanBin = path.resolve(root, 'node_modules', '.bin', process.platform === 'win32' ? 'newman.cmd' : 'newman');
+  
+  // newman 이후의 args만 추출 (args[0]='newman', args[1]='run', ...)
+  const newmanArgs = args.slice(1); // 'newman' 제거
+  
   let cmd, argv;
   if (process.platform === 'win32') {
-    cmd = 'cmd.exe';
-    argv = ['/d', '/s', '/c', 'npx', ...args];
+    cmd = newmanBin;
+    argv = newmanArgs;
   } else {
-    cmd = '/bin/sh';
-    argv = ['-lc', ['npx', ...args].join(' ')];
+    cmd = newmanBin;
+    argv = newmanArgs;
   }
-  console.log('[SPAWN]', cmd, argv);
-  return spawn(cmd, argv, { cwd: root, windowsHide: true });
+  console.log('[SPAWN] newman direct:', cmd, argv.slice(0, 4), '...');
+  return spawn(cmd, argv, { cwd: root, windowsHide: true, shell: process.platform === 'win32' });
 }
 
 // 바이너리 경로 확인 함수

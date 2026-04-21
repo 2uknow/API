@@ -1,5 +1,5 @@
 // src/state/running-jobs.js — 런타임 상태 관리 (싱글톤)
-import { broadcastState, broadcastLog, recentLogHistory } from '../utils/sse.js';
+import { broadcastState, broadcastLog, recentLogHistory, unmarkJobAsScheduled, scheduledJobNames } from '../utils/sse.js';
 
 // SSE + history (최적화된 버전)
 export const state = { 
@@ -34,7 +34,8 @@ export function broadcastRunningJobs() {
       job: name, 
       startAt: info.startTime, 
       type: info.type,
-      elapsed: Math.round((Date.now() - info.startTs) / 1000)
+      elapsed: Math.round((Date.now() - info.startTs) / 1000),
+      fromSchedule: scheduledJobNames.has(name)
     });
   }
   broadcastState({ running: state.running, runningJobs: runningList });
@@ -51,6 +52,7 @@ export function finalizeJobCompletion(jobName, exitCode, success = null) {
     
     console.log(`[FINALIZE] Before state reset - runningJobs:`, [...state.runningJobs.keys()]);
     unregisterRunningJob(jobName);
+    unmarkJobAsScheduled(jobName); // 스케줄 Job 표시 해제
     
     console.log(`[FINALIZE] Job completion finalized for ${jobName}, remaining jobs:`, [...state.runningJobs.keys()]);
     

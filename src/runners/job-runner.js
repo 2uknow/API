@@ -1,15 +1,16 @@
 ﻿// src/runners/job-runner.js
 // Job 실행 함수들 (runJob, runBinaryJob, runYamlSClientScenario, runSingleYamlFile, runYamlDirectoryBatch, runSClientScenarioJob)
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import iconv from 'iconv-lite';
 import { execSync } from 'child_process';
 import { root, reportsDir, logsDir, readCfg } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { debugLog, batchLog, matchPattern } from '../utils/debug.js';
-import { broadcastState, broadcastLog } from '../utils/sse.js';
+import { broadcastState, broadcastLog, markJobAsScheduled, unmarkJobAsScheduled } from '../utils/sse.js';
 import { state, registerRunningJob, unregisterRunningJob, broadcastRunningJobs, finalizeJobCompletion } from '../state/running-jobs.js';
-import { histRead, histWrite } from '../services/history-service.js';
+import { histRead, histWrite, histReadAsync, histWriteAsync } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
 import { sendAlert, buildNewmanFailureReport, buildBinaryFailureReport, buildYamlScenarioFailureReport, buildBatchFailureReport } from '../services/alert-integration.js';
 import { parseBinaryOutput } from '../parsers/binary-parser.js';
@@ -27,9 +28,10 @@ async function runJob(jobName, fromSchedule = false){
     return { started:false, reason:'already_running' };
   }
   
-  // 스케줄 실행일 때는 동시 실행 허용
+  // 스케줄 실행일 때는 동시 실행 허용 + 프론트 실시간 로그 억제
   if (fromSchedule) {
     console.log(`[RUNJOB] Schedule execution - allowing concurrent execution for: ${jobName}`);
+    markJobAsScheduled(jobName);
   }
   
   // 배치 모드일 때는 중복 실행 허용
@@ -169,7 +171,8 @@ proc.on('close', async (code) => {
   
   try {
     if (fs.existsSync(jsonReport)) {
-      const jsonData = JSON.parse(fs.readFileSync(jsonReport, 'utf-8'));
+      const jsonRaw = await fsPromises.readFile(jsonReport, 'utf-8');
+      const jsonData = JSON.parse(jsonRaw);
       const run = jsonData.run;
       
       if (run && run.stats) {
@@ -487,7 +490,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   
   if (code !== 0) {
   try {
-    const output = fs.readFileSync(stdoutPath, 'utf-8');
+    const output = await fsPromises.readFile(stdoutPath, 'utf-8');
     
     // # failure detail 섹션 찾기
     const failureDetailMatch = output.match(/# failure detail\s*\n([\s\S]*?)(?=\n# |$)/);
@@ -622,8 +625,8 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   }
 }
 
-  // history 저장
-  const history = histRead();
+  // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
+  const history = await histReadAsync();
   const historyEntry = {
     timestamp: endTime,
     job: jobName,
@@ -647,7 +650,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
     history.splice(0, history.length - history_keep);
   }
 
-  histWrite(history);
+  await histWriteAsync(history);
   cleanupOldReports();
 
   // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -1034,8 +1037,8 @@ async function runBinaryJob(jobName, job) {
           }
         }
 
-        // 히스토리 저장
-        const history = histRead();
+        // 히스토리 저장 (비동기 - 이벤트 루프 블로킹 방지)
+        const history = await histReadAsync();
         const historyEntry = {
           timestamp: endTime,
           job: jobName,
@@ -1060,7 +1063,7 @@ async function runBinaryJob(jobName, job) {
           history.splice(0, history.length - history_keep);
         }
 
-        histWrite(history);
+        await histWriteAsync(history);
         cleanupOldReports();
         
         // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -1308,8 +1311,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           const txtContent = SClientReportGenerator.generateTextReport(scenarioResult);
           fs.writeFileSync(txtReport, txtContent);
           
-          // 히스토리 저장
-          const history = histRead();
+          // 히스토리 저장 (비동기 - 이벤트 루프 블로킹 방지)
+          const history = await histReadAsync();
           const historyEntry = {
             timestamp: endTime,
             job: jobName,
@@ -1348,7 +1351,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
             history.splice(0, history.length - history_keep);
           }
 
-          histWrite(history);
+          await histWriteAsync(history);
           cleanupOldReports();
           
           // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -2196,8 +2199,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       passedSteps: historyEntry.detailedStats.passedSteps
     });
     
-    // history 저장
-    const history = histRead();
+    // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
+    const history = await histReadAsync();
     history.push(historyEntry);
     
     // 최대 기록 개수 유지
@@ -2208,7 +2211,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
 
     // 히스토리 파일에 저장
     try {
-      histWrite(history);
+      await histWriteAsync(history);
       console.log(`[YAML_BATCH] History saved successfully`);
       
       // 히스토리 업데이트 신호 브로드캐스트
@@ -2364,7 +2367,7 @@ async function runSClientScenarioJob(jobName, job) {
       failedRequests: scenarioResult.summary.failed
     };
     
-    const history = histRead();
+    const history = await histReadAsync();
     history.push(historyEntry);
     
     // 최대 기록 개수 유지
@@ -2372,6 +2375,7 @@ async function runSClientScenarioJob(jobName, job) {
     if (history_keep > 0 && history.length > history_keep) {
       history.splice(0, history.length - history_keep);
     }
+    await histWriteAsync(history);
 
     broadcastState({ history_updated: true });
     
