@@ -19,7 +19,7 @@ router.get('/stream/state', (req, res) => {
     last,
     scheduleQueue: {
       length: state.scheduleQueue.length,
-      processing: state.processingQueue
+      processing: state.scheduleQueue.length > 0
     },
     serverTime: Date.now()
   })}\n\n`);

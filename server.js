@@ -99,68 +99,67 @@ function addToScheduleQueue(jobName) {
 }
 
 async function processScheduleQueue() {
-  if (state.processingQueue) {
-    console.log(`[SCHEDULE QUEUE] Already processing queue, returning`);
-    return;
-  }
-  
   if (state.scheduleQueue.length === 0) {
-    console.log(`[SCHEDULE QUEUE] Queue is empty`);
     return;
   }
   
-  // 실행 중인 작업이 있으면 대기
-  if (state.running && !state.batchMode) {
-    console.log(`[SCHEDULE QUEUE] Job ${state.running.job} is running, waiting...`);
-    setTimeout(() => processScheduleQueue(), 5000); // 5초 후 재시도
-    return;
-  }
+  // 큐에서 실행 가능한 job을 모두 꺼내서 동시 실행
+  const toRun = [];
+  const deferred = [];
   
-  state.processingQueue = true;
-  const queueItem = state.scheduleQueue.shift(); // 큐에서 첫 번째 작업 가져오기
-  
-  console.log(`[SCHEDULE QUEUE] Processing queued job: ${queueItem.jobName}`);
-  broadcastLog(`[SCHEDULE QUEUE] Processing ${queueItem.jobName}`, 'SYSTEM');
-  
-  try {
-    const result = await runJob(queueItem.jobName, true);
-    
-    if (!result.started && result.reason === 'already_running') {
-      // 여전히 실행 중이면 다시 큐에 넣고 재시도
-      queueItem.retryCount++;
-      
-      if (queueItem.retryCount < 3) { // 최대 3번 재시도
-        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} still running, requeuing (attempt ${queueItem.retryCount}/3)`);
-        state.scheduleQueue.unshift(queueItem); // 큐 앞쪽에 다시 넣기
-        setTimeout(() => {
-          state.processingQueue = false;
-          processScheduleQueue();
-        }, 10000); // 10초 후 재시도
+  for (const item of state.scheduleQueue) {
+    if (state.runningJobs.has(item.jobName)) {
+      // 같은 이름의 job이 이미 실행 중이면 보류
+      item.retryCount++;
+      if (item.retryCount < 3) {
+        deferred.push(item);
+        console.log(`[SCHEDULE] ${item.jobName} already running, deferred (${item.retryCount}/3)`);
       } else {
-        console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} max retries exceeded, dropping`);
-        broadcastLog(`[SCHEDULE QUEUE] ${queueItem.jobName} dropped after max retries`, 'ERROR');
-        state.processingQueue = false;
-        processScheduleQueue(); // 다음 큐 아이템 처리
+        console.log(`[SCHEDULE] ${item.jobName} dropped after max retries`);
+        broadcastLog(`[SCHEDULE] ${item.jobName} dropped (max retries)`, 'ERROR');
       }
     } else {
-      console.log(`[SCHEDULE QUEUE] Job ${queueItem.jobName} execution result:`, result);
-      state.processingQueue = false;
-      
-      // 작업 완료 후 다음 큐 처리
-      setTimeout(() => processScheduleQueue(), 1000);
+      toRun.push(item);
     }
-  } catch (error) {
-    console.error(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}:`, error);
-    broadcastLog(`[SCHEDULE QUEUE] Error processing ${queueItem.jobName}: ${error.message}`, 'ERROR');
-    state.processingQueue = false;
-    
-    // 에러 발생 시에도 다음 큐 처리
-    setTimeout(() => processScheduleQueue(), 5000);
+  }
+  
+  // 큐를 보류된 항목으로 교체
+  state.scheduleQueue.length = 0;
+  state.scheduleQueue.push(...deferred);
+  
+  if (toRun.length === 0) {
+    // 보류된 항목만 있으면 10초 후 재시도
+    if (deferred.length > 0) {
+      setTimeout(() => processScheduleQueue(), 10000);
+    }
+    return;
+  }
+  
+  console.log(`[SCHEDULE] Launching ${toRun.length} job(s) in parallel: ${toRun.map(i => i.jobName).join(', ')}`);
+  
+  // 모든 job을 동시에 실행 (await 하지 않음 — fire & forget)
+  for (const item of toRun) {
+    broadcastLog(`[SCHEDULE] Starting ${item.jobName}`, 'SYSTEM');
+    runJob(item.jobName, true).then(result => {
+      if (!result.started && result.reason === 'already_running') {
+        console.log(`[SCHEDULE] ${item.jobName} was already running at launch`);
+      } else {
+        console.log(`[SCHEDULE] ${item.jobName} launched: ${JSON.stringify(result)}`);
+      }
+    }).catch(err => {
+      console.error(`[SCHEDULE] Error launching ${item.jobName}:`, err);
+      broadcastLog(`[SCHEDULE] Error: ${item.jobName} - ${err.message}`, 'ERROR');
+    });
+  }
+  
+  // 보류된 항목이 있으면 10초 후 재처리
+  if (deferred.length > 0) {
+    setTimeout(() => processScheduleQueue(), 10000);
   }
 }
 
-// processScheduleQueue 완료 후 콜백 설정
-state._onJobComplete = () => processScheduleQueue();
+// Job 완료 시 보류된 스케줄 큐 재처리 콜백
+state._processScheduleQueue = () => processScheduleQueue();
 
 // SSE Heartbeat 전송 (5초마다)
 setInterval(() => {

@@ -116,7 +116,7 @@ router.get('/status', (req, res) => {
         retryCount: item.retryCount,
         waitingTime: Date.now() - item.timestamp
       })),
-      processing: state.processingQueue
+      processing: state.scheduleQueue.length > 0
     },
     clients: {
       state: stateClients.size,

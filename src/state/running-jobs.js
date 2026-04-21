@@ -6,8 +6,7 @@ export const state = {
   running: null,
   runningJobs: new Map(),
   batchMode: false,
-  scheduleQueue: [],
-  processingQueue: false
+  scheduleQueue: []
 };
 
 // 병렬 실행 관리 헬퍼 함수
@@ -65,10 +64,9 @@ export function finalizeJobCompletion(jobName, exitCode, success = null) {
         }
         console.log(`[FINALIZE] Completion process finished for ${jobName}`);
         
-        // 작업 완료 후 스케줄 큐 처리는 schedule-service에서 처리
-        // processScheduleQueue는 server.js에서 연결
-        if (state._onJobComplete) {
-          setTimeout(() => state._onJobComplete(), 2000);
+        // 작업 완료 후 스케줄 큐에 대기 중인 job 재처리
+        if (state.scheduleQueue.length > 0 && state._processScheduleQueue) {
+          setTimeout(() => state._processScheduleQueue(), 2000);
         }
         
         // 모든 Job이 완료되면 로그 히스토리 초기화
