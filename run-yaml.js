@@ -141,8 +141,9 @@ async function runYamlTest(yamlFilePath) {
         const yamlContent = fs.readFileSync(yamlFilePath, 'utf8');
         const yamlData = yaml.load(yamlContent);
         
-        // 2. YAML → JSON 시나리오 변환
-        const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+        // 2. YAML → JSON 시나리오 변환 (basePath를 파일 위치 기준으로 지정)
+        const basePath = path.dirname(path.resolve(yamlFilePath));
+        const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent, basePath);
         
         // 3. 임시 시나리오 파일 생성 및 SClient 실행
         const tempScenarioPath = path.join('temp', `temp_scenario_${Date.now()}.json`);
@@ -475,8 +476,9 @@ async function runSingleYamlTest(yamlFilePath) {
         const yamlContent = fs.readFileSync(yamlFilePath, 'utf8');
         const yamlData = yaml.load(yamlContent);
         
-        // 2. YAML → JSON 시나리오 변환
-        const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+        // 2. YAML → JSON 시나리오 변환 (basePath를 파일 위치 기준으로 지정)
+        const basePath = path.dirname(path.resolve(yamlFilePath));
+        const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent, basePath);
         
         // 3. 임시 시나리오 파일 생성 및 SClient 실행
         const tempScenarioPath = path.join('temp', `temp_scenario_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.json`);
@@ -503,8 +505,8 @@ async function runSingleYamlTest(yamlFilePath) {
         // 4. 공통 테스트 검증 모듈 사용
         const validatedResults = validateTestsWithYamlData(results, yamlData);
         
-        // 5. 결과 출력 (변수가 치환된 시나리오 정보와 함께)
-        displayResults(validatedResults, scenario);
+        // 5. 결과 출력 (yamlData 포함하여 JS assertion 디버깅 정보 정상 출력)
+        displayResults(validatedResults, scenario, yamlData);
         
         // 6. 통계 수집
         let testCount = 0;

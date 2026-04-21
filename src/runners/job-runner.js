@@ -1162,7 +1162,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
       const yamlContent = fs.readFileSync(collectionPath, 'utf-8');
-      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+      const yamlBasePath = path.dirname(path.resolve(collectionPath));
+      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent, yamlBasePath);
       console.log('[YAML SCENARIO] Parsed scenario:', scenario.info.name);
       
       // SClient 바이너리 경로 확인
@@ -1509,7 +1510,8 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       const yamlContent = fs.readFileSync(collectionPath, 'utf-8');
       debugLog(`[SINGLE_YAML] YAML content read, length: ${yamlContent.length} chars`);
       
-      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent);
+      const yamlBasePath = path.dirname(path.resolve(collectionPath));
+      const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent, yamlBasePath);
       debugLog(`[SINGLE_YAML] Scenario parsed for: ${jobName}`, {
         name: scenario.info?.name,
         steps: scenario.requests?.length || 0,
