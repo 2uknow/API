@@ -162,33 +162,38 @@ async function processScheduleQueue() {
 // Job 완료 시 보류된 스케줄 큐 재처리 콜백
 state._processScheduleQueue = () => processScheduleQueue();
 
-// SSE Heartbeat 전송 (5초마다)
+// SSE Heartbeat 통합 (20초마다, 1개로 통합)
 setInterval(() => {
-  const heartbeatData = JSON.stringify({ 
-    type: 'heartbeat', 
-    timestamp: new Date().toISOString() 
-  });
+  const timestamp = Date.now();
+  const heartbeatData = `event: heartbeat\ndata: ${JSON.stringify({ 
+    timestamp, 
+    clients: stateClients.size + logClients.size + unifiedClients.size 
+  })}\n\n`;
   
-  // State 클라이언트들에게 heartbeat 전송
-  for (const client of stateClients) {
-    try {
-      client.write(`data: ${heartbeatData}\n\n`);
-    } catch (err) {
-      console.log('[SSE] State heartbeat 전송 실패, 클라이언트 제거');
-      stateClients.delete(client);
+  // 모든 SSE 클라이언트에게 heartbeat + dead connection 정리
+  const allSets = [stateClients, logClients, unifiedClients];
+  let cleaned = 0;
+  
+  for (const clientSet of allSets) {
+    const dead = new Set();
+    for (const c of clientSet) {
+      try {
+        if (!c.destroyed && !c.finished) {
+          c.write(heartbeatData);
+        } else {
+          dead.add(c);
+        }
+      } catch (error) {
+        dead.add(c);
+      }
     }
+    for (const c of dead) { clientSet.delete(c); cleaned++; }
   }
   
-  // Log 클라이언트들에게 heartbeat 전송
-  for (const client of logClients) {
-    try {
-      client.write(`data: ${heartbeatData}\n\n`);
-    } catch (err) {
-      console.log('[SSE] Log heartbeat 전송 실패, 클라이언트 제거');
-      logClients.delete(client);
-    }
+  if (cleaned > 0) {
+    console.log(`[SSE] Cleaned up ${cleaned} dead connections`);
   }
-}, 5000);
+}, 20000);
 
 
 // === 라우트 모듈 마운트 ===
@@ -202,72 +207,6 @@ app.use('/api', statisticsRouter);
 app.use('/api', debugRouter);
 
 loadSchedules(addToScheduleQueue);
-
-// 더 자주, 더 안정적인 하트비트
-setInterval(() => {
-  const timestamp = Date.now();
-  const heartbeatData = `event: heartbeat\ndata: ${JSON.stringify({ 
-    timestamp, 
-    stateClients: stateClients.size,
-    logClients: logClients.size,
-    unifiedClients: unifiedClients.size 
-  })}\n\n`;
-  
-  // State 클라이언트 하트비트
-  const deadStateClients = new Set();
-  for (const c of stateClients) {
-    try {
-      if (!c.destroyed && !c.finished) {
-        c.write(heartbeatData);
-        c.flushHeaders?.();
-      } else {
-        deadStateClients.add(c);
-      }
-    } catch (error) {
-      deadStateClients.add(c);
-    }
-  }
-  
-  // Log 클라이언트 하트비트
-  const deadLogClients = new Set();
-  for (const c of logClients) {
-    try {
-      if (!c.destroyed && !c.finished) {
-        c.write(heartbeatData);
-        c.flushHeaders?.();
-      } else {
-        deadLogClients.add(c);
-      }
-    } catch (error) {
-      deadLogClients.add(c);
-    }
-  }
-  
-  // Unified 클라이언트 하트비트
-  const deadUnifiedClients = new Set();
-  for (const c of unifiedClients) {
-    try {
-      if (!c.destroyed && !c.finished) {
-        c.write(heartbeatData);
-        c.flushHeaders?.();
-      } else {
-        deadUnifiedClients.add(c);
-      }
-    } catch (error) {
-      deadUnifiedClients.add(c);
-    }
-  }
-  
-  // 끊어진 연결들 정리
-  for (const c of deadStateClients) stateClients.delete(c);
-  for (const c of deadLogClients) logClients.delete(c);
-  for (const c of deadUnifiedClients) unifiedClients.delete(c);
-  
-  if (deadStateClients.size > 0 || deadLogClients.size > 0 || deadUnifiedClients.size > 0) {
-    console.log(`[SSE] Cleaned up ${deadStateClients.size + deadLogClients.size + deadUnifiedClients.size} dead connections`);
-  }
-  
-}, 15000); // 30초 -> 15초로 단축
 
 // 연결 상태 모니터링 (개발 모드)
 if (process.env.NODE_ENV === 'development') {

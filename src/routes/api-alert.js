@@ -15,6 +15,16 @@ import { setupDailyReportScheduler } from '../services/statistics-service.js';
 
 const router = Router();
 
+// 웹훅 URL 실제값 조회
+router.get('/alert/webhook-url', (req, res) => {
+  try {
+    const config = readCfg();
+    res.json({ webhook_url: config.webhook_url || '' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 알람 설정 조회
 router.get('/alert/config', (req, res) => {
   try {
