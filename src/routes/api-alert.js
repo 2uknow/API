@@ -7,7 +7,7 @@ import {
   sendFlexMessage,
   buildDailyReportText,
   buildDailyReportFlex
-} from '../../alert.js';
+} from '../services/alert.js';
 import { readCfg, cfgPath } from '../utils/config.js';
 import { nowInTZString } from '../utils/time.js';
 import { getTodayStatsInternal } from '../services/statistics-service.js';

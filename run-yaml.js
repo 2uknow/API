@@ -16,9 +16,9 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { SClientYAMLParser } from './simple-yaml-parser.js';
-import { SClientScenarioEngine } from './sclient-engine.js';
-import { validateTestsWithYamlData } from './sclient-test-validator.js';
+import { SClientYAMLParser } from './src/engine/simple-yaml-parser.js';
+import { SClientScenarioEngine } from './src/engine/sclient-engine.js';
+import { validateTestsWithYamlData } from './src/engine/sclient-test-validator.js';
 
 /**
  * JavaScript 조건식을 분석하여 각 조건의 평가 결과를 반환

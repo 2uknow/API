@@ -16,8 +16,8 @@ import { parseBinaryOutput } from '../parsers/binary-parser.js';
 import { decodeUrlEncodedContent, processResponseBody } from '../utils/crypto.js';
 import { generateNewmanStyleBinaryReport, generateBinaryHtmlReport, generateSimpleBatchReport } from '../services/report-generator.js';
 import { spawnNewmanCLI, getBinaryPath, spawnBinaryCLI } from './spawn-helpers.js';
-import { SClientScenarioEngine, SClientReportGenerator } from '../../sclient-engine.js';
-import { validateTestsWithYamlData } from '../../sclient-test-validator.js';
+import { SClientScenarioEngine, SClientReportGenerator } from '../engine/sclient-engine.js';
+import { validateTestsWithYamlData } from '../engine/sclient-test-validator.js';
 async function runJob(jobName, fromSchedule = false){
   console.log(`[RUNJOB] Starting job execution: ${jobName}, fromSchedule: ${fromSchedule}`);
   
@@ -1154,8 +1154,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       console.log(`[YAML] Importing modules...`);
       
       // YAML 파서와 SClient 엔진 import
-      const { SClientYAMLParser } = await import('../../simple-yaml-parser.js');
-      const { SClientScenarioEngine, SClientReportGenerator } = await import('../../sclient-engine.js');
+      const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
+      const { SClientScenarioEngine, SClientReportGenerator } = await import('../engine/sclient-engine.js');
       
       console.log(`[YAML] Modules imported successfully`);
       console.log('[YAML SCENARIO] Loading YAML collection:', collectionPath);
@@ -1283,7 +1283,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           
           try {
             // Newman 컨버터 사용하여 Newman 스타일 리포트 생성
-            const { SClientToNewmanConverter } = await import('../../newman-converter.js');
+            const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
             const converter = new SClientToNewmanConverter();
             
             console.log(`[BATCH_HTML] Converting ${jobName} to Newman format...`);
@@ -1498,8 +1498,8 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
     try {
       debugLog(`[SINGLE_YAML] Importing modules for: ${jobName}`);
       // YAML 파서와 SClient 엔진 import
-      const { SClientYAMLParser } = await import('../../simple-yaml-parser.js');
-      const { SClientScenarioEngine, SClientReportGenerator } = await import('../../sclient-engine.js');
+      const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
+      const { SClientScenarioEngine, SClientReportGenerator } = await import('../engine/sclient-engine.js');
       debugLog(`[SINGLE_YAML] Modules imported successfully for: ${jobName}`);
       
       debugLog(`[SINGLE_YAML] Reading YAML file: ${collectionPath}`);
@@ -1616,7 +1616,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
 
       if (job.generateHtmlReport) {
         try {
-          const { SClientToNewmanConverter } = await import('../../newman-converter.js');
+          const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
           const reportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
 
           try {
@@ -1638,7 +1638,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
 
             // 폴백: 기본 HTML 리포트 생성 시도
             try {
-              const { SClientReportGenerator } = await import('../../sclient-engine.js');
+              const { SClientReportGenerator } = await import('../engine/sclient-engine.js');
               const fallbackContent = SClientReportGenerator.generateHTMLReport(executionResult);
               fs.writeFileSync(reportPath, fallbackContent);
 
@@ -1659,7 +1659,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
           // 폴백 HTML 생성
           try {
             debugLog(`[SINGLE_YAML] Attempting fallback HTML generation for: ${jobName}`);
-            const { SClientReportGenerator } = await import('../../sclient-engine.js');
+            const { SClientReportGenerator } = await import('../engine/sclient-engine.js');
             const fallbackReportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
             SClientReportGenerator.generateHTMLReport(executionResult, fallbackReportPath, jobName);
             

@@ -5,7 +5,7 @@ import {
   sendTextMessage,
   sendFlexMessage,
   buildRunStatusFlex,
-} from '../../alert.js';
+} from './alert.js';
 
 export async function sendAlert(type, data) {
   const config = readCfg();

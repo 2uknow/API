@@ -10,7 +10,7 @@ import {
   sendFlexMessage,
   buildDailyReportText,
   buildDailyReportFlex
-} from '../../alert.js';
+} from './alert.js';
 
 // 정기 리포트 스케줄러 변수 (여러 시간 지원을 위해 배열로 변경)
 let dailyReportCronJobs = [];

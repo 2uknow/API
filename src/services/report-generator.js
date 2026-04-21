@@ -22,7 +22,7 @@ async function generateNewmanStyleBinaryReport(data) {
   } = data;
 
   try {
-    const { SClientToNewmanConverter } = await import('../../newman-converter.js');
+    const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
     const converter = new SClientToNewmanConverter();
 
     const scenarioResult = convertBinaryToScenarioResult({
