@@ -71,11 +71,20 @@ export async function sendFlexMessage(flex) {
     return { ok:false, status:0, body:'No webhook_url configured' };
   }
 
+  const payload = flex?.content
+    ? flex
+    : {
+        content: {
+          type: 'flex',
+          ...flex
+        }
+      };
+
   try {
     console.log(`[ALERT] Flex 메시지 전송 중... URL: ${url.substring(0, 50)}...`);
     const r = await fetch(url, {
       method:'POST',
-      body: JSON.stringify(flex),
+      body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
       agent: insecureAgent
     });
