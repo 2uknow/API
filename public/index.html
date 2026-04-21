@@ -587,6 +587,15 @@ let runningJobsTimer = null;
 const jobColorMap = new Map();
 let nextJobColorIndex = 0;
 
+// === 성능 최적화: 배치/쓰로틀 관련 ===
+let _logBuffer = [];           // addLogToConsole 배치 버퍼
+let _logFlushRAF = null;       // requestAnimationFrame ID
+let _tabsUpdateTimer = null;   // updateLogTabs 쓰로틀
+let _tabsNeedsUpdate = false;
+let _fetchDebounceTimer = null; // fetchHistory/Stats 디바운스
+const LOG_FLUSH_INTERVAL = 80; // ms — 로그 배치 렌더 주기
+const TABS_THROTTLE = 500;     // ms — 탭 업데이트 최소 간격
+
 function getJobColorIndex(jobName) {
   if (!jobName || jobName === 'SYSTEM' || jobName === 'ERROR' || jobName === '_default') return 0;
   if (!jobColorMap.has(jobName)) {
@@ -660,7 +669,7 @@ async function init() {
   console.log('[INIT] SSE 통합 연결 활성화');
   updateCurrentDate();
   
-  // 실행 중 jobs 경과시간 실시간 업데이트 (1초마다)
+  // 실행 중 jobs 경과시간 실시간 업데이트 (1초마다, DOM 텍스트만 변경)
   runningJobsTimer = setInterval(() => {
     if (runningJobs.length > 0) {
       runningJobs.forEach(j => {
@@ -669,8 +678,16 @@ async function init() {
         } else {
           j.elapsed = (j.elapsed || 0) + 1;
         }
+        // DOM에서 해당 job의 경과시간 span만 업데이트
+        const el = document.querySelector(`.running-elapsed[data-job="${j.job}"]`);
+        if (el) {
+          const e = j.elapsed;
+          const h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
+          el.textContent = h > 0 
+            ? `${h}h${String(m).padStart(2,'0')}m${String(s).padStart(2,'0')}s`
+            : m > 0 ? `${m}m${String(s).padStart(2,'0')}s` : `${s}s`;
+        }
       });
-      renderRunningJobs();
     }
   }, 1000);
 }
@@ -784,10 +801,7 @@ function setupUnifiedSSE() {
         // History 업데이트 신호 감지
         if (data.type === 'history_update' || data.line.includes('[HISTORY_UPDATE]')) {
           console.log('[SSE] History 업데이트 신호 수신');
-          setTimeout(() => {
-            fetchHistory();
-            fetchTodayStats();
-          }, 200);
+          scheduleFetchUpdates();
         }
         
         // 실행 완료 신호 감지 (확장된 신호 감지)
@@ -799,12 +813,7 @@ function setupUnifiedSSE() {
             data.line.includes('[BINARY DONE]') ||
             data.line.includes('exit=')) {
           console.log('[SSE] 실행 완료 신호 수신:', data.line);
-          
-          setTimeout(() => {
-            fetchRunningJobs();
-            fetchHistory();
-            fetchTodayStats();
-          }, 300);
+          scheduleFetchUpdates();
         }
       } catch (err) {
         console.error('[SSE] Log 파싱 오류:', err);
@@ -817,7 +826,6 @@ function setupUnifiedSSE() {
         const data = JSON.parse(e.data);
         
         if (data.type === 'heartbeat') {
-          console.log('[SSE] Heartbeat 수신');
           return;
         }
         
@@ -829,10 +837,7 @@ function setupUnifiedSSE() {
         // History 업데이트 신호 감지
         if (data.type === 'history_update' || data.line.includes('[HISTORY_UPDATE]')) {
           console.log('[SSE] History 업데이트 신호 수신');
-          setTimeout(() => {
-            fetchHistory();
-            fetchTodayStats();
-          }, 200);
+          scheduleFetchUpdates();
         }
         
         // 실행 완료 신호 감지 (확장된 신호 감지)
@@ -844,12 +849,7 @@ function setupUnifiedSSE() {
             data.line.includes('[BINARY DONE]') ||
             data.line.includes('exit=')))) {
           console.log('[SSE] 실행 완료 신호 수신:', data.line);
-          
-          setTimeout(() => {
-            fetchRunningJobs();
-            fetchHistory();
-            fetchTodayStats();
-          }, 300);
+          scheduleFetchUpdates();
         }
       } catch (err) {
         console.error('[SSE] Message 파싱 오류:', err);
@@ -858,7 +858,6 @@ function setupUnifiedSSE() {
     
     unifiedEventSource.addEventListener('heartbeat', (e) => {
       updateSSEHeartbeat();
-      console.log('[SSE] Heartbeat 수신');
     });
     
     unifiedEventSource.addEventListener('error', (e) => {
@@ -1005,13 +1004,13 @@ function renderRunningJobs() {
           <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">${typeLabel}</span>
         </div>
         <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-          <span style="color: var(--text-secondary);">${elapsedStr}</span>
+          <span class="running-elapsed" data-job="${job.job}" style="color: var(--text-secondary);">${elapsedStr}</span>
           <button onclick="stopJob('${job.job}')" class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-all font-medium" title="중지">Stop</button>
         </div>
       </div>`;
   }).join('');
   
-  updateLogTabs();
+  scheduleTabsUpdate();
 }
 
 async function stopJob(jobName) {
@@ -1078,15 +1077,14 @@ function renderFilteredLogs() {
     allLines = logsByJob[activeLogTab] || [];
   }
   
-  const html = allLines.map(l => l.html).join('');
-  if (main) { main.innerHTML = html; setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10); }
-  if (isModalOpen && modal) { modal.innerHTML = html; setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10); }
+  // 최근 3000줄만 표시 (성능 보호)
+  const displayLines = allLines.length > 3000 ? allLines.slice(-3000) : allLines;
+  const html = displayLines.map(l => l.html).join('');
+  if (main) { main.innerHTML = html; requestAnimationFrame(() => { main.scrollTop = main.scrollHeight; }); }
+  if (isModalOpen && modal) { modal.innerHTML = html; requestAnimationFrame(() => { modal.scrollTop = modal.scrollHeight; }); }
 }
 
 function addLogToConsole(line, jobName) {
-  const main = document.getElementById('console');
-  const modal = document.getElementById('modalConsole');
-  
   let prefix = '';
   let colorClass = '';
   let borderClass = '';
@@ -1119,23 +1117,76 @@ function addLogToConsole(line, jobName) {
     logsByJob[logKey] = logsByJob[logKey].slice(-1500);
   }
   
-  // 새 job 탭이면 탭 업데이트
+  // 새 job 탭이면 탭 업데이트 예약
   if (jobName && jobName !== 'SYSTEM' && jobName !== 'ERROR' && jobName !== '_default') {
-    updateLogTabs();
+    scheduleTabsUpdate();
   }
   
-  // 현재 활성 탭에 맞는 로그만 표시
+  // 현재 활성 탭에 맞는 로그만 버퍼에 추가
   const shouldShow = activeLogTab === 'all' || activeLogTab === logKey;
+  if (shouldShow) {
+    _logBuffer.push(logHtml);
+    scheduleLogFlush();
+  }
+}
+
+// 로그 배치 렌더링 (requestAnimationFrame 기반)
+function scheduleLogFlush() {
+  if (_logFlushRAF) return;
+  _logFlushRAF = requestAnimationFrame(flushLogBuffer);
+}
+
+function flushLogBuffer() {
+  _logFlushRAF = null;
+  if (_logBuffer.length === 0) return;
   
-  if (shouldShow && main) {
-    main.insertAdjacentHTML('beforeend', logHtml);
-    setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10);
+  const html = _logBuffer.join('');
+  _logBuffer.length = 0;
+  
+  const main = document.getElementById('console');
+  if (main) {
+    main.insertAdjacentHTML('beforeend', html);
+    // DOM 크기 제한 (자식 노드 3000개 초과 시 앞쪽 제거)
+    while (main.childElementCount > 3000) {
+      main.removeChild(main.firstChild);
+    }
+    main.scrollTop = main.scrollHeight;
   }
   
-  if (shouldShow && isModalOpen && modal) {
-    modal.insertAdjacentHTML('beforeend', logHtml);
-    setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10);
+  if (isModalOpen) {
+    const modal = document.getElementById('modalConsole');
+    if (modal) {
+      modal.insertAdjacentHTML('beforeend', html);
+      while (modal.childElementCount > 3000) {
+        modal.removeChild(modal.firstChild);
+      }
+      modal.scrollTop = modal.scrollHeight;
+    }
   }
+}
+
+// updateLogTabs 쓰로틀링
+function scheduleTabsUpdate() {
+  _tabsNeedsUpdate = true;
+  if (_tabsUpdateTimer) return;
+  _tabsUpdateTimer = setTimeout(() => {
+    _tabsUpdateTimer = null;
+    if (_tabsNeedsUpdate) {
+      _tabsNeedsUpdate = false;
+      updateLogTabs();
+    }
+  }, TABS_THROTTLE);
+}
+
+// fetch 디바운싱 (fetchHistory + fetchTodayStats + fetchRunningJobs)
+function scheduleFetchUpdates() {
+  if (_fetchDebounceTimer) clearTimeout(_fetchDebounceTimer);
+  _fetchDebounceTimer = setTimeout(() => {
+    _fetchDebounceTimer = null;
+    fetchRunningJobs();
+    fetchHistory();
+    fetchTodayStats();
+  }, 500);
 }
 
 function clearAllConsoles() {
