@@ -216,6 +216,88 @@
       0%, 100% { border-color: rgba(59, 130, 246, 0.3); }
       50% { border-color: rgba(59, 130, 246, 0.8); }
     }
+
+    /* === Live 토글 스위치 === */
+    .live-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px 4px 8px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(.4,0,.2,1);
+      user-select: none;
+    }
+    .live-toggle-wrap:hover {
+      border-color: #6b7280;
+    }
+    .live-toggle-wrap.active {
+      border-color: rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    [data-theme="dark"] .live-toggle-wrap.active {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .live-toggle-track {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      border-radius: 9999px;
+      background: #d1d5db;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .live-toggle-wrap.active .live-toggle-track {
+      background: #ef4444;
+    }
+    .live-toggle-thumb {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    .live-toggle-wrap.active .live-toggle-thumb {
+      transform: translateX(16px);
+    }
+    .live-toggle-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      transition: color 0.3s;
+    }
+    .live-toggle-wrap.active .live-toggle-label {
+      color: #ef4444;
+    }
+    .live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #9ca3af;
+      transition: background 0.3s;
+    }
+    .live-toggle-wrap.active .live-dot {
+      background: #ef4444;
+      animation: live-blink 1.2s ease-in-out infinite;
+    }
+    @keyframes live-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    /* Polling 인디케이터 */
+    .polling-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body class="min-h-screen" style="background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);">
@@ -455,11 +537,18 @@
             <h2 class="text-lg font-bold" style="color: var(--text-primary);">Real-time Log</h2>
             <div class="flex items-center space-x-2">
               <div id="logIndicator" class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
-              <span class="text-xs font-medium" style="color: var(--text-secondary);">SSE 연결</span>
+              <span id="logStatusText" class="text-xs font-medium" style="color: var(--text-secondary);">Polling</span>
+              <span id="pollingBadge" class="polling-badge">30s</span>
             </div>
           </div>
         </div>
         <div class="flex items-center space-x-3">
+          <!-- Live 토글 -->
+          <div id="liveToggle" class="live-toggle-wrap" onclick="toggleLiveMode()" title="실시간 로그 스트리밍 ON/OFF">
+            <div class="live-toggle-track"><div class="live-toggle-thumb"></div></div>
+            <span class="live-dot"></span>
+            <span class="live-toggle-label">LIVE</span>
+          </div>
           <button id="expandLogModal" class="text-sm px-3 py-1.5 rounded-lg transition-all duration-300 font-medium" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;" onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.1)'">전체화면</button>
           <button id="clearConsole" class="text-sm px-3 py-1.5 rounded-lg transition-all duration-300 font-medium" style="background: var(--bg-tertiary); color: var(--text-secondary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">Clear</button>
         </div>
@@ -550,6 +639,12 @@
           <h3 class="text-lg font-bold" style="color: var(--text-primary);">실시간 로그</h3>
         </div>
         <div class="flex items-center space-x-3">
+          <!-- 모달 Live 토글 -->
+          <div id="modalLiveToggle" class="live-toggle-wrap" onclick="toggleLiveMode()" title="실시간 로그 스트리밍 ON/OFF">
+            <div class="live-toggle-track"><div class="live-toggle-thumb"></div></div>
+            <span class="live-dot"></span>
+            <span class="live-toggle-label">LIVE</span>
+          </div>
           <button id="clearModalConsole" class="px-4 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium" style="background: var(--bg-tertiary); color: var(--text-primary);" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'">Clear</button>
           <button id="closeLogModal" class="px-4 py-1.5 text-sm rounded-lg transition-all duration-300 font-medium" style="background: rgba(239,68,68,0.1); color: #ef4444;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
             닫기 (ESC)
@@ -586,6 +681,23 @@ let logsByJob = {};
 let runningJobsTimer = null;
 const jobColorMap = new Map();
 let nextJobColorIndex = 0;
+
+// === 성능 최적화: 배치/쓰로틀 관련 ===
+let _logBuffer = [];           // addLogToConsole 배치 버퍼
+let _logFlushRAF = null;       // requestAnimationFrame ID
+let _tabsUpdateTimer = null;   // updateLogTabs 쓰로틀
+let _tabsNeedsUpdate = false;
+let _fetchDebounceTimer = null; // fetchHistory/Stats 디바운스
+const LOG_FLUSH_INTERVAL = 80; // ms — 로그 배치 렌더 주기
+const TABS_THROTTLE = 500;     // ms — 탭 업데이트 최소 간격
+
+// === Live Mode (실시간 SSE) vs Polling Mode ===
+let isLiveMode = false;         // Live 모드 ON/OFF
+let _pollingTimer = null;       // Polling 타이머
+let _autoOffTimer = null;       // Auto-OFF 타이머 (Job 완료 후 30초)
+const POLLING_IDLE = 30000;     // Polling 간격: 유휴 시 30초
+const POLLING_ACTIVE = 10000;   // Polling 간격: Job 실행 중 10초
+const AUTO_OFF_DELAY = 30000;   // Live 모드 자동 OFF 대기시간 30초
 
 function getJobColorIndex(jobName) {
   if (!jobName || jobName === 'SYSTEM' || jobName === 'ERROR' || jobName === '_default') return 0;
@@ -655,12 +767,13 @@ async function init() {
     fetchRunningJobs()
   ]);
   
-  // SSE 연결을 페이지 로드 시 즉시 활성화 (Newman 등 빠른 로그 유실 방지)
-  setupSSE();
-  console.log('[INIT] SSE 통합 연결 활성화');
+  // Polling 모드로 시작 (SSE 연결 안 함 → 렉 없음)
+  startPolling();
+  updateLiveUI();
+  console.log('[INIT] Polling 모드로 시작');
   updateCurrentDate();
   
-  // 실행 중 jobs 경과시간 실시간 업데이트 (1초마다)
+  // 실행 중 jobs 경과시간 실시간 업데이트 (1초마다, DOM 텍스트만 변경)
   runningJobsTimer = setInterval(() => {
     if (runningJobs.length > 0) {
       runningJobs.forEach(j => {
@@ -669,10 +782,23 @@ async function init() {
         } else {
           j.elapsed = (j.elapsed || 0) + 1;
         }
+        // DOM에서 해당 job의 경과시간 span만 업데이트
+        const el = document.querySelector(`.running-elapsed[data-job="${j.job}"]`);
+        if (el) {
+          const e = j.elapsed;
+          const h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
+          el.textContent = h > 0 
+            ? `${h}h${String(m).padStart(2,'0')}m${String(s).padStart(2,'0')}s`
+            : m > 0 ? `${m}m${String(s).padStart(2,'0')}s` : `${s}s`;
+        }
       });
-      renderRunningJobs();
     }
   }, 1000);
+  
+  // 실행 중인 Job이 있으면 자동으로 Live 모드 ON
+  if (runningJobs.length > 0) {
+    toggleLiveMode(true);
+  }
 }
 
 // 오늘 날짜 업데이트
@@ -713,212 +839,192 @@ async function fetchTodayStats() {
   }
 }
 
-// 통합 SSE 설정 (간소화됨)
-function setupSSE() {
-  console.log('[SSE] 통합 연결 설정 시작...');
+// === Live Mode 토글 + SSE 관리 ===
+function toggleLiveMode(forceState) {
+  const enable = typeof forceState === 'boolean' ? forceState : !isLiveMode;
+  if (enable === isLiveMode) return;
   
-  // 기존 연결 정리
-  if (unifiedEventSource) {
-    console.log('[SSE] 기존 통합 연결 정리');
-    try {
-      unifiedEventSource.close();
-    } catch (e) {
-      console.log('[SSE] 통합 연결 정리 오류:', e);
-    }
-    unifiedEventSource = null;
+  isLiveMode = enable;
+  
+  if (isLiveMode) {
+    connectSSE();
+    clearAutoOffTimer();
+  } else {
+    disconnectSSE();
+    clearAutoOffTimer();
   }
   
-  // 연결 설정
-  setTimeout(() => {
-    setupUnifiedSSE();
-  }, 100);
+  updateLiveUI();
 }
 
-// 통합 SSE 연결 설정 (간소화됨)
-function setupUnifiedSSE() {
-  console.log('[SSE] 통합 연결 시작');
+function updateLiveUI() {
+  const toggles = [document.getElementById('liveToggle'), document.getElementById('modalLiveToggle')];
+  toggles.forEach(t => {
+    if (!t) return;
+    if (isLiveMode) { t.classList.add('active'); } else { t.classList.remove('active'); }
+  });
+  
+  const indicator = document.getElementById('logIndicator');
+  const statusText = document.getElementById('logStatusText');
+  const pollingBadge = document.getElementById('pollingBadge');
+  
+  if (isLiveMode) {
+    const isConnected = unifiedEventSource?.readyState === EventSource.OPEN;
+    indicator.className = isConnected
+      ? 'w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse'
+      : 'w-2.5 h-2.5 bg-yellow-400 rounded-full animate-pulse';
+    statusText.textContent = isConnected ? 'Live' : '연결 중...';
+    statusText.style.color = '#ef4444';
+    pollingBadge.style.display = 'none';
+  } else {
+    indicator.className = 'w-2.5 h-2.5 bg-gray-400 rounded-full';
+    statusText.textContent = 'Polling';
+    statusText.style.color = 'var(--text-secondary)';
+    const interval = runningJobs.length > 0 ? POLLING_ACTIVE / 1000 : POLLING_IDLE / 1000;
+    pollingBadge.textContent = `${interval}s`;
+    pollingBadge.style.display = '';
+  }
+}
+
+// === Polling 모드 (기본) ===
+function startPolling() {
+  stopPolling();
+  const interval = runningJobs.length > 0 ? POLLING_ACTIVE : POLLING_IDLE;
+  _pollingTimer = setInterval(pollDashboard, interval);
+}
+
+function stopPolling() {
+  if (_pollingTimer) { clearInterval(_pollingTimer); _pollingTimer = null; }
+}
+
+function adjustPollingInterval() {
+  if (!isLiveMode && _pollingTimer) { startPolling(); }
+  updateLiveUI();
+}
+
+async function pollDashboard() {
+  try {
+    const prevCount = runningJobs.length;
+    await Promise.all([fetchRunningJobs(), fetchTodayStats()]);
+    // Polling 모드에서 Job 발견 시 폴링 간격 조정
+    if (runningJobs.length !== prevCount) adjustPollingInterval();
+  } catch (e) { /* 무시 */ }
+}
+
+// === SSE 연결/해제 (Live 모드 전용) ===
+function connectSSE() {
+  if (unifiedEventSource?.readyState === EventSource.OPEN) return;
+  disconnectSSE();
   
   try {
     unifiedEventSource = new EventSource('/api/stream/unified');
     
     unifiedEventSource.addEventListener('open', () => {
-      console.log('[SSE] 통합 연결 성공');
-      updateSSEHeartbeat();
-      updateSSEIndicator();
+      lastSSEHeartbeat = Date.now();
+      updateLiveUI();
     });
     
     unifiedEventSource.addEventListener('state', (e) => {
       try {
-        updateSSEHeartbeat();
+        lastSSEHeartbeat = Date.now();
         const data = JSON.parse(e.data);
         running = data.running;
         
-        // runningJobs 배열 업데이트 (로컬 startTs 보존)
         if (data.runningJobs) {
+          const prevCount = runningJobs.length;
           const newJobs = data.runningJobs.map(sj => {
             const existing = runningJobs.find(lj => lj.job === sj.job);
-            return {
-              ...sj,
-              _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
-            };
+            return { ...sj, _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000) };
           });
           runningJobs = newJobs;
           renderRunningJobs();
+          
+          if (prevCount > 0 && runningJobs.length === 0) scheduleAutoOff();
+          if (runningJobs.length > 0) clearAutoOffTimer();
+          adjustPollingInterval();
         }
-        
         setStatusChip();
-      } catch (err) {
-        console.error('[SSE] State 파싱 오류:', err);
-      }
+      } catch (err) { /* 무시 */ }
     });
     
     unifiedEventSource.addEventListener('log', (e) => {
       try {
-        updateSSEHeartbeat();
+        lastSSEHeartbeat = Date.now();
         const data = JSON.parse(e.data);
-        
-        if (data.line) {
-          addLogToConsole(data.line, data.jobName || '');
-        }
-        
-        // History 업데이트 신호 감지
-        if (data.type === 'history_update' || data.line.includes('[HISTORY_UPDATE]')) {
-          console.log('[SSE] History 업데이트 신호 수신');
-          setTimeout(() => {
-            fetchHistory();
-            fetchTodayStats();
-          }, 200);
-        }
-        
-        // 실행 완료 신호 감지 (확장된 신호 감지)
+        if (data.line) addLogToConsole(data.line, data.jobName || '');
+        if (data.type === 'history_update' || data.line.includes('[HISTORY_UPDATE]')) scheduleFetchUpdates();
         if (data.type === 'execution_done' || 
-            data.line.includes('[DONE]') || 
-            data.line.includes('[EXECUTION_COMPLETE]') ||
-            data.line.includes('[JOB_FINISHED]') ||
-            data.line.includes('[YAML SCENARIO DONE]') ||
-            data.line.includes('[BINARY DONE]') ||
-            data.line.includes('exit=')) {
-          console.log('[SSE] 실행 완료 신호 수신:', data.line);
-          
-          setTimeout(() => {
-            fetchRunningJobs();
-            fetchHistory();
-            fetchTodayStats();
-          }, 300);
+            data.line.includes('[DONE]') || data.line.includes('[EXECUTION_COMPLETE]') ||
+            data.line.includes('[JOB_FINISHED]') || data.line.includes('[YAML SCENARIO DONE]') ||
+            data.line.includes('[BINARY DONE]') || data.line.includes('exit=')) {
+          scheduleFetchUpdates();
         }
-      } catch (err) {
-        console.error('[SSE] Log 파싱 오류:', err);
-      }
+      } catch (err) { /* 무시 */ }
     });
     
     unifiedEventSource.addEventListener('message', (e) => {
       try {
-        updateSSEHeartbeat();
+        lastSSEHeartbeat = Date.now();
         const data = JSON.parse(e.data);
-        
-        if (data.type === 'heartbeat') {
-          console.log('[SSE] Heartbeat 수신');
-          return;
-        }
-        
-        // message 이벤트로 오는 로그 처리
-        if (data.line) {
-          addLogToConsole(data.line, data.jobName || '');
-        }
-        
-        // History 업데이트 신호 감지
-        if (data.type === 'history_update' || data.line.includes('[HISTORY_UPDATE]')) {
-          console.log('[SSE] History 업데이트 신호 수신');
-          setTimeout(() => {
-            fetchHistory();
-            fetchTodayStats();
-          }, 200);
-        }
-        
-        // 실행 완료 신호 감지 (확장된 신호 감지)
+        if (data.type === 'heartbeat') return;
+        if (data.line) addLogToConsole(data.line, data.jobName || '');
+        if (data.type === 'history_update' || (data.line && data.line.includes('[HISTORY_UPDATE]'))) scheduleFetchUpdates();
         if (data.type === 'execution_done' || 
-            (data.line && (data.line.includes('[DONE]') || 
-            data.line.includes('[EXECUTION_COMPLETE]') ||
-            data.line.includes('[JOB_FINISHED]') ||
-            data.line.includes('[YAML SCENARIO DONE]') ||
-            data.line.includes('[BINARY DONE]') ||
-            data.line.includes('exit=')))) {
-          console.log('[SSE] 실행 완료 신호 수신:', data.line);
-          
-          setTimeout(() => {
-            fetchRunningJobs();
-            fetchHistory();
-            fetchTodayStats();
-          }, 300);
+            (data.line && (data.line.includes('[DONE]') || data.line.includes('[EXECUTION_COMPLETE]') ||
+            data.line.includes('[JOB_FINISHED]') || data.line.includes('[YAML SCENARIO DONE]') ||
+            data.line.includes('[BINARY DONE]') || data.line.includes('exit=')))) {
+          scheduleFetchUpdates();
         }
-      } catch (err) {
-        console.error('[SSE] Message 파싱 오류:', err);
+      } catch (err) { /* 무시 */ }
+    });
+    
+    unifiedEventSource.addEventListener('heartbeat', () => { lastSSEHeartbeat = Date.now(); });
+    
+    unifiedEventSource.addEventListener('error', () => {
+      updateLiveUI();
+      if (isLiveMode) {
+        setTimeout(() => {
+          if (isLiveMode && (!unifiedEventSource || unifiedEventSource.readyState === EventSource.CLOSED)) connectSSE();
+        }, 3000);
       }
     });
-    
-    unifiedEventSource.addEventListener('heartbeat', (e) => {
-      updateSSEHeartbeat();
-      console.log('[SSE] Heartbeat 수신');
-    });
-    
-    unifiedEventSource.addEventListener('error', (e) => {
-      console.error('[SSE] 통합 연결 오류:', e);
-      updateSSEIndicator();
-      setTimeout(() => {
-        if (!unifiedEventSource || unifiedEventSource.readyState === EventSource.CLOSED) {
-          console.log('[SSE] 통합 재연결 시도...');
-          setupSSE();
-        }
-      }, 3000);
-    });
-    
   } catch (error) {
-    console.error('[SSE] 통합 연결 생성 실패:', error);
+    console.error('[SSE] 연결 실패:', error);
   }
   
-  updateSSEIndicator();
-  
-  // Health check 시작
-  if (sseHealthCheckInterval) {
-    clearInterval(sseHealthCheckInterval);
-  }
-  
-  sseHealthCheckInterval = setInterval(checkSSEHealth, 5000);
-  console.log('[SSE] Health check interval started');
+  if (sseHealthCheckInterval) clearInterval(sseHealthCheckInterval);
+  sseHealthCheckInterval = setInterval(() => {
+    if (!isLiveMode) return;
+    if (Date.now() - lastSSEHeartbeat > 30000 || unifiedEventSource?.readyState !== EventSource.OPEN) connectSSE();
+  }, 30000);
 }
 
-// 개별 함수들은 통합 SSE로 대체됨
-
-function updateSSEIndicator() {
-  const indicator = document.getElementById('logIndicator');
-  const isConnected = unifiedEventSource?.readyState === EventSource.OPEN;
-  
-  indicator.className = isConnected 
-    ? 'w-3 h-3 bg-green-400 rounded-full animate-pulse'
-    : 'w-3 h-3 bg-red-400 rounded-full';
+function disconnectSSE() {
+  if (sseHealthCheckInterval) { clearInterval(sseHealthCheckInterval); sseHealthCheckInterval = null; }
+  if (unifiedEventSource) { try { unifiedEventSource.close(); } catch (e) {} unifiedEventSource = null; }
 }
 
-// SSE 연결 상태 확인 및 자동 재연결
-function checkSSEHealth() {
-  const now = Date.now();
-  const timeSinceLastHeartbeat = now - lastSSEHeartbeat;
-  
-  console.log(`[SSE HEALTH] Time since last heartbeat: ${timeSinceLastHeartbeat}ms`);
-  
-  // 10초 동안 heartbeat이 없거나 연결이 끊어진 경우 재연결
-  if (timeSinceLastHeartbeat > 10000 || 
-      unifiedEventSource?.readyState !== EventSource.OPEN) {
-    
-    console.log('[SSE HEALTH] Connection seems stale, reconnecting...');
-    setupSSE();
-  }
+// === Auto-OFF: Job 모두 완료 후 30초 뒤 Live OFF ===
+function scheduleAutoOff() {
+  clearAutoOffTimer();
+  _autoOffTimer = setTimeout(() => {
+    if (isLiveMode && runningJobs.length === 0) {
+      toggleLiveMode(false);
+      showNotification('Job 완료 — Live 모드 자동 OFF', 'info');
+    }
+  }, AUTO_OFF_DELAY);
 }
 
-// SSE Heartbeat 업데이트
-function updateSSEHeartbeat() {
-  lastSSEHeartbeat = Date.now();
-  console.log('[SSE HEARTBEAT] Updated');
+function clearAutoOffTimer() {
+  if (_autoOffTimer) { clearTimeout(_autoOffTimer); _autoOffTimer = null; }
 }
+
+// 이전 함수 호환성 유지
+function setupSSE() { if (isLiveMode) connectSSE(); }
+function setupUnifiedSSE() { connectSSE(); }
+function updateSSEIndicator() { updateLiveUI(); }
+function checkSSEHealth() {}
+function updateSSEHeartbeat() { lastSSEHeartbeat = Date.now(); }
 
 // 로그 모달
 function openLogModal() {
@@ -1005,13 +1111,13 @@ function renderRunningJobs() {
           <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">${typeLabel}</span>
         </div>
         <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-          <span style="color: var(--text-secondary);">${elapsedStr}</span>
+          <span class="running-elapsed" data-job="${job.job}" style="color: var(--text-secondary);">${elapsedStr}</span>
           <button onclick="stopJob('${job.job}')" class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-all font-medium" title="중지">Stop</button>
         </div>
       </div>`;
   }).join('');
   
-  updateLogTabs();
+  scheduleTabsUpdate();
 }
 
 async function stopJob(jobName) {
@@ -1078,15 +1184,14 @@ function renderFilteredLogs() {
     allLines = logsByJob[activeLogTab] || [];
   }
   
-  const html = allLines.map(l => l.html).join('');
-  if (main) { main.innerHTML = html; setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10); }
-  if (isModalOpen && modal) { modal.innerHTML = html; setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10); }
+  // 최근 3000줄만 표시 (성능 보호)
+  const displayLines = allLines.length > 3000 ? allLines.slice(-3000) : allLines;
+  const html = displayLines.map(l => l.html).join('');
+  if (main) { main.innerHTML = html; requestAnimationFrame(() => { main.scrollTop = main.scrollHeight; }); }
+  if (isModalOpen && modal) { modal.innerHTML = html; requestAnimationFrame(() => { modal.scrollTop = modal.scrollHeight; }); }
 }
 
 function addLogToConsole(line, jobName) {
-  const main = document.getElementById('console');
-  const modal = document.getElementById('modalConsole');
-  
   let prefix = '';
   let colorClass = '';
   let borderClass = '';
@@ -1119,23 +1224,76 @@ function addLogToConsole(line, jobName) {
     logsByJob[logKey] = logsByJob[logKey].slice(-1500);
   }
   
-  // 새 job 탭이면 탭 업데이트
+  // 새 job 탭이면 탭 업데이트 예약
   if (jobName && jobName !== 'SYSTEM' && jobName !== 'ERROR' && jobName !== '_default') {
-    updateLogTabs();
+    scheduleTabsUpdate();
   }
   
-  // 현재 활성 탭에 맞는 로그만 표시
+  // 현재 활성 탭에 맞는 로그만 버퍼에 추가
   const shouldShow = activeLogTab === 'all' || activeLogTab === logKey;
+  if (shouldShow) {
+    _logBuffer.push(logHtml);
+    scheduleLogFlush();
+  }
+}
+
+// 로그 배치 렌더링 (requestAnimationFrame 기반)
+function scheduleLogFlush() {
+  if (_logFlushRAF) return;
+  _logFlushRAF = requestAnimationFrame(flushLogBuffer);
+}
+
+function flushLogBuffer() {
+  _logFlushRAF = null;
+  if (_logBuffer.length === 0) return;
   
-  if (shouldShow && main) {
-    main.insertAdjacentHTML('beforeend', logHtml);
-    setTimeout(() => { main.scrollTop = main.scrollHeight; }, 10);
+  const html = _logBuffer.join('');
+  _logBuffer.length = 0;
+  
+  const main = document.getElementById('console');
+  if (main) {
+    main.insertAdjacentHTML('beforeend', html);
+    // DOM 크기 제한 (자식 노드 3000개 초과 시 앞쪽 제거)
+    while (main.childElementCount > 3000) {
+      main.removeChild(main.firstChild);
+    }
+    main.scrollTop = main.scrollHeight;
   }
   
-  if (shouldShow && isModalOpen && modal) {
-    modal.insertAdjacentHTML('beforeend', logHtml);
-    setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 10);
+  if (isModalOpen) {
+    const modal = document.getElementById('modalConsole');
+    if (modal) {
+      modal.insertAdjacentHTML('beforeend', html);
+      while (modal.childElementCount > 3000) {
+        modal.removeChild(modal.firstChild);
+      }
+      modal.scrollTop = modal.scrollHeight;
+    }
   }
+}
+
+// updateLogTabs 쓰로틀링
+function scheduleTabsUpdate() {
+  _tabsNeedsUpdate = true;
+  if (_tabsUpdateTimer) return;
+  _tabsUpdateTimer = setTimeout(() => {
+    _tabsUpdateTimer = null;
+    if (_tabsNeedsUpdate) {
+      _tabsNeedsUpdate = false;
+      updateLogTabs();
+    }
+  }, TABS_THROTTLE);
+}
+
+// fetch 디바운싱 (fetchHistory + fetchTodayStats + fetchRunningJobs)
+function scheduleFetchUpdates() {
+  if (_fetchDebounceTimer) clearTimeout(_fetchDebounceTimer);
+  _fetchDebounceTimer = setTimeout(() => {
+    _fetchDebounceTimer = null;
+    fetchRunningJobs();
+    fetchHistory();
+    fetchTodayStats();
+  }, 500);
 }
 
 function clearAllConsoles() {
@@ -1597,10 +1755,9 @@ document.getElementById('runBtn').onclick = async () => {
     return;
   }
   
-  // SSE 연결 확인 및 대기 (로그 유실 방지)
+  // Live 모드 자동 활성화 + SSE 연결 대기 (로그 유실 방지)
+  if (!isLiveMode) toggleLiveMode(true);
   if (!unifiedEventSource || unifiedEventSource.readyState !== EventSource.OPEN) {
-    setupSSE();
-    // SSE 연결이 열릴 때까지 최대 2초 대기
     await new Promise(resolve => {
       const checkInterval = setInterval(() => {
         if (unifiedEventSource?.readyState === EventSource.OPEN) {
@@ -1633,6 +1790,11 @@ document.getElementById('runBtn').onclick = async () => {
     
     const result = await response.json();
     addLogToConsole(`✅ ${name} 실행 요청 성공!`, 'SYSTEM');
+    
+    // Auto-Live: Run 클릭 시 자동으로 Live 모드 ON
+    if (!isLiveMode) {
+      toggleLiveMode(true);
+    }
     
     // 즉시 로컬 runningJobs에 추가 (서버 응답 대기 없이 UI 즉시 반영)
     if (!runningJobs.some(j => j.job === name)) {
@@ -1766,33 +1928,23 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// 페이지 언로드 시 SSE 연결 정리
+// 페이지 언로드 시 연결 정리
 window.addEventListener('beforeunload', () => {
-  console.log('[SSE] 페이지 언로드, 통합 연결 정리');
-  if (sseHealthCheckInterval) {
-    clearInterval(sseHealthCheckInterval);
-  }
-  if (unifiedEventSource) {
-    unifiedEventSource.close();
-  }
+  stopPolling();
+  disconnectSSE();
 });
 
-// 페이지 가시성 변경 시 SSE 관리
+// 페이지 가시성 변경 시 관리
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    // 탭이 백그라운드로 가면 SSE 연결 정리 (HTTP 연결 절약)
-    console.log('[SSE] 탭 백그라운드, 통합 SSE 연결 정리');
-    if (unifiedEventSource) {
-      unifiedEventSource.close();
-      unifiedEventSource = null;
-    }
+    // 탭이 백그라운드 → SSE 해제 (리소스 절약), 폴링도 정지
+    if (isLiveMode) disconnectSSE();
+    stopPolling();
   } else {
-    // 탭이 포그라운드로 오면 항상 SSE 재연결 (로그 유실 방지)
-    console.log('[SSE] 탭 포그라운드, SSE 재연결');
-    if (!unifiedEventSource || unifiedEventSource.readyState !== EventSource.OPEN) {
-      setupSSE();
-    }
-    // running jobs 및 히스토리 새로고침
+    // 탭이 포그라운드 복귀
+    startPolling();
+    if (isLiveMode) connectSSE();
+    // 상태 즉시 갱신
     fetchRunningJobs();
     fetchHistory();
     fetchTodayStats();

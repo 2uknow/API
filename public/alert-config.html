@@ -324,6 +324,26 @@
             </div>
         </section>
 
+        <!-- 웹훅 URL 설정 -->
+        <section class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
+            <h2 class="text-xl font-bold mb-2" style="color: var(--text-primary);">웹훅 URL 설정</h2>
+            <p class="text-sm mb-6" style="color: var(--text-secondary);">네이버 웍스 웹훅 URL을 입력하세요. 알람 전송에 사용됩니다.</p>
+            <form id="webhookForm" class="space-y-4">
+                <div class="flex gap-3">
+                    <input type="url" id="webhook_url_input"
+                        placeholder="https://talk.worksmobile.com/webhook/..."
+                        class="flex-1 px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-color);">
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-semibold glow-on-hover whitespace-nowrap">
+                        저장
+                    </button>
+                    <button type="button" id="testAlertBtn" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 font-semibold glow-on-hover whitespace-nowrap">
+                        테스트 전송
+                    </button>
+                </div>
+            </form>
+        </section>
+
         <!-- 알람 설정 -->
         <section class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
             <h2 class="text-xl font-bold mb-6" style="color: var(--text-primary);">알람 설정</h2>
@@ -558,7 +578,10 @@
 
                 // 정기 리포트 상세 설정 활성화/비활성화
                 toggleDailyReportSettings(config.daily_report_enabled);
-
+                // 웹훅 URL 로드
+                const webhookRes = await fetch('/api/alert/webhook-url');
+                const webhookData = await webhookRes.json();
+                document.getElementById('webhook_url_input').value = webhookData.webhook_url || '';
             } catch (error) {
                 showNotification('설정을 불러오는 중 오류가 발생했습니다.', 'error');
             }
@@ -808,6 +831,55 @@
                 } catch (error) {
                     console.error('설정 저장 오류:', error);
                     showNotification('설정 저장 중 오류가 발생했습니다.', 'error');
+                }
+            });
+
+            // 웹훅 URL 저장
+            document.getElementById('webhookForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const url = document.getElementById('webhook_url_input').value.trim();
+                try {
+                    const response = await fetch('/api/alert/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ webhook_url: url })
+                    });
+                    if (response.ok) {
+                        showNotification('웹훅 URL이 저장되었습니다.', 'success');
+                        loadCurrentConfig();
+                    } else {
+                        throw new Error(await response.text());
+                    }
+                } catch (error) {
+                    showNotification('저장 중 오류가 발생했습니다.', 'error');
+                }
+            });
+
+            // 웹훅 테스트 전송
+            document.getElementById('testAlertBtn').addEventListener('click', async function() {
+                const url = document.getElementById('webhook_url_input').value.trim();
+                if (!url) {
+                    showNotification('웹훅 URL을 먼저 입력하고 저장해주세요.', 'error');
+                    return;
+                }
+                this.disabled = true;
+                this.textContent = '전송 중...';
+                try {
+                    const response = await fetch('/api/alert/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const result = await response.json();
+                    if (result.ok) {
+                        showNotification('테스트 알람이 전송되었습니다.', 'success');
+                    } else {
+                        throw new Error(result.message || '전송 실패');
+                    }
+                } catch (error) {
+                    showNotification('테스트 전송 실패: ' + error.message, 'error');
+                } finally {
+                    this.disabled = false;
+                    this.textContent = '테스트 전송';
                 }
             });
 
