@@ -12,6 +12,7 @@ import { initLogManagement } from './src/services/log-manager.js';
 import { loadSchedules } from './src/services/schedule-service.js';
 import { setupDailyReportScheduler } from './src/services/statistics-service.js';
 import { runJob } from './src/runners/job-runner.js';
+import cron from 'node-cron';
 
 // === 라우트 모듈 ===
 import jobsRouter from './src/routes/api-jobs.js';
@@ -356,6 +357,22 @@ setupDailyReportScheduler();
 
 // 로그 관리 스케줄러 초기화 (일별 스플릿 + 7일 이후 압축)
 initLogManagement();
+
+// 주간 자동 백업 (매주 일요일 새벽 2시)
+cron.schedule('0 2 * * 0', async () => {
+  console.log('[BACKUP] 주간 자동 백업 시작...');
+  try {
+    const { execSync } = await import('child_process');
+    execSync('node scripts/auto-backup.js', { 
+      cwd: root, 
+      stdio: 'inherit',
+      timeout: 1800000  // 30분
+    });
+    console.log('[BACKUP] 주간 자동 백업 완료');
+  } catch (err) {
+    console.error('[BACKUP] 자동 백업 실패:', err.message);
+  }
+}, { timezone: 'Asia/Seoul' });
 
 app.listen(site_port, '0.0.0.0', () => {
   const displayUrl = base_url || `http://localhost:${site_port}`;
