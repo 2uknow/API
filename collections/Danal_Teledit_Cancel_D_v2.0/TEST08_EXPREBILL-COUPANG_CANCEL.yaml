@@ -117,7 +117,7 @@ steps:
               DATE.trim().length === 14)"
 
           - name: "결제 완료 시간(Date) 정상 출력_2"
-            description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~5분 중 하나라도 일치하면 PASS 처리"
+            description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +7 ~ 7분 중 하나라도 일치하면 PASS 처리"
             assertion: "js: (() => {
               if (!DATE || DATE.length < 12) return false;
 
