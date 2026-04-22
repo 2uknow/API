@@ -118,15 +118,30 @@ function compress(stagePath) {
   }
 }
 
-// ── 4. 현황 출력 ──
+const MAX_BACKUPS = 5;
+
+// ── 4. 오래된 백업 삭제 (최신 MAX_BACKUPS개 유지) ──
+function pruneOldBackups() {
+  const files = fs.readdirSync(BACKUP_DIR)
+    .filter(n => n.startsWith('history_') && n.endsWith('.tar.gz'))
+    .sort();
+  const toDelete = files.slice(0, -MAX_BACKUPS);
+  for (const f of toDelete) {
+    fs.unlinkSync(path.join(BACKUP_DIR, f));
+    log(`  오래된 백업 삭제: ${f}`);
+  }
+  if (toDelete.length === 0) log(`  삭제 없음 (${files.length}개 / 최대 ${MAX_BACKUPS}개)`);
+}
+
+// ── 5. 현황 출력 ──
 function reportStatus() {
-  const items = fs.readdirSync(BACKUP_DIR).filter(n => n.startsWith('history_'));
+  const items = fs.readdirSync(BACKUP_DIR).filter(n => n.startsWith('history_') && n.endsWith('.tar.gz'));
   let totalBytes = 0;
   for (const n of items) {
     const p = path.join(BACKUP_DIR, n);
-    if (!fs.statSync(p).isDirectory()) totalBytes += fs.statSync(p).size;
+    totalBytes += fs.statSync(p).size;
   }
-  log(`현재 백업 현황: ${items.length}개, 총 ${(totalBytes / (1024 * 1024)).toFixed(2)}MB (삭제 없음, 무제한 누적)`);
+  log(`현재 백업 현황: ${items.length}개, 총 ${(totalBytes / (1024 * 1024)).toFixed(2)}MB`);
 }
 
 // ── 실행 ──
@@ -140,6 +155,7 @@ try {
   const ts        = formatDate(nowKST());
   const stagePath = stage(ts);
   compress(stagePath);
+  pruneOldBackups();
   reportStatus();
   log('=== history 수동 백업 완료 ===');
 } catch (e) {

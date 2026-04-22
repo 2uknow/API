@@ -347,6 +347,19 @@ cron.schedule('0 3 * * *', async () => {
     }
 
     console.log(`[HIST_BACKUP] 일간 백업 완료: ${destPath}`);
+
+    // 오래된 백업 삭제 — 최신 5개만 유지
+    try {
+      const files = (await fsp.readdir(dailyDir))
+        .filter(f => f.startsWith('history_') && f.endsWith('.json'))
+        .sort();
+      for (const old of files.slice(0, -5)) {
+        await fsp.unlink(path.join(dailyDir, old));
+        console.log(`[HIST_BACKUP] 오래된 백업 삭제: ${old}`);
+      }
+    } catch (pruneErr) {
+      console.warn('[HIST_BACKUP] 오래된 백업 삭제 실패:', pruneErr.message);
+    }
   } catch (err) {
     console.error('[HIST_BACKUP] 일간 백업 실패:', err.message);
   }
