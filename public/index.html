@@ -1079,12 +1079,20 @@ async function fetchRunningJobs() {
     const data = await res.json();
     if (data.ok) {
       const serverJobs = data.running || [];
-      // 서버 데이터와 병합 (로컬 startTs 보존)
       const merged = serverJobs.map(sj => {
         const existing = runningJobs.find(lj => lj.job === sj.job);
+        // startAt이 바뀌면 새 실행 — _localStartTs 리셋
+        const isSameRun = existing && existing.startAt === sj.startAt;
+        if (!jobRunRegistry[sj.job]) {
+          jobRunRegistry[sj.job] = { count: 1, lastStartAt: sj.startAt };
+        } else if (jobRunRegistry[sj.job].lastStartAt !== sj.startAt) {
+          jobRunRegistry[sj.job].count++;
+          jobRunRegistry[sj.job].lastStartAt = sj.startAt;
+        }
         return {
           ...sj,
-          _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
+          _localStartTs: isSameRun ? existing._localStartTs : (Date.now() - (sj.elapsed || 0) * 1000),
+          _runCount: jobRunRegistry[sj.job].count
         };
       });
       runningJobs = merged;
@@ -1125,14 +1133,15 @@ function renderRunningJobs() {
     const typeLabels = { yaml_batch: 'Batch', yaml_scenario: 'YAML', newman: 'Newman', binary: 'Binary', sclient_scenario: 'SClient', pending: '...' };
     const typeLabel = typeLabels[job.type] || job.type;
     const scheduleBadge = job.fromSchedule ? '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">Schedule</span>' : '';
-    
+    const runBadge = (job._runCount > 1) ? `<span class="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 flex-shrink-0 font-mono">#${job._runCount}</span>` : '';
+
     return `
       <div class="running-job-item flex items-center justify-between p-2 rounded-lg border text-xs" style="background: var(--bg-secondary); border-color: var(--border-color);">
         <div class="flex items-center space-x-2 flex-1 min-w-0">
           <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></span>
           <span class="font-semibold truncate" style="color: var(--text-primary);" title="${job.job}">${job.job}</span>
           <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">${typeLabel}</span>
-          ${scheduleBadge}
+          ${scheduleBadge}${runBadge}
         </div>
         <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
           <span class="running-elapsed" data-job="${job.job}" style="color: var(--text-secondary);">${elapsedStr}</span>
