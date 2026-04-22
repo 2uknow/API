@@ -313,6 +313,51 @@ cron.schedule('0 2 * * 0', async () => {
   }
 }, { timezone: 'Asia/Seoul' });
 
+// 일간 history 백업 (매일 새벽 3시)
+cron.schedule('0 3 * * *', async () => {
+  const { promises: fsp } = await import('fs');
+  const srcPath = path.join(root, 'logs', 'history.json');
+  const dailyDir = path.join(root, 'logs', 'history_daily');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const destPath = path.join(dailyDir, `history_${dateStr}.json`);
+
+  try {
+    await fsp.access(srcPath);
+  } catch {
+    console.log('[HIST_BACKUP] history.json 없음, 백업 skip');
+    return;
+  }
+
+  try {
+    await fsp.mkdir(dailyDir, { recursive: true });
+    await fsp.copyFile(srcPath, destPath);
+
+    // 복사본 JSON 유효성 검증
+    try {
+      const content = await fsp.readFile(destPath, 'utf8');
+      JSON.parse(content);
+    } catch (parseErr) {
+      await fsp.unlink(destPath).catch(() => {});
+      console.warn(`[HIST_BACKUP] 복사본 JSON 유효성 실패, 삭제: ${parseErr.message}`);
+      return;
+    }
+
+    console.log(`[HIST_BACKUP] 일간 백업 완료: ${destPath}`);
+
+    // 30일 초과 파일 삭제
+    const files = (await fsp.readdir(dailyDir))
+      .filter(f => /^history_\d{8}\.json$/.test(f))
+      .sort();
+    const cutoff = files.length - 30;
+    for (let i = 0; i < cutoff; i++) {
+      await fsp.unlink(path.join(dailyDir, files[i])).catch(() => {});
+      console.log(`[HIST_BACKUP] 오래된 백업 삭제: ${files[i]}`);
+    }
+  } catch (err) {
+    console.error('[HIST_BACKUP] 일간 백업 실패:', err.message);
+  }
+}, { timezone: 'Asia/Seoul' });
+
 app.listen(site_port, '0.0.0.0', () => {
   const displayUrl = base_url || `http://localhost:${site_port}`;
   
