@@ -6,7 +6,6 @@ import { root } from '../utils/config.js';
 
 // ── 동시 쓰기 방지를 위한 비동기 뮤텍스 ──
 let _writeLock = Promise.resolve();
-const HISTORY_BACKUP_KEEP = 10; // 백업 보관 개수 증가 (데이터 복구 안전망)
 
 function _acquireWriteLock() {
   let release;
@@ -16,11 +15,12 @@ function _acquireWriteLock() {
 }
 
 // ── 백업에서 history 복구 시도 ──
+// history_backup_ 로 시작하는 모든 json 파일을 최신순으로 시도
 async function _tryRecoverFromBackup(backupDir) {
   try {
     const files = await fsPromises.readdir(backupDir);
     const backups = files
-      .filter(f => f.startsWith('history_backup_') && f.endsWith('.json'))
+      .filter(f => f.endsWith('.json'))
       .sort()
       .reverse(); // 최신 순
 
@@ -48,7 +48,7 @@ function _tryRecoverFromBackupSync(backupDir) {
   try {
     const files = fs.readdirSync(backupDir);
     const backups = files
-      .filter(f => f.startsWith('history_backup_') && f.endsWith('.json'))
+      .filter(f => f.endsWith('.json'))
       .sort()
       .reverse();
 
@@ -68,26 +68,6 @@ function _tryRecoverFromBackupSync(backupDir) {
     }
   } catch (_) {}
   return null;
-}
-
-// ── 백업 정리 (최근 N개만 유지) ──
-async function _cleanupBackups(backupDir) {
-  try {
-    const files = (await fsPromises.readdir(backupDir))
-      .filter(f => f.startsWith('history_backup_') && f.endsWith('.json'));
-    const fileStats = await Promise.all(files.map(async f => {
-      const fp = path.join(backupDir, f);
-      const stat = await fsPromises.stat(fp);
-      return { name: f, path: fp, mtime: stat.mtimeMs };
-    }));
-    fileStats.sort((a, b) => b.mtime - a.mtime);
-    for (const old of fileStats.slice(HISTORY_BACKUP_KEEP)) {
-      await fsPromises.unlink(old.path);
-      console.log(`[HIST_PROTECT] Old backup removed: ${old.name}`);
-    }
-  } catch (cleanupErr) {
-    console.error(`[HIST_PROTECT] Backup cleanup error: ${cleanupErr.message}`);
-  }
 }
 
 // ── 동기 읽기 ──
@@ -128,21 +108,18 @@ export function histWrite(arr) {
     fs.mkdirSync(backupDir, { recursive: true });
   }
 
-  // 기존 파일이 있고 내용이 있으면 백업 (덮어쓰기 방지)
+  // 기존 파일이 있으면 보호 체크
   if (fs.existsSync(p)) {
     try {
       const existing = fs.readFileSync(p, 'utf-8');
       const existingArr = JSON.parse(existing);
 
-      // 매 쓰기마다 백업 생성 (데이터 안전)
-      if (existingArr.length > 0) {
-        const backupPath = path.join(backupDir, `history_backup_${Date.now()}.json`);
-        fs.writeFileSync(backupPath, existing);
-      }
-
-      // 기존 데이터가 있는데 새 데이터가 더 적으면 병합
+      // 데이터 감소 감지 시에만 보호 백업 생성 + 병합
       if (existingArr.length > 0 && arr.length < existingArr.length) {
-        console.log(`[HIST_PROTECT] 데이터 감소 감지 (existing: ${existingArr.length}, new: ${arr.length}), 병합 수행`);
+        const backupPath = path.join(backupDir, `history_protect_${Date.now()}.json`);
+        fs.writeFileSync(backupPath, existing);
+        console.log(`[HIST_PROTECT] 데이터 감소 감지! 보호 백업 생성: ${backupPath} (existing: ${existingArr.length}, new: ${arr.length})`);
+
         const merged = [...existingArr];
         for (const item of arr) {
           const exists = merged.some(m => m.timestamp === item.timestamp && m.job === item.job);
@@ -153,7 +130,7 @@ export function histWrite(arr) {
       }
     } catch (e) {
       console.error(`[HIST_PROTECT] 기존 history 읽기 실패: ${e.message}`);
-      // ★ 핵심 수정: 파싱 실패 시 백업에서 복구 후 병합
+      // 파싱 실패 시 백업에서 복구 후 병합
       const recovered = _tryRecoverFromBackupSync(backupDir);
       if (recovered && recovered.length > 0) {
         console.log(`[HIST_PROTECT] 백업에서 복구 후 병합 (복구: ${recovered.length}건, 신규: ${arr.length}건)`);
@@ -163,10 +140,8 @@ export function histWrite(arr) {
           if (!exists) merged.push(item);
         }
         arr = merged;
-        console.log(`[HIST_PROTECT] 병합 완료: ${arr.length}건`);
       } else if (arr.length <= 1) {
-        // 복구도 실패하고 새 데이터도 1건뿐이면 위험 → 기존 파일 보존
-        console.error(`[HIST_PROTECT] ★ 복구 실패 + 신규 데이터 부족 → 쓰기 중단 (데이터 보호)`);
+        console.error(`[HIST_PROTECT] 복구 실패 + 신규 데이터 부족 → 쓰기 중단 (데이터 보호)`);
         return;
       }
     }
@@ -175,25 +150,13 @@ export function histWrite(arr) {
   const tmpPath = p + '.tmp';
   try {
     const json = JSON.stringify(arr, null, 2);
-    // 쓰기 전 JSON 유효성 검증
-    JSON.parse(json);
+    JSON.parse(json); // 유효성 검증
     fs.writeFileSync(tmpPath, json);
     fs.renameSync(tmpPath, p);
   } catch (e) {
     console.error(`[HIST_WRITE] history.json 저장 실패: ${e.message}`);
     try { fs.unlinkSync(tmpPath); } catch (_) {}
   }
-
-  // 백업 정리 (동기)
-  try {
-    const backupFiles = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith('history_backup_') && f.endsWith('.json'))
-      .map(f => ({ name: f, path: path.join(backupDir, f), mtime: fs.statSync(path.join(backupDir, f)).mtimeMs }))
-      .sort((a, b) => b.mtime - a.mtime);
-    for (const old of backupFiles.slice(HISTORY_BACKUP_KEEP)) {
-      fs.unlinkSync(old.path);
-    }
-  } catch (_) {}
 }
 
 // ── 비동기 읽기 (이벤트 루프 블로킹 방지) ──
@@ -208,7 +171,7 @@ export async function histReadAsync() {
   } catch (e) {
     if (e.code === 'ENOENT') return [];
     console.error(`[HIST_READ_ASYNC] history.json 파싱 실패: ${e.message}`);
-    // ★ 핵심 수정: 파싱 실패 시 백업에서 복구
+    // 파싱 실패 시 백업에서 복구
     const recovered = await _tryRecoverFromBackup(backupDir);
     if (recovered) {
       console.log(`[HIST_READ_ASYNC] 백업 데이터로 복구 완료 (${recovered.length}건), 원본 복원 중...`);
@@ -216,7 +179,6 @@ export async function histReadAsync() {
         const tmpPath = p + '.recovery.tmp';
         await fsPromises.writeFile(tmpPath, JSON.stringify(recovered, null, 2));
         await fsPromises.rename(tmpPath, p);
-        console.log(`[HIST_READ_ASYNC] history.json 복원 완료`);
       } catch (restoreErr) {
         console.error(`[HIST_READ_ASYNC] history.json 복원 실패: ${restoreErr.message}`);
       }
@@ -228,7 +190,6 @@ export async function histReadAsync() {
 
 // ── 비동기 쓰기 (뮤텍스 잠금 + 손상 복구) ──
 export async function histWriteAsync(arr) {
-  // ★ 핵심 수정: 동시 쓰기 방지 — 뮤텍스 잠금 획득
   const release = _acquireWriteLock();
   try {
     await _histWriteAsyncInternal(arr);
@@ -243,20 +204,17 @@ async function _histWriteAsyncInternal(arr) {
 
   await fsPromises.mkdir(backupDir, { recursive: true });
 
-  // 기존 데이터 읽기 + 보호
+  // 기존 데이터 보호 체크
   try {
     const existing = await fsPromises.readFile(p, 'utf-8');
     const existingArr = JSON.parse(existing);
 
-    // 매 쓰기마다 백업 생성
-    if (existingArr.length > 0) {
-      const backupPath = path.join(backupDir, `history_backup_${Date.now()}.json`);
-      await fsPromises.writeFile(backupPath, existing);
-    }
-
-    // 데이터 감소 시 병합
+    // 데이터 감소 감지 시에만 보호 백업 + 병합
     if (existingArr.length > 0 && arr.length < existingArr.length) {
-      console.log(`[HIST_PROTECT] 데이터 감소 감지 (existing: ${existingArr.length}, new: ${arr.length}), 병합 수행`);
+      const backupPath = path.join(backupDir, `history_protect_${Date.now()}.json`);
+      await fsPromises.writeFile(backupPath, existing);
+      console.log(`[HIST_PROTECT] 데이터 감소 감지! 보호 백업 생성 (existing: ${existingArr.length}, new: ${arr.length})`);
+
       const merged = [...existingArr];
       for (const item of arr) {
         const exists = merged.some(m => m.timestamp === item.timestamp && m.job === item.job);
@@ -268,7 +226,7 @@ async function _histWriteAsyncInternal(arr) {
   } catch (e) {
     if (e.code !== 'ENOENT') {
       console.error(`[HIST_PROTECT] 기존 history 읽기 실패: ${e.message}`);
-      // ★ 핵심 수정: 파싱 실패 시 백업에서 복구 후 병합
+      // 파싱 실패 시 백업에서 복구 후 병합
       const recovered = await _tryRecoverFromBackup(backupDir);
       if (recovered && recovered.length > 0) {
         console.log(`[HIST_PROTECT] 백업에서 복구 후 병합 (복구: ${recovered.length}건, 신규: ${arr.length}건)`);
@@ -278,28 +236,23 @@ async function _histWriteAsyncInternal(arr) {
           if (!exists) merged.push(item);
         }
         arr = merged;
-        console.log(`[HIST_PROTECT] 병합 완료: ${arr.length}건`);
       } else if (arr.length <= 1) {
-        // 복구도 실패하고 새 데이터도 1건뿐이면 위험 → 쓰기 중단
-        console.error(`[HIST_PROTECT] ★ 복구 실패 + 신규 데이터 부족 → 쓰기 중단 (데이터 보호)`);
+        console.error(`[HIST_PROTECT] 복구 실패 + 신규 데이터 부족 → 쓰기 중단 (데이터 보호)`);
         return;
       }
     }
   }
 
-  // ★ 핵심 수정: 고유 .tmp 파일명으로 충돌 방지
+  // 고유 .tmp 파일명으로 충돌 방지
   const tmpPath = p + `.tmp.${process.pid}.${Date.now()}`;
   try {
     const json = JSON.stringify(arr, null, 2);
-    // 쓰기 전 JSON 유효성 검증 (깨진 데이터 저장 방지)
-    JSON.parse(json);
+    JSON.parse(json); // 유효성 검증
     await fsPromises.writeFile(tmpPath, json);
     await fsPromises.rename(tmpPath, p);
   } catch (e) {
     console.error(`[HIST_WRITE_ASYNC] history.json 저장 실패: ${e.message}`);
     try { await fsPromises.unlink(tmpPath); } catch (_) {}
   }
-
-  // 백업 정리 (비동기)
-  await _cleanupBackups(backupDir);
+  // 백업 자동 정리 없음 — 백업은 일간/주간 cron에서 관리
 }
