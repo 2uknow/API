@@ -9,6 +9,7 @@ import { root, reportsDir, logsDir, readCfg } from './src/utils/config.js';
 import { stateClients, logClients, unifiedClients, logBuffer, broadcastLog } from './src/utils/sse.js';
 import { state } from './src/state/running-jobs.js';
 import { initLogManagement } from './src/services/log-manager.js';
+import { initHistoryCache } from './src/services/history-service.js';
 import { loadSchedules } from './src/services/schedule-service.js';
 import { setupDailyReportScheduler } from './src/services/statistics-service.js';
 import { runJob } from './src/runners/job-runner.js';
@@ -82,18 +83,11 @@ function addToScheduleQueue(jobName) {
     timestamp: Date.now(),
     retryCount: 0
   };
-  
-  // 이미 큐에 있는 작업인지 확인
-  const existing = state.scheduleQueue.find(item => item.jobName === jobName);
-  if (existing) {
-    console.log(`[SCHEDULE QUEUE] Job ${jobName} already in queue, skipping`);
-    return false;
-  }
-  
+
   state.scheduleQueue.push(queueItem);
   console.log(`[SCHEDULE QUEUE] Added ${jobName} to queue. Queue length: ${state.scheduleQueue.length}`);
   broadcastLog(`[SCHEDULE QUEUE] ${jobName} queued for execution`, 'SYSTEM');
-  
+
   // 큐 처리 시작
   processScheduleQueue();
   return true;
@@ -104,37 +98,12 @@ async function processScheduleQueue() {
     return;
   }
   
-  // 큐에서 실행 가능한 job을 모두 꺼내서 동시 실행
-  const toRun = [];
-  const deferred = [];
-  
-  for (const item of state.scheduleQueue) {
-    if (state.runningJobs.has(item.jobName)) {
-      // 같은 이름의 job이 이미 실행 중이면 보류
-      item.retryCount++;
-      if (item.retryCount < 3) {
-        deferred.push(item);
-        console.log(`[SCHEDULE] ${item.jobName} already running, deferred (${item.retryCount}/3)`);
-      } else {
-        console.log(`[SCHEDULE] ${item.jobName} dropped after max retries`);
-        broadcastLog(`[SCHEDULE] ${item.jobName} dropped (max retries)`, 'ERROR');
-      }
-    } else {
-      toRun.push(item);
-    }
-  }
-  
-  // 큐를 보류된 항목으로 교체
+  // 스케줄 실행은 동시 실행 허용 — 같은 이름이 실행 중이어도 바로 런치
+  // (runId 기반 상태 관리로 여러 run이 독립적으로 추적됨)
+  const toRun = [...state.scheduleQueue];
   state.scheduleQueue.length = 0;
-  state.scheduleQueue.push(...deferred);
-  
-  if (toRun.length === 0) {
-    // 보류된 항목만 있으면 10초 후 재시도
-    if (deferred.length > 0) {
-      setTimeout(() => processScheduleQueue(), 10000);
-    }
-    return;
-  }
+
+  if (toRun.length === 0) return;
   
   console.log(`[SCHEDULE] Launching ${toRun.length} job(s) in parallel: ${toRun.map(i => i.jobName).join(', ')}`);
   
@@ -153,10 +122,6 @@ async function processScheduleQueue() {
     });
   }
   
-  // 보류된 항목이 있으면 10초 후 재처리
-  if (deferred.length > 0) {
-    setTimeout(() => processScheduleQueue(), 10000);
-  }
 }
 
 // Job 완료 시 보류된 스케줄 큐 재처리 콜백
@@ -215,7 +180,7 @@ if (process.env.NODE_ENV === 'development') {
     console.log(`[MONITOR] Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
     console.log(`[MONITOR] SSE Connections - State: ${stateClients.size}, Log: ${logClients.size}`);
     console.log(`[MONITOR] Log Buffer: ${logBuffer.length} pending`);
-    console.log(`[MONITOR] Running Jobs: ${state.running ? 1 : 0}`);
+    console.log(`[MONITOR] Running Jobs: ${state.runningJobs.size}`);
   }, 30000);
 }
 
@@ -291,6 +256,9 @@ process.on('SIGINT', () => {
 const cfg = readCfg();
 const { site_port = 3000, base_url } = cfg;
 
+// 히스토리 인메모리 캐시 초기화 (512MB 파일을 최초 1회만 로드)
+initHistoryCache();
+
 // 서버 시작 시 정기 리포트 스케줄러 초기화
 setupDailyReportScheduler();
 
@@ -310,6 +278,54 @@ cron.schedule('0 2 * * 0', async () => {
     console.log('[BACKUP] 주간 자동 백업 완료');
   } catch (err) {
     console.error('[BACKUP] 자동 백업 실패:', err.message);
+  }
+}, { timezone: 'Asia/Seoul' });
+
+// 일간 history 백업 (매일 새벽 3시)
+cron.schedule('0 3 * * *', async () => {
+  const { promises: fsp } = await import('fs');
+  const srcPath = path.join(root, 'logs', 'history.json');
+  const dailyDir = path.join(root, 'logs', 'history_daily');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const destPath = path.join(dailyDir, `history_${dateStr}.json`);
+
+  try {
+    await fsp.access(srcPath);
+  } catch {
+    console.log('[HIST_BACKUP] history.json 없음, 백업 skip');
+    return;
+  }
+
+  try {
+    await fsp.mkdir(dailyDir, { recursive: true });
+    await fsp.copyFile(srcPath, destPath);
+
+    // 복사본 JSON 유효성 검증
+    try {
+      const content = await fsp.readFile(destPath, 'utf8');
+      JSON.parse(content);
+    } catch (parseErr) {
+      await fsp.unlink(destPath).catch(() => {});
+      console.warn(`[HIST_BACKUP] 복사본 JSON 유효성 실패, 삭제: ${parseErr.message}`);
+      return;
+    }
+
+    console.log(`[HIST_BACKUP] 일간 백업 완료: ${destPath}`);
+
+    // 오래된 백업 삭제 — 최신 5개만 유지
+    try {
+      const files = (await fsp.readdir(dailyDir))
+        .filter(f => f.startsWith('history_') && f.endsWith('.json'))
+        .sort();
+      for (const old of files.slice(0, -5)) {
+        await fsp.unlink(path.join(dailyDir, old));
+        console.log(`[HIST_BACKUP] 오래된 백업 삭제: ${old}`);
+      }
+    } catch (pruneErr) {
+      console.warn('[HIST_BACKUP] 오래된 백업 삭제 실패:', pruneErr.message);
+    }
+  } catch (err) {
+    console.error('[HIST_BACKUP] 일간 백업 실패:', err.message);
   }
 }, { timezone: 'Asia/Seoul' });
 

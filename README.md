@@ -107,7 +107,6 @@ pm2 kill                          # PM2 데몬 종료
   "alert_on_error": true,
   "alert_method": "flex",
   "timezone": "Asia/Seoul",
-  "history_keep": 500,
   "report_keep_days": 30
 }
 ```
@@ -117,7 +116,6 @@ pm2 kill                          # PM2 데몬 종료
 | `site_port` | 웹 서버 포트 |
 | `webhook_url` | 네이버웍스 웹훅 URL (필수) |
 | `alert_method` | `"flex"` 또는 `"text"` |
-| `history_keep` | 실행 이력 보관 개수 |
 | `report_keep_days` | HTML 리포트 보관 일수 |
 
 ### 환경변수

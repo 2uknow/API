@@ -1,18 +1,9 @@
 // alert.js (개선된 알람 시스템)
 import https from 'https';
 import fetch from 'node-fetch';
-import fs from 'fs';
 import path from 'path';
+import { readCfg } from '../utils/config.js';
 
-const cfgPath = path.join(process.cwd(), 'config', 'settings.json');
-
-function readCfg() {
-  try { 
-    return JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); 
-  } catch { 
-    return {}; 
-  }
-}
 function getBaseUrl() {
   const config = readCfg();
   const port = config.site_port || 3000;

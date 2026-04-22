@@ -15,6 +15,19 @@ export const BATCH_INTERVAL = 50;
 export const recentLogHistory = [];
 export const MAX_LOG_HISTORY = 200;
 
+// 스케줄 실행 Job 추적 (프론트엔드 실시간 로그에서 숨김)
+export const scheduledJobNames = new Set();
+
+export function markJobAsScheduled(jobName) {
+  scheduledJobNames.add(jobName);
+  console.log(`[SSE] Marked job as scheduled (log suppressed): ${jobName}`);
+}
+
+export function unmarkJobAsScheduled(jobName) {
+  scheduledJobNames.delete(jobName);
+  console.log(`[SSE] Unmarked scheduled job: ${jobName}`);
+}
+
 // SSE 헤더 최적화
 export function sseHeaders(res) {
   res.writeHead(200, {
@@ -90,6 +103,22 @@ export function broadcastLog(line, jobName = '') {
   };
   
   const data = `event: log\ndata: ${JSON.stringify(logData)}\n\n`;
+  
+  // 스케줄 실행 Job의 일반 로그는 프론트엔드로 전송하지 않음
+  // (완료 시그널은 전송해야 UI 상태 업데이트가 정상 작동함)
+  const isScheduledJob = scheduledJobNames.has(jobName);
+  const isImportantSignal = logData.type !== 'log'; // history_update, execution_done, execution_complete
+  if (isScheduledJob && !isImportantSignal) {
+    return; // 스케줄 Job의 일반 로그는 SSE 전송 생략
+  }
+  
+  // 스케줄 관련 SYSTEM 로그도 프론트엔드에서 숨김
+  // ([SCHEDULE QUEUE], [SCHEDULE] Starting 등 — 사용자에게 불필요)
+  if ((jobName === 'SYSTEM' || jobName === 'ERROR') && 
+      (line.includes('[SCHEDULE QUEUE]') || line.includes('[SCHEDULE]')) &&
+      !isImportantSignal) {
+    return;
+  }
   
   // 최근 로그 히스토리에 저장 (신규 SSE 클라이언트 재전송용)
   recentLogHistory.push(data);

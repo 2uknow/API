@@ -94,9 +94,10 @@ router.get('/stream/unified', (req, res) => {
     if (!res.destroyed && !res.finished) {
       try {
         const runningJobsList = [];
-        for (const [jobName, info] of state.runningJobs) {
+        for (const [runId, info] of state.runningJobs) {
           runningJobsList.push({
-            job: jobName,
+            runId,
+            job: info.jobName,
             startAt: info.startTime,
             type: info.type || 'unknown',
             elapsed: Math.round((Date.now() - info.startTs) / 1000)

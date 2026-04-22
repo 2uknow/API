@@ -525,16 +525,16 @@
     </section>
 
     <!-- 실시간 로그 (전체 너비) -->
-    <section class="glass-effect rounded-2xl p-6 neo-shadow">
+    <section id="logSection" class="glass-effect rounded-2xl p-6 neo-shadow">
       <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-3 cursor-pointer select-none" onclick="toggleLogSection()" title="클릭하여 접기/펼치기">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg">
             <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
           </div>
           <div>
-            <h2 class="text-lg font-bold" style="color: var(--text-primary);">Real-time Log</h2>
+            <h2 class="text-lg font-bold" style="color: var(--text-primary);">Real-time Log <span id="logSectionArrow" class="text-sm transition-transform inline-block" style="color: var(--text-secondary);">▼</span></h2>
             <div class="flex items-center space-x-2">
               <div id="logIndicator" class="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
               <span id="logStatusText" class="text-xs font-medium" style="color: var(--text-secondary);">Polling</span>
@@ -542,7 +542,7 @@
             </div>
           </div>
         </div>
-        <div class="flex items-center space-x-3">
+        <div id="logControls" class="flex items-center space-x-3">
           <!-- Live 토글 -->
           <div id="liveToggle" class="live-toggle-wrap" onclick="toggleLiveMode()" title="실시간 로그 스트리밍 ON/OFF">
             <div class="live-toggle-track"><div class="live-toggle-thumb"></div></div>
@@ -554,10 +554,12 @@
         </div>
       </div>
       <!-- 로그 탭 바 -->
-      <div id="logTabs" class="flex gap-1 overflow-x-auto pb-1 mb-1 log-tabs-bar">
-        <button class="log-tab active text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" data-tab="all" style="background: #1e293b; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>
+      <div id="logContentArea">
+        <div id="logTabs" class="flex gap-1 overflow-x-auto pb-1 mb-1 log-tabs-bar">
+          <button class="log-tab active text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" data-tab="all" style="background: #1e293b; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>
+        </div>
+        <div id="console" class="log-console bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 rounded-xl overflow-y-auto font-mono leading-relaxed border border-slate-700" style="border-top-left-radius: 0; height: 320px; min-height: 200px; max-height: 600px; resize: vertical;"></div>
       </div>
-      <div id="console" class="log-console bg-gradient-to-br from-slate-900 to-slate-800 text-green-400 text-sm p-4 rounded-xl overflow-y-auto font-mono leading-relaxed border border-slate-700" style="border-top-left-radius: 0; height: 320px; min-height: 200px; max-height: 600px; resize: vertical;"></div>
     </section>
   </div>
 
@@ -670,7 +672,7 @@ let jobs = [];
 let historyRaw = [];
 let historyView = [];
 let running = null;
-let runningJobs = []; // 병렬 실행 중인 job 목록
+let runningJobs = []; // 실행 중인 run 목록 (runId 단위로 독립 추적)
 let currentPage = 1;
 let pageSize = 10;
 let totalItems = 0;
@@ -681,12 +683,15 @@ let logsByJob = {};
 let runningJobsTimer = null;
 const jobColorMap = new Map();
 let nextJobColorIndex = 0;
+let isLogSectionCollapsed = false; // 로그 섹션 접기/펼치기 상태
+const _closedTabs = new Set();     // 사용자가 닫은 탭 (로그 수신해도 재생성 방지)
 
 // === 성능 최적화: 배치/쓰로틀 관련 ===
 let _logBuffer = [];           // addLogToConsole 배치 버퍼
 let _logFlushRAF = null;       // requestAnimationFrame ID
 let _tabsUpdateTimer = null;   // updateLogTabs 쓰로틀
 let _tabsNeedsUpdate = false;
+let _lastTabKeys = '';         // 탭 불필요한 재빌드 방지용
 let _fetchDebounceTimer = null; // fetchHistory/Stats 디바운스
 const LOG_FLUSH_INTERVAL = 80; // ms — 로그 배치 렌더 주기
 const TABS_THROTTLE = 500;     // ms — 탭 업데이트 최소 간격
@@ -782,8 +787,8 @@ async function init() {
         } else {
           j.elapsed = (j.elapsed || 0) + 1;
         }
-        // DOM에서 해당 job의 경과시간 span만 업데이트
-        const el = document.querySelector(`.running-elapsed[data-job="${j.job}"]`);
+        // DOM에서 해당 run의 경과시간 span만 업데이트 (runId 기준 — 동일 jobName 동시 실행 구분)
+        const el = document.querySelector(`.running-elapsed[data-runid="${j.runId}"]`);
         if (el) {
           const e = j.elapsed;
           const h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
@@ -795,8 +800,9 @@ async function init() {
     }
   }, 1000);
   
-  // 실행 중인 Job이 있으면 자동으로 Live 모드 ON
-  if (runningJobs.length > 0) {
+  // 실행 중인 수동 Job이 있으면 자동으로 Live 모드 ON (스케줄 Job은 제외)
+  const manualRunning = runningJobs.filter(j => !j.fromSchedule);
+  if (manualRunning.length > 0) {
     toggleLiveMode(true);
   }
 }
@@ -931,16 +937,14 @@ function connectSSE() {
         running = data.running;
         
         if (data.runningJobs) {
-          const prevCount = runningJobs.length;
-          const newJobs = data.runningJobs.map(sj => {
-            const existing = runningJobs.find(lj => lj.job === sj.job);
-            return { ...sj, _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000) };
-          });
+          const prevManualCount = runningJobs.filter(j => !j.fromSchedule).length;
+          const newJobs = data.runningJobs.map(sj => mergeRunningJobState(sj, runningJobs));
           runningJobs = newJobs;
           renderRunningJobs();
           
-          if (prevCount > 0 && runningJobs.length === 0) scheduleAutoOff();
-          if (runningJobs.length > 0) clearAutoOffTimer();
+          const manualCount = runningJobs.filter(j => !j.fromSchedule).length;
+          if (prevManualCount > 0 && manualCount === 0) scheduleAutoOff();
+          if (manualCount > 0) clearAutoOffTimer();
           adjustPollingInterval();
         }
         setStatusChip();
@@ -1010,6 +1014,7 @@ function scheduleAutoOff() {
   _autoOffTimer = setTimeout(() => {
     if (isLiveMode && runningJobs.length === 0) {
       toggleLiveMode(false);
+      cleanupFinishedJobTabs(); // 완료된 Job 탭 자동 정리
       showNotification('Job 완료 — Live 모드 자동 OFF', 'info');
     }
   }, AUTO_OFF_DELAY);
@@ -1051,21 +1056,23 @@ function closeLogModal() {
 }
 
 // === Running Jobs 관리 ===
+// 서버 run을 로컬 상태와 병합 — runId 단위로 매칭(같은 jobName 여러 run 동시 추적)
+function mergeRunningJobState(sj, currentJobs) {
+  const existing = currentJobs.find(lj => lj.runId === sj.runId);
+  // 같은 runId면 로컬 타임스탬프 유지, 새 run이면 서버 elapsed 기준으로 리셋
+  return {
+    ...sj,
+    _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
+  };
+}
+
 async function fetchRunningJobs() {
   try {
     const res = await fetch('/api/running');
     const data = await res.json();
     if (data.ok) {
       const serverJobs = data.running || [];
-      // 서버 데이터와 병합 (로컬 startTs 보존)
-      const merged = serverJobs.map(sj => {
-        const existing = runningJobs.find(lj => lj.job === sj.job);
-        return {
-          ...sj,
-          _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
-        };
-      });
-      runningJobs = merged;
+      runningJobs = serverJobs.map(sj => mergeRunningJobState(sj, runningJobs));
       renderRunningJobs();
       setStatusChip();
     }
@@ -1078,45 +1085,59 @@ function renderRunningJobs() {
   const panel = document.getElementById('runningJobsPanel');
   const list = document.getElementById('runningJobsList');
   const count = document.getElementById('runningJobsCount');
-  
+
   if (runningJobs.length === 0) {
     panel.classList.add('hidden');
     return;
   }
-  
+
   panel.classList.remove('hidden');
   count.textContent = runningJobs.length;
-  
+
+  // 같은 jobName의 동시 실행 run에 #1, #2 번호 부여 (서버 응답 순서 = 등록 순서)
+  const runGroups = new Map(); // jobName → [runId, runId, ...]
+  runningJobs.forEach(j => {
+    if (!runGroups.has(j.job)) runGroups.set(j.job, []);
+    runGroups.get(j.job).push(j.runId);
+  });
+
   list.innerHTML = runningJobs.map(job => {
     // _localStartTs가 있으면 실시간 계산, 없으면 서버 값 사용
-    const elapsed = job._localStartTs 
+    const elapsed = job._localStartTs
       ? Math.round((Date.now() - job._localStartTs) / 1000)
       : (job.elapsed || 0);
     const hours = Math.floor(elapsed / 3600);
     const mins = Math.floor((elapsed % 3600) / 60);
     const secs = elapsed % 60;
-    const elapsedStr = hours > 0 
+    const elapsedStr = hours > 0
       ? `${hours}h${String(mins).padStart(2,'0')}m${String(secs).padStart(2,'0')}s`
-      : mins > 0 
-        ? `${mins}m${String(secs).padStart(2,'0')}s` 
+      : mins > 0
+        ? `${mins}m${String(secs).padStart(2,'0')}s`
         : `${secs}s`;
     const typeLabels = { yaml_batch: 'Batch', yaml_scenario: 'YAML', newman: 'Newman', binary: 'Binary', sclient_scenario: 'SClient', pending: '...' };
     const typeLabel = typeLabels[job.type] || job.type;
-    
+    const scheduleBadge = job.fromSchedule ? '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">Schedule</span>' : '';
+
+    // 같은 이름의 동시 run이 2개 이상이면 #1, #2 배지 표시
+    const runIds = runGroups.get(job.job) || [];
+    const runIdx = runIds.indexOf(job.runId);
+    const runBadge = (runIds.length > 1) ? `<span class="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 flex-shrink-0 font-mono">#${runIdx + 1}</span>` : '';
+
     return `
       <div class="running-job-item flex items-center justify-between p-2 rounded-lg border text-xs" style="background: var(--bg-secondary); border-color: var(--border-color);">
         <div class="flex items-center space-x-2 flex-1 min-w-0">
           <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></span>
           <span class="font-semibold truncate" style="color: var(--text-primary);" title="${job.job}">${job.job}</span>
           <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex-shrink-0">${typeLabel}</span>
+          ${scheduleBadge}${runBadge}
         </div>
         <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-          <span class="running-elapsed" data-job="${job.job}" style="color: var(--text-secondary);">${elapsedStr}</span>
+          <span class="running-elapsed" data-runid="${job.runId}" style="color: var(--text-secondary);">${elapsedStr}</span>
           <button onclick="stopJob('${job.job}')" class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-all font-medium" title="중지">Stop</button>
         </div>
       </div>`;
   }).join('');
-  
+
   scheduleTabsUpdate();
 }
 
@@ -1139,16 +1160,40 @@ async function stopJob(jobName) {
   }
 }
 
+// === 로그 섹션 접기/펼치기 ===
+function toggleLogSection() {
+  isLogSectionCollapsed = !isLogSectionCollapsed;
+  const contentArea = document.getElementById('logContentArea');
+  const controls = document.getElementById('logControls');
+  const arrow = document.getElementById('logSectionArrow');
+  
+  if (isLogSectionCollapsed) {
+    if (contentArea) contentArea.style.display = 'none';
+    if (controls) controls.style.display = 'none';
+    if (arrow) arrow.textContent = '▶';
+  } else {
+    if (contentArea) contentArea.style.display = '';
+    if (controls) controls.style.display = '';
+    if (arrow) arrow.textContent = '▼';
+  }
+}
+
 // === 로그 탭 관리 ===
-function updateLogTabs() {
+function updateLogTabs(force = false) {
   const tabBars = [document.getElementById('logTabs'), document.getElementById('modalLogTabs')];
-  const jobNames = runningJobs.map(j => j.job);
+  // 스케줄 실행 Job은 탭에서 제외
+  const jobNames = runningJobs.filter(j => !j.fromSchedule).map(j => j.job);
   const allJobNames = [...new Set([...jobNames, ...Object.keys(logsByJob).filter(k => k !== '_default' && k !== 'SYSTEM' && k !== 'ERROR')])];
   
+  // 탭 구성이 변경되지 않았으면 재빌드 생략 (X 버튼 클릭 이벤트 씹힘 방지)
+  const runningKey = jobNames.sort().join(',');
+  const currentTabKeys = allJobNames.sort().join('|') + ':' + activeLogTab + ':' + runningKey;
+  if (!force && currentTabKeys === _lastTabKeys) return;
+  _lastTabKeys = currentTabKeys;  
   tabBars.forEach(tabBar => {
     if (!tabBar) return;
     
-    let html = `<button class="log-tab ${activeLogTab === 'all' ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" onclick="switchLogTab('all')" style="background: ${activeLogTab === 'all' ? '#1e293b' : '#334155'}; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</button>`;
+    let html = `<div class="log-tab ${activeLogTab === 'all' ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200 cursor-pointer" onclick="switchLogTab('all')" style="background: ${activeLogTab === 'all' ? '#1e293b' : '#334155'}; color: #4ade80; border: 1px solid #334155; border-bottom: none;">ALL</div>`;
     
     const jobColors = ['#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
     allJobNames.forEach((name, idx) => {
@@ -1158,18 +1203,67 @@ function updateLogTabs() {
       const isActive = activeLogTab === name;
       const colorIdx = getJobColorIndex(name);
       const tabColor = jobColors[colorIdx];
-      html += `<button class="log-tab ${isActive ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200" onclick="switchLogTab('${safeName}')" style="background: ${isActive ? '#1e293b' : '#334155'}; color: ${isActive ? tabColor : '#e2e8f0'}; border: 1px solid #334155; border-bottom: none; ${isActive ? 'border-top: 2px solid ' + tabColor : ''};" title="${name.replace(/"/g, '&quot;')}">
-        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${isRunning ? tabColor : '#6b7280'};margin-right:4px;${isRunning ? 'animation:pulse-border 2s infinite;' : ''}"></span>${shortName}
-      </button>`;
+      html += `<div class="log-tab ${isActive ? 'active' : ''} text-xs px-3 py-1 rounded-t-lg font-medium whitespace-nowrap transition-all duration-200 cursor-pointer" onclick="switchLogTab('${safeName}')" style="background: ${isActive ? '#1e293b' : '#334155'}; color: ${isActive ? tabColor : '#e2e8f0'}; border: 1px solid #334155; border-bottom: none; ${isActive ? 'border-top: 2px solid ' + tabColor : ''}; display: flex; align-items: center; gap: 4px;" title="${name.replace(/"/g, '&quot;')}">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${isRunning ? tabColor : '#6b7280'};${isRunning ? 'animation:pulse-border 2s infinite;' : ''}"></span>${shortName}
+        <span onclick="event.stopPropagation();closeLogTab('${safeName}')" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:10px;line-height:1;cursor:pointer;color:#94a3b8;margin-left:2px;" onmouseover="this.style.background='rgba(239,68,68,0.3)';this.style.color='#ef4444'" onmouseout="this.style.background='transparent';this.style.color='#94a3b8'" title="${name} 탭 닫기">&times;</span>
+      </div>`;
     });
     
     tabBar.innerHTML = html;
   });
 }
 
+// 개별 탭 닫기
+function closeLogTab(tabName) {
+  // 사용자가 닫은 탭 추적 (새 로그가 와도 재생성 방지)
+  _closedTabs.add(tabName);
+  // 해당 job의 로그 데이터 삭제
+  delete logsByJob[tabName];
+  // 색상 매핑도 정리
+  jobColorMap.delete(tabName);
+  
+  // 현재 활성 탭이 닫히면 ALL 탭으로 전환
+  if (activeLogTab === tabName) {
+    activeLogTab = 'all';
+    renderFilteredLogs();
+  }
+  
+  _lastTabKeys = ''; // 강제 재빌드
+  updateLogTabs(true);
+}
+
+// 완료된 Job 탭 자동 정리 (실행 중이 아닌 탭만 제거)
+function cleanupFinishedJobTabs() {
+  const jobNames = runningJobs.map(j => j.job);
+  const tabKeys = Object.keys(logsByJob).filter(k => k !== '_default' && k !== 'SYSTEM' && k !== 'ERROR');
+  
+  let cleaned = false;
+  for (const key of tabKeys) {
+    if (!jobNames.includes(key)) {
+      delete logsByJob[key];
+      jobColorMap.delete(key);
+      cleaned = true;
+    }
+  }
+  
+  // 모든 Job 완료 시 closedTabs도 초기화 (다음 실행에서는 다시 표시)
+  _closedTabs.clear();
+  
+  if (cleaned) {
+    // 현재 활성 탭이 정리된 경우
+    if (activeLogTab !== 'all' && !logsByJob[activeLogTab]) {
+      activeLogTab = 'all';
+      renderFilteredLogs();
+    }
+    _lastTabKeys = ''; // 강제 재빌드
+    updateLogTabs(true);
+  }
+}
+
 function switchLogTab(tabName) {
   activeLogTab = tabName;
-  updateLogTabs();
+  _lastTabKeys = ''; // 강제 재빌드
+  updateLogTabs(true);
   renderFilteredLogs();
 }
 
@@ -1214,8 +1308,14 @@ function addLogToConsole(line, jobName) {
   const coloredLine = ansi_up.ansi_to_html(prefix + line);
   const logHtml = `<div class="log-line ${borderClass} ${colorClass}">${coloredLine}</div>`;
   
-  // job별 로그 저장
+  // job별 로그 저장 (사용자가 닫은 탭 및 스케줄 Job 제외)
   const logKey = jobName || '_default';
+  if (_closedTabs.has(logKey)) return; // 사용자가 닫은 탭의 로그는 무시
+  // 스케줄 실행 Job의 로그는 탭/로그 저장 안 함 (SYSTEM/ERROR 로그는 통과)
+  if (jobName && jobName !== 'SYSTEM' && jobName !== 'ERROR' && jobName !== '_default') {
+    const isScheduleJob = runningJobs.some(j => j.job === jobName && j.fromSchedule);
+    if (isScheduleJob) return;
+  }
   if (!logsByJob[logKey]) logsByJob[logKey] = [];
   logsByJob[logKey].push({ html: logHtml, ts: Date.now() });
   
@@ -1487,12 +1587,15 @@ function setStatusChip() {
   const chip = document.getElementById('statusChip');
   const runBtn = document.getElementById('runBtn');
   
-  if (runningJobs.length > 1) {
-    chip.textContent = `Running: ${runningJobs.length} jobs`;
+  // 스케줄 Job 제외한 실행 중 Job 리스트
+  const manualRunningJobs = runningJobs.filter(j => !j.fromSchedule);
+  
+  if (manualRunningJobs.length > 1) {
+    chip.textContent = `Running: ${manualRunningJobs.length} jobs`;
     chip.className = "text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 font-medium";
     chip.style = '';
-  } else if (runningJobs.length === 1) {
-    chip.textContent = 'Running: ' + runningJobs[0].job;
+  } else if (manualRunningJobs.length === 1) {
+    chip.textContent = 'Running: ' + manualRunningJobs[0].job;
     chip.className = "text-xs px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 font-medium";
     chip.style = '';
   } else if (running && running.job) {
@@ -1506,9 +1609,9 @@ function setStatusChip() {
     chip.style.color = "var(--text-primary)";
   }
   
-  // 선택된 job이 실행 중이면 Run 버튼 비활성화, 아니면 활성
+  // 선택된 job이 실행 중이면 Run 버튼 비활성화 (스케줄 실행은 제외)
   const selectedJob = document.getElementById('jobSelect').value;
-  const isSelectedRunning = runningJobs.some(j => j.job === selectedJob);
+  const isSelectedRunning = manualRunningJobs.some(j => j.job === selectedJob);
   
   if (isSelectedRunning) {
     runBtn.disabled = true;
@@ -1749,8 +1852,8 @@ document.getElementById('runBtn').onclick = async () => {
     return; 
   }
   
-  // 같은 Job이 이미 실행 중인지 체크 (다른 Job은 허용)
-  if (runningJobs.some(j => j.job === name)) {
+  // 같은 Job이 이미 실행 중인지 체크 (스케줄 실행은 제외, 다른 Job은 허용)
+  if (runningJobs.some(j => j.job === name && !j.fromSchedule)) {
     alert(`같은 Job이 이미 실행 중입니다: ${name}\n완료 후 다시 시도해주세요.`);
     return;
   }
