@@ -1834,12 +1834,44 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       // 알람 실패는 배치 실행을 중단시키지 않음
     }
 
+    // ★ 전체 배치 타임아웃 설정 (기본 30분, job.batchTimeout으로 커스텀 가능)
+    const BATCH_TIMEOUT = job.batchTimeout || 30 * 60 * 1000; // 30분
+    const batchDeadline = Date.now() + BATCH_TIMEOUT;
+    console.log(`[YAML_BATCH] Batch timeout: ${BATCH_TIMEOUT}ms (${Math.round(BATCH_TIMEOUT / 60000)}분)`);
+
     // 각 YAML 파일을 순차적으로 기존 runYamlSClientScenario 방식으로 처리
     const batchResults = [];  // 히스토리 저장용 (요약만)
     const batchResultsFull = [];  // 알림 전송용 (상세 정보 포함)
     let overallSuccess = true;
+    let batchTimedOut = false;
 
     for (let i = 0; i < yamlFiles.length; i++) {
+      // ★ 전체 배치 타임아웃 체크
+      if (Date.now() > batchDeadline) {
+        const elapsed = Math.round((Date.now() - startTs) / 1000);
+        console.error(`[YAML_BATCH] ★ BATCH TIMEOUT after ${elapsed}s - ${i}/${yamlFiles.length} files processed`);
+        broadcastLog(`⏰ [BATCH TIMEOUT] 전체 배치 시간 초과 (${elapsed}초 경과, ${i}/${yamlFiles.length} 파일 완료)`, jobName);
+        batchTimedOut = true;
+        overallSuccess = false;
+        // 남은 파일들을 타임아웃으로 기록
+        for (let j = i; j < yamlFiles.length; j++) {
+          batchResults.push({
+            fileName: yamlFiles[j],
+            filePath: path.join(collectionPath, yamlFiles[j]),
+            success: false,
+            duration: 0,
+            summary: null,
+            error: 'Batch timeout'
+          });
+          batchResultsFull.push({
+            fileName: yamlFiles[j],
+            filePath: path.join(collectionPath, yamlFiles[j]),
+            success: false,
+            result: { success: false, error: 'Batch timeout' }
+          });
+        }
+        break;
+      }
       const fileName = yamlFiles[i];
       const filePath = path.join(collectionPath, fileName);
 
