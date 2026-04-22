@@ -10,7 +10,7 @@ import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { debugLog, batchLog, matchPattern } from '../utils/debug.js';
 import { broadcastState, broadcastLog, markJobAsScheduled, unmarkJobAsScheduled } from '../utils/sse.js';
 import { state, registerRunningJob, unregisterRunningJob, broadcastRunningJobs, finalizeJobCompletion } from '../state/running-jobs.js';
-import { histRead, histWrite, histReadAsync, histWriteAsync } from '../services/history-service.js';
+import { histAppend } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
 import { sendAlert, buildNewmanFailureReport, buildBinaryFailureReport, buildYamlScenarioFailureReport, buildBatchFailureReport } from '../services/alert-integration.js';
 import { parseBinaryOutput } from '../parsers/binary-parser.js';
@@ -626,7 +626,6 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 }
 
   // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
-  const history = await histReadAsync();
   const historyEntry = {
     timestamp: endTime,
     job: jobName,
@@ -642,10 +641,8 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
     newmanStats: newmanStats,
     detailedStats: detailedStats
   };
-  
-  history.push(historyEntry);
 
-  await histWriteAsync(history);
+  await histAppend(historyEntry);
   cleanupOldReports();
 
   // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -1033,7 +1030,6 @@ async function runBinaryJob(jobName, job) {
         }
 
         // 히스토리 저장 (비동기 - 이벤트 루프 블로킹 방지)
-        const history = await histReadAsync();
         const historyEntry = {
           timestamp: endTime,
           job: jobName,
@@ -1051,9 +1047,7 @@ async function runBinaryJob(jobName, job) {
           parsedResult: parsedResult
         };
 
-        history.push(historyEntry);
-
-        await histWriteAsync(history);
+        await histAppend(historyEntry);
         cleanupOldReports();
         
         // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -1302,7 +1296,6 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           fs.writeFileSync(txtReport, txtContent);
           
           // 히스토리 저장 (비동기 - 이벤트 루프 블로킹 방지)
-          const history = await histReadAsync();
           const historyEntry = {
             timestamp: endTime,
             job: jobName,
@@ -1326,17 +1319,15 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
               totalSteps: scenarioResult.summary.total,
               passedSteps: scenarioResult.summary.passed,
               failedSteps: scenarioResult.summary.failed,
-              avgResponseTime: scenarioResult.summary.total > 0 ? 
+              avgResponseTime: scenarioResult.summary.total > 0 ?
                 Math.round(scenarioResult.summary.duration / scenarioResult.summary.total) : 0,
               totalDuration: scenarioResult.summary.duration,
-              successRate: scenarioResult.summary.total > 0 ? 
+              successRate: scenarioResult.summary.total > 0 ?
                 Math.round((scenarioResult.summary.passed / scenarioResult.summary.total) * 100) : 0
             }
           };
-          
-          history.push(historyEntry);
 
-          await histWriteAsync(history);
+          await histAppend(historyEntry);
           cleanupOldReports();
           
           // 히스토리 저장 후 추가 상태 확인 및 초기화
@@ -2217,14 +2208,10 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     });
     
     // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
-    const history = await histReadAsync();
-    history.push(historyEntry);
-
-    // 히스토리 파일에 저장
     try {
-      await histWriteAsync(history);
+      await histAppend(historyEntry);
       console.log(`[YAML_BATCH] History saved successfully`);
-      
+
       // 히스토리 업데이트 신호 브로드캐스트
       broadcastLog(`[HISTORY_UPDATE] Batch job ${jobName} completed and history updated`, 'SYSTEM');
       broadcastState({ history_updated: true });
@@ -2378,9 +2365,7 @@ async function runSClientScenarioJob(jobName, job) {
       failedRequests: scenarioResult.summary.failed
     };
     
-    const history = await histReadAsync();
-    history.push(historyEntry);
-    await histWriteAsync(history);
+    await histAppend(historyEntry);
 
     broadcastState({ history_updated: true });
     

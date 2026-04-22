@@ -9,6 +9,7 @@ import { root, reportsDir, logsDir, readCfg } from './src/utils/config.js';
 import { stateClients, logClients, unifiedClients, logBuffer, broadcastLog } from './src/utils/sse.js';
 import { state } from './src/state/running-jobs.js';
 import { initLogManagement } from './src/services/log-manager.js';
+import { initHistoryCache } from './src/services/history-service.js';
 import { loadSchedules } from './src/services/schedule-service.js';
 import { setupDailyReportScheduler } from './src/services/statistics-service.js';
 import { runJob } from './src/runners/job-runner.js';
@@ -290,6 +291,9 @@ process.on('SIGINT', () => {
 
 const cfg = readCfg();
 const { site_port = 3000, base_url } = cfg;
+
+// 히스토리 인메모리 캐시 초기화 (512MB 파일을 최초 1회만 로드)
+initHistoryCache();
 
 // 서버 시작 시 정기 리포트 스케줄러 초기화
 setupDailyReportScheduler();
