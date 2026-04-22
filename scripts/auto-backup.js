@@ -84,7 +84,8 @@ function createBackup() {
   let compressed = false;
   try {
     const tarPath = `${backupPath}.tar.gz`;
-    execSync(`tar -czf "${tarPath}" -C "${BACKUP_DIR}" "${backupName}"`, {
+    execSync(`tar -czf "${backupName}.tar.gz" "${backupName}"`, {
+      cwd: BACKUP_DIR,
       timeout: 1800000,  // 30분 (29만개+ 파일 압축 대응)
       stdio: 'pipe'
     });
