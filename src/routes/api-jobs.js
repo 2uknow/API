@@ -39,8 +39,8 @@ router.get('/jobs', (req, res) => {
 router.post('/reset-state', (req, res) => {
   console.log('[API] Force reset state requested');
   const previousState = state.running;
-  
-  for (const [jobName, info] of state.runningJobs) {
+
+  for (const [, info] of state.runningJobs) {
     if (info.proc && !info.proc.killed) {
       try { info.proc.kill('SIGTERM'); } catch (e) { /* ignore */ }
     }
@@ -50,58 +50,65 @@ router.post('/reset-state', (req, res) => {
   state.batchMode = false;
   broadcastRunningJobs();
   broadcastLog('[SYSTEM] State forcefully reset by user', 'SYSTEM');
-  
-  res.json({ 
-    ok: true, 
+
+  res.json({
+    ok: true,
     message: 'State reset successfully',
     previousState: previousState
   });
-  
+
   console.log('[API] State reset completed, previous state:', previousState);
 });
 
-// 현재 실행 중인 Job 목록
+// 현재 실행 중인 Job 목록 (runId 단위 — 동시 실행 지원)
 router.get('/running', (req, res) => {
   const runningList = [];
-  for (const [name, info] of state.runningJobs) {
+  for (const [runId, info] of state.runningJobs) {
     runningList.push({
-      job: name,
+      runId,
+      job: info.jobName,
       startAt: info.startTime,
       type: info.type,
       elapsed: Math.round((Date.now() - info.startTs) / 1000),
       hasPid: !!(info.proc && info.proc.pid),
-      fromSchedule: scheduledJobNames.has(name)
+      fromSchedule: scheduledJobNames.has(info.jobName)
     });
   }
   res.json({ ok: true, running: runningList, count: runningList.length });
 });
 
-// Job 중지
+// Job 중지 — 이름으로 매칭되는 모든 run을 중지 (동시 실행 중인 같은 이름 전부)
 router.post('/stop/:name', (req, res) => {
   const name = decodeURIComponent(req.params.name);
   console.log(`[API] Stop request for job: ${name}`);
-  
-  const jobInfo = state.runningJobs.get(name);
-  if (!jobInfo) {
+
+  const matches = [];
+  for (const [runId, info] of state.runningJobs) {
+    if (info.jobName === name) matches.push({ runId, info });
+  }
+
+  if (matches.length === 0) {
     return res.status(404).json({ ok: false, reason: 'not_running', message: `Job '${name}'이(가) 실행 중이 아닙니다.` });
   }
-  
-  if (jobInfo.proc && !jobInfo.proc.killed) {
-    try {
-      jobInfo.proc.kill('SIGTERM');
-      console.log(`[API] Sent SIGTERM to job: ${name} (PID: ${jobInfo.proc.pid})`);
-      broadcastLog(`[STOPPED] ${name} - 사용자에 의해 중지됨`, 'SYSTEM');
-    } catch (e) {
-      console.error(`[API] Failed to kill process for ${name}:`, e.message);
-      try { jobInfo.proc.kill('SIGKILL'); } catch (e2) { /* ignore */ }
+
+  for (const { runId, info } of matches) {
+    if (info.proc && !info.proc.killed) {
+      try {
+        info.proc.kill('SIGTERM');
+        console.log(`[API] Sent SIGTERM to job: ${name} (runId=${runId}, PID: ${info.proc.pid})`);
+        broadcastLog(`[STOPPED] ${name} - 사용자에 의해 중지됨`, 'SYSTEM');
+      } catch (e) {
+        console.error(`[API] Failed to kill process for ${name} (runId=${runId}):`, e.message);
+        try { info.proc.kill('SIGKILL'); } catch (e2) { /* ignore */ }
+      }
     }
+    unregisterRunningJob(runId);
   }
-  
-  unregisterRunningJob(name);
+
   broadcastLog(`[EXECUTION_COMPLETE] ${name}`, 'SYSTEM');
   broadcastLog(`[JOB_FINISHED] ${name} with code -1 (stopped)`, 'SYSTEM');
-  
-  res.json({ ok: true, message: `Job '${name}'이(가) 중지되었습니다.` });
+
+  res.json({ ok: true, message: `Job '${name}'이(가) 중지되었습니다. (${matches.length}개 run)`, stopped: matches.length });
 });
 
 // 서버 상태 확인
@@ -146,14 +153,18 @@ router.get('/run/:name', async (req, res) => {
   console.log(`[API] GET /api/run/${name} - Job execution request received`);
 
   try {
-    if (state.runningJobs.has(name)) {
-      const jobInfo = state.runningJobs.get(name);
-      const runningTime = Date.now() - jobInfo.startTs;
-      
+    // 수동 실행은 "같은 이름이 실행 중이면" 차단 (스케줄은 server.js 에서 별도 처리)
+    const existingMatches = [];
+    for (const [rid, info] of state.runningJobs) {
+      if (info.jobName === name) existingMatches.push({ rid, info });
+    }
+    if (existingMatches.length > 0) {
+      const first = existingMatches[0];
+      const runningTime = Date.now() - first.info.startTs;
       const timeoutLimit = state.batchMode ? 30000 : 10000;
       if (runningTime > timeoutLimit) {
-        console.log(`[API] Job ${name} running too long (${runningTime}ms), forcing cleanup`);
-        unregisterRunningJob(name);
+        console.log(`[API] Job ${name} running too long (${runningTime}ms), forcing cleanup of ${existingMatches.length} run(s)`);
+        for (const { rid } of existingMatches) unregisterRunningJob(rid);
         broadcastLog(`[SYSTEM] Forced cleanup of stale job ${name} (${runningTime}ms)`, 'SYSTEM');
       } else {
         console.log(`[API] Job execution rejected - same job already running: ${name}`);

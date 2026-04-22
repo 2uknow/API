@@ -83,18 +83,11 @@ function addToScheduleQueue(jobName) {
     timestamp: Date.now(),
     retryCount: 0
   };
-  
-  // 이미 큐에 있는 작업인지 확인
-  const existing = state.scheduleQueue.find(item => item.jobName === jobName);
-  if (existing) {
-    console.log(`[SCHEDULE QUEUE] Job ${jobName} already in queue, skipping`);
-    return false;
-  }
-  
+
   state.scheduleQueue.push(queueItem);
   console.log(`[SCHEDULE QUEUE] Added ${jobName} to queue. Queue length: ${state.scheduleQueue.length}`);
   broadcastLog(`[SCHEDULE QUEUE] ${jobName} queued for execution`, 'SYSTEM');
-  
+
   // 큐 처리 시작
   processScheduleQueue();
   return true;
@@ -105,37 +98,12 @@ async function processScheduleQueue() {
     return;
   }
   
-  // 큐에서 실행 가능한 job을 모두 꺼내서 동시 실행
-  const toRun = [];
-  const deferred = [];
-  
-  for (const item of state.scheduleQueue) {
-    if (state.runningJobs.has(item.jobName)) {
-      // 같은 이름의 job이 이미 실행 중이면 보류
-      item.retryCount++;
-      if (item.retryCount < 3) {
-        deferred.push(item);
-        console.log(`[SCHEDULE] ${item.jobName} already running, deferred (${item.retryCount}/3)`);
-      } else {
-        console.log(`[SCHEDULE] ${item.jobName} dropped after max retries`);
-        broadcastLog(`[SCHEDULE] ${item.jobName} dropped (max retries)`, 'ERROR');
-      }
-    } else {
-      toRun.push(item);
-    }
-  }
-  
-  // 큐를 보류된 항목으로 교체
+  // 스케줄 실행은 동시 실행 허용 — 같은 이름이 실행 중이어도 바로 런치
+  // (runId 기반 상태 관리로 여러 run이 독립적으로 추적됨)
+  const toRun = [...state.scheduleQueue];
   state.scheduleQueue.length = 0;
-  state.scheduleQueue.push(...deferred);
-  
-  if (toRun.length === 0) {
-    // 보류된 항목만 있으면 10초 후 재시도
-    if (deferred.length > 0) {
-      setTimeout(() => processScheduleQueue(), 10000);
-    }
-    return;
-  }
+
+  if (toRun.length === 0) return;
   
   console.log(`[SCHEDULE] Launching ${toRun.length} job(s) in parallel: ${toRun.map(i => i.jobName).join(', ')}`);
   
@@ -154,10 +122,6 @@ async function processScheduleQueue() {
     });
   }
   
-  // 보류된 항목이 있으면 10초 후 재처리
-  if (deferred.length > 0) {
-    setTimeout(() => processScheduleQueue(), 10000);
-  }
 }
 
 // Job 완료 시 보류된 스케줄 큐 재처리 콜백
@@ -216,7 +180,7 @@ if (process.env.NODE_ENV === 'development') {
     console.log(`[MONITOR] Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
     console.log(`[MONITOR] SSE Connections - State: ${stateClients.size}, Log: ${logClients.size}`);
     console.log(`[MONITOR] Log Buffer: ${logBuffer.length} pending`);
-    console.log(`[MONITOR] Running Jobs: ${state.running ? 1 : 0}`);
+    console.log(`[MONITOR] Running Jobs: ${state.runningJobs.size}`);
   }, 30000);
 }
 

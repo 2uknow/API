@@ -21,22 +21,12 @@ import { SClientScenarioEngine, SClientReportGenerator } from '../engine/sclient
 import { validateTestsWithYamlData } from '../engine/sclient-test-validator.js';
 async function runJob(jobName, fromSchedule = false){
   console.log(`[RUNJOB] Starting job execution: ${jobName}, fromSchedule: ${fromSchedule}`);
-  
-  // 같은 이름의 job이 이미 실행 중이면 차단 (다른 job은 허용)
-  if (state.runningJobs.has(jobName) && !state.batchMode) {
-    console.log(`[RUNJOB] Job rejected - same job already running: ${jobName}`);
-    return { started:false, reason:'already_running' };
-  }
-  
-  // 스케줄 실행일 때는 동시 실행 허용 + 프론트 실시간 로그 억제
+
+  // 스케줄 실행일 때는 프론트 실시간 로그 억제 표시
+  // (runId 기반 상태 관리로 동일 이름 동시 실행이 모두 별도로 추적됨)
   if (fromSchedule) {
-    console.log(`[RUNJOB] Schedule execution - allowing concurrent execution for: ${jobName}`);
+    console.log(`[RUNJOB] Schedule execution for: ${jobName}`);
     markJobAsScheduled(jobName);
-  }
-  
-  // 배치 모드일 때는 중복 실행 허용
-  if (state.batchMode) {
-    console.log(`[RUNJOB] Batch mode enabled - allowing concurrent execution for: ${jobName}`);
   }
 
   const jobPath = path.join(root, 'jobs', `${jobName}.json`);
@@ -44,29 +34,21 @@ async function runJob(jobName, fromSchedule = false){
     console.log(`[RUNJOB] Job file not found: ${jobPath}`);
     return { started:false, reason:'job_not_found' };
   }
-  
+
   const job = JSON.parse(fs.readFileSync(jobPath,'utf-8'));
   console.log(`[RUNJOB] Job loaded, type: ${job.type}`);
-  
+
   if (!['newman', 'binary', 'sclient_scenario'].includes(job.type)) {
     console.log(`[RUNJOB] Unsupported job type: ${job.type}`);
     return { started:false, reason:'unsupported_type' };
   }
 
-  // 바이너리/시나리오 타입은 위임 전에 먼저 runningJob 등록
-  // (클라이언트가 500ms 후 fetchRunningJobs 호출 시 이미 등록되어 있어야 Run 버튼이 계속 비활성 상태 유지)
-  if (job.type === 'binary' || job.type === 'sclient_scenario') {
-    const earlyStartTime = nowInTZString();
-    registerRunningJob(jobName, earlyStartTime, job.type, null);
-    console.log(`[RUNJOB] Early registered running job: ${jobName} (type: ${job.type})`);
-  }
-
-  // 바이너리 타입 처리
+  // 바이너리 타입 처리 — 각 러너가 자체 registerRunningJob 호출
   if (job.type === 'binary') {
     console.log(`[RUNJOB] Delegating to runBinaryJob: ${jobName}`);
     return await runBinaryJob(jobName, job);
   }
-  
+
   // SClient 시나리오 타입 처리
   if (job.type === 'sclient_scenario') {
     return await runSClientScenarioJob(jobName, job);
@@ -93,7 +75,7 @@ async function runJob(jobName, fromSchedule = false){
   const startTime = nowInTZString();
   const startTs = Date.now();
 
-  registerRunningJob(jobName, startTime, 'newman', null);
+  const runId = registerRunningJob(jobName, startTime, 'newman', null);
   broadcastLog(`[START] ${jobName}`, jobName);
 
   // 시작 알람 전송
@@ -120,8 +102,8 @@ async function runJob(jobName, fromSchedule = false){
   return new Promise((resolve)=>{
     const proc = spawnNewmanCLI(args);
     // 프로세스 참조를 runningJobs에 저장
-    if (state.runningJobs.has(jobName)) {
-      state.runningJobs.get(jobName).proc = proc;
+    if (state.runningJobs.has(runId)) {
+      state.runningJobs.get(runId).proc = proc;
     }
     let errorOutput = '';
 
@@ -647,9 +629,9 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 
   // 히스토리 저장 후 추가 상태 확인 및 초기화
   console.log(`[HIST_SAVE] Newman job ${jobName} saved to history, checking state...`);
-  if (state.runningJobs.has(jobName)) {
-    console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
-    unregisterRunningJob(jobName);
+  if (state.runningJobs.has(runId)) {
+    console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName} (runId=${runId})`);
+    unregisterRunningJob(runId);
   }
 
   // 알람 데이터 준비 - 훨씬 풍부한 정보 포함
@@ -699,7 +681,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   }
 
   // 통합 완료 처리 함수 사용 (완료를 기다림)
-  await finalizeJobCompletion(jobName, code);
+  await finalizeJobCompletion(runId, code);
   
   // Newman HTML 리포트에 다크모드 토글 추가 (원래 Newman HTMLExtra 리포트 유지)
   // if (fs.existsSync(htmlReport)) {
@@ -798,7 +780,7 @@ async function runBinaryJob(jobName, job) {
     const startTime = nowInTZString();
     const startTs = Date.now();
 
-    registerRunningJob(jobName, startTime, 'binary', null);
+    const runId = registerRunningJob(jobName, startTime, 'binary', null);
     broadcastLog(`[BINARY START] ${jobName}`, jobName);
 
     // 시작 알람 전송
@@ -833,8 +815,8 @@ async function runBinaryJob(jobName, job) {
     return new Promise((resolve) => {
       const proc = spawnBinaryCLI(binaryPath, args);
       // 프로세스 참조를 runningJobs에 저장
-      if (state.runningJobs.has(jobName)) {
-        state.runningJobs.get(jobName).proc = proc;
+      if (state.runningJobs.has(runId)) {
+        state.runningJobs.get(runId).proc = proc;
       }
       let stdout = '';
       let stderr = '';
@@ -1052,9 +1034,9 @@ async function runBinaryJob(jobName, job) {
         
         // 히스토리 저장 후 추가 상태 확인 및 초기화
         console.log(`[HIST_SAVE] Binary job ${jobName} saved to history, checking state...`);
-        if (state.runningJobs.has(jobName)) {
-          console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
-          unregisterRunningJob(jobName);
+        if (state.runningJobs.has(runId)) {
+          console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName} (runId=${runId})`);
+          unregisterRunningJob(runId);
         }
         
         // 강화된 History 업데이트 신호
@@ -1098,7 +1080,7 @@ async function runBinaryJob(jobName, job) {
         }
 
         // 통합 완료 처리 함수 사용 (완료를 기다림)
-        finalizeJobCompletion(jobName, code, parsedResult.success).then(() => {
+        finalizeJobCompletion(runId, code, parsedResult.success).then(() => {
           resolve({ started: true, exitCode: code, success: parsedResult.success });
         });
       });
@@ -1109,7 +1091,7 @@ async function runBinaryJob(jobName, job) {
         outStream.end();
         errStream.end();
 
-        finalizeJobCompletion(jobName, -1, false).then(() => {
+        finalizeJobCompletion(runId, -1, false).then(() => {
           resolve({ started: false, reason: 'spawn_error', error: error.message });
         });
       });
@@ -1163,7 +1145,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       const startTime = nowInTZString();
       const startTs = Date.now();
       
-      registerRunningJob(jobName, startTime, 'yaml_scenario', null);
+      const runId = registerRunningJob(jobName, startTime, 'yaml_scenario', null);
       broadcastLog(`[YAML SCENARIO START] ${jobName} - ${scenario.info.name}`, jobName);
       
       // 시작 알람 전송
@@ -1332,9 +1314,9 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           
           // 히스토리 저장 후 추가 상태 확인 및 초기화
           console.log(`[HIST_SAVE] YAML scenario ${jobName} saved to history, checking state...`);
-          if (state.runningJobs.has(jobName)) {
-            console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName}`);
-            unregisterRunningJob(jobName);
+          if (state.runningJobs.has(runId)) {
+            console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName} (runId=${runId})`);
+            unregisterRunningJob(runId);
           }
           
           // 강화된 History 업데이트 신호
@@ -1398,7 +1380,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           }
 
           // 통합 완료 처리 함수 사용 (완료를 기다림)
-          await finalizeJobCompletion(jobName, scenarioResult.success ? 0 : 1, scenarioResult.success);
+          await finalizeJobCompletion(runId, scenarioResult.success ? 0 : 1, scenarioResult.success);
 
           // 임시 파일 정리
           try {
@@ -1784,7 +1766,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     const startTime = nowInTZString();
     const startTs = Date.now();
 
-    registerRunningJob(jobName, startTime, 'yaml_batch', null);
+    const runId = registerRunningJob(jobName, startTime, 'yaml_batch', null);
     broadcastLog(`[YAML_BATCH START] ${jobName} - ${yamlFiles.length} files`, jobName);
     
     // 전체 배치 로그에 시작 정보 기록
@@ -2217,7 +2199,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`, jobName);
 
     state.batchMode = false;
-    await finalizeJobCompletion(jobName, overallSuccess ? 0 : 1, overallSuccess);
+    await finalizeJobCompletion(runId, overallSuccess ? 0 : 1, overallSuccess);
 
     return finalResult;
 
@@ -2253,7 +2235,7 @@ async function runSClientScenarioJob(jobName, job) {
     const startTime = nowInTZString();
     const startTs = Date.now();
     
-    registerRunningJob(jobName, startTime, 'sclient_scenario', null);
+    const runId = registerRunningJob(jobName, startTime, 'sclient_scenario', null);
     broadcastLog(`[SCENARIO START] ${jobName} - ${collectionPath}`, jobName);
     
     // 시작 알람
@@ -2322,8 +2304,8 @@ async function runSClientScenarioJob(jobName, job) {
     const success = scenarioResult.success;
     
     // 통합 완료 처리 함수 사용 (완료를 기다림)
-    await finalizeJobCompletion(jobName, success ? 0 : 1, success);
-    
+    await finalizeJobCompletion(runId, success ? 0 : 1, success);
+
     // 완료 알람
     await sendAlert(success ? 'success' : 'error', {
       jobName,

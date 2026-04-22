@@ -672,8 +672,7 @@ let jobs = [];
 let historyRaw = [];
 let historyView = [];
 let running = null;
-let runningJobs = []; // 병렬 실행 중인 job 목록
-const jobRunRegistry = {}; // { jobName: { count: N, lastStartAt: string } } — 세션 내 실행 횟수 추적
+let runningJobs = []; // 실행 중인 run 목록 (runId 단위로 독립 추적)
 let currentPage = 1;
 let pageSize = 10;
 let totalItems = 0;
@@ -788,8 +787,8 @@ async function init() {
         } else {
           j.elapsed = (j.elapsed || 0) + 1;
         }
-        // DOM에서 해당 job의 경과시간 span만 업데이트
-        const el = document.querySelector(`.running-elapsed[data-job="${j.job}"]`);
+        // DOM에서 해당 run의 경과시간 span만 업데이트 (runId 기준 — 동일 jobName 동시 실행 구분)
+        const el = document.querySelector(`.running-elapsed[data-runid="${j.runId}"]`);
         if (el) {
           const e = j.elapsed;
           const h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
@@ -939,23 +938,7 @@ function connectSSE() {
         
         if (data.runningJobs) {
           const prevManualCount = runningJobs.filter(j => !j.fromSchedule).length;
-          const newJobs = data.runningJobs.map(sj => {
-            const existing = runningJobs.find(lj => lj.job === sj.job);
-            // startAt이 바뀌었으면 새 실행 — _localStartTs 리셋
-            const isSameRun = existing && existing.startAt === sj.startAt;
-            // 실행 횟수 추적
-            if (!jobRunRegistry[sj.job]) {
-              jobRunRegistry[sj.job] = { count: 1, lastStartAt: sj.startAt };
-            } else if (jobRunRegistry[sj.job].lastStartAt !== sj.startAt) {
-              jobRunRegistry[sj.job].count++;
-              jobRunRegistry[sj.job].lastStartAt = sj.startAt;
-            }
-            return {
-              ...sj,
-              _localStartTs: isSameRun ? existing._localStartTs : (Date.now() - (sj.elapsed || 0) * 1000),
-              _runCount: jobRunRegistry[sj.job].count
-            };
-          });
+          const newJobs = data.runningJobs.map(sj => mergeRunningJobState(sj, runningJobs));
           runningJobs = newJobs;
           renderRunningJobs();
           
@@ -1073,29 +1056,23 @@ function closeLogModal() {
 }
 
 // === Running Jobs 관리 ===
+// 서버 run을 로컬 상태와 병합 — runId 단위로 매칭(같은 jobName 여러 run 동시 추적)
+function mergeRunningJobState(sj, currentJobs) {
+  const existing = currentJobs.find(lj => lj.runId === sj.runId);
+  // 같은 runId면 로컬 타임스탬프 유지, 새 run이면 서버 elapsed 기준으로 리셋
+  return {
+    ...sj,
+    _localStartTs: existing?._localStartTs || (Date.now() - (sj.elapsed || 0) * 1000)
+  };
+}
+
 async function fetchRunningJobs() {
   try {
     const res = await fetch('/api/running');
     const data = await res.json();
     if (data.ok) {
       const serverJobs = data.running || [];
-      const merged = serverJobs.map(sj => {
-        const existing = runningJobs.find(lj => lj.job === sj.job);
-        // startAt이 바뀌면 새 실행 — _localStartTs 리셋
-        const isSameRun = existing && existing.startAt === sj.startAt;
-        if (!jobRunRegistry[sj.job]) {
-          jobRunRegistry[sj.job] = { count: 1, lastStartAt: sj.startAt };
-        } else if (jobRunRegistry[sj.job].lastStartAt !== sj.startAt) {
-          jobRunRegistry[sj.job].count++;
-          jobRunRegistry[sj.job].lastStartAt = sj.startAt;
-        }
-        return {
-          ...sj,
-          _localStartTs: isSameRun ? existing._localStartTs : (Date.now() - (sj.elapsed || 0) * 1000),
-          _runCount: jobRunRegistry[sj.job].count
-        };
-      });
-      runningJobs = merged;
+      runningJobs = serverJobs.map(sj => mergeRunningJobState(sj, runningJobs));
       renderRunningJobs();
       setStatusChip();
     }
@@ -1108,32 +1085,43 @@ function renderRunningJobs() {
   const panel = document.getElementById('runningJobsPanel');
   const list = document.getElementById('runningJobsList');
   const count = document.getElementById('runningJobsCount');
-  
+
   if (runningJobs.length === 0) {
     panel.classList.add('hidden');
     return;
   }
-  
+
   panel.classList.remove('hidden');
   count.textContent = runningJobs.length;
-  
+
+  // 같은 jobName의 동시 실행 run에 #1, #2 번호 부여 (서버 응답 순서 = 등록 순서)
+  const runGroups = new Map(); // jobName → [runId, runId, ...]
+  runningJobs.forEach(j => {
+    if (!runGroups.has(j.job)) runGroups.set(j.job, []);
+    runGroups.get(j.job).push(j.runId);
+  });
+
   list.innerHTML = runningJobs.map(job => {
     // _localStartTs가 있으면 실시간 계산, 없으면 서버 값 사용
-    const elapsed = job._localStartTs 
+    const elapsed = job._localStartTs
       ? Math.round((Date.now() - job._localStartTs) / 1000)
       : (job.elapsed || 0);
     const hours = Math.floor(elapsed / 3600);
     const mins = Math.floor((elapsed % 3600) / 60);
     const secs = elapsed % 60;
-    const elapsedStr = hours > 0 
+    const elapsedStr = hours > 0
       ? `${hours}h${String(mins).padStart(2,'0')}m${String(secs).padStart(2,'0')}s`
-      : mins > 0 
-        ? `${mins}m${String(secs).padStart(2,'0')}s` 
+      : mins > 0
+        ? `${mins}m${String(secs).padStart(2,'0')}s`
         : `${secs}s`;
     const typeLabels = { yaml_batch: 'Batch', yaml_scenario: 'YAML', newman: 'Newman', binary: 'Binary', sclient_scenario: 'SClient', pending: '...' };
     const typeLabel = typeLabels[job.type] || job.type;
     const scheduleBadge = job.fromSchedule ? '<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex-shrink-0">Schedule</span>' : '';
-    const runBadge = (job._runCount > 1) ? `<span class="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 flex-shrink-0 font-mono">#${job._runCount}</span>` : '';
+
+    // 같은 이름의 동시 run이 2개 이상이면 #1, #2 배지 표시
+    const runIds = runGroups.get(job.job) || [];
+    const runIdx = runIds.indexOf(job.runId);
+    const runBadge = (runIds.length > 1) ? `<span class="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 flex-shrink-0 font-mono">#${runIdx + 1}</span>` : '';
 
     return `
       <div class="running-job-item flex items-center justify-between p-2 rounded-lg border text-xs" style="background: var(--bg-secondary); border-color: var(--border-color);">
@@ -1144,12 +1132,12 @@ function renderRunningJobs() {
           ${scheduleBadge}${runBadge}
         </div>
         <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
-          <span class="running-elapsed" data-job="${job.job}" style="color: var(--text-secondary);">${elapsedStr}</span>
+          <span class="running-elapsed" data-runid="${job.runId}" style="color: var(--text-secondary);">${elapsedStr}</span>
           <button onclick="stopJob('${job.job}')" class="px-2 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-all font-medium" title="중지">Stop</button>
         </div>
       </div>`;
   }).join('');
-  
+
   scheduleTabsUpdate();
 }
 
