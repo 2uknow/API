@@ -347,16 +347,6 @@ cron.schedule('0 3 * * *', async () => {
     }
 
     console.log(`[HIST_BACKUP] 일간 백업 완료: ${destPath}`);
-
-    // 30일 초과 파일 삭제
-    const files = (await fsp.readdir(dailyDir))
-      .filter(f => /^history_\d{8}\.json$/.test(f))
-      .sort();
-    const cutoff = files.length - 30;
-    for (let i = 0; i < cutoff; i++) {
-      await fsp.unlink(path.join(dailyDir, files[i])).catch(() => {});
-      console.log(`[HIST_BACKUP] 오래된 백업 삭제: ${files[i]}`);
-    }
   } catch (err) {
     console.error('[HIST_BACKUP] 일간 백업 실패:', err.message);
   }

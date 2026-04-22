@@ -1,15 +1,15 @@
 /**
  * history 수동 백업 스크립트
  *
- * history.json + history_backup/ 를 날짜별로 압축 백업합니다.
- * server.js 의 새벽 3시 cron 과 동일한 로직을 수동으로 실행할 때 사용합니다.
+ * history.json + history_backup/ 를 타임스탬프별로 압축 백업합니다.
+ * 오래된 백업을 삭제하지 않으며 무제한 누적됩니다.
+ * server.js 새벽 3시 cron 과 동일한 로직을 수동으로 실행할 때 사용합니다.
  *
  * 사용법:
  *   node scripts/history-backup.js
  *
  * 환경변수:
- *   HIST_BACKUP_DIR  : 백업 저장 경로 (기본: ./logs/history_daily)
- *   HIST_BACKUP_KEEP : 유지할 백업 개수 (기본: 30)
+ *   HIST_BACKUP_DIR : 백업 저장 경로 (기본: ./logs/history_daily)
  */
 
 import fs from 'fs';
@@ -21,8 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const projectDir = path.resolve(__dirname, '..');
 
-const BACKUP_DIR  = process.env.HIST_BACKUP_DIR  || path.join(projectDir, 'logs', 'history_daily');
-const BACKUP_KEEP = parseInt(process.env.HIST_BACKUP_KEEP, 10) || 30;
+const BACKUP_DIR  = process.env.HIST_BACKUP_DIR || path.join(projectDir, 'logs', 'history_daily');
 const HIST_PATH   = path.join(projectDir, 'logs', 'history.json');
 const HIST_BK_DIR = path.join(projectDir, 'logs', 'history_backup');
 
@@ -75,8 +74,7 @@ function validateHistory() {
     process.exit(1);
   }
   try {
-    const content = fs.readFileSync(HIST_PATH, 'utf-8').trim();
-    const arr = JSON.parse(content);
+    const arr = JSON.parse(fs.readFileSync(HIST_PATH, 'utf-8').trim());
     if (!Array.isArray(arr)) throw new Error('배열이 아님');
     log(`history.json 유효성 확인: ${arr.length}건`);
     return arr.length;
@@ -86,25 +84,18 @@ function validateHistory() {
   }
 }
 
-// ── 2. 백업 폴더 생성 + 파일 복사 ──
-function createBackupDir(timestamp) {
-  const name     = `history_${timestamp}`;
+// ── 2. 스테이징 폴더 생성 + 파일 복사 ──
+function stage(timestamp) {
+  const name      = `history_${timestamp}`;
   const stagePath = path.join(BACKUP_DIR, name);
   fs.mkdirSync(stagePath, { recursive: true });
 
-  // history.json 복사
-  const destFile = path.join(stagePath, 'history.json');
-  fs.copyFileSync(HIST_PATH, destFile);
+  fs.copyFileSync(HIST_PATH, path.join(stagePath, 'history.json'));
   log(`  history.json 복사 완료`);
 
-  // history_backup/ 복사 (보호 백업 디렉토리)
   if (fs.existsSync(HIST_BK_DIR)) {
-    const destBkDir = path.join(stagePath, 'history_backup');
-    copyDirSync(HIST_BK_DIR, destBkDir);
-    const n = countFiles(destBkDir);
-    log(`  history_backup/ 복사 완료 (${n}개 파일)`);
-  } else {
-    log(`  history_backup/ 없음 — 생략`);
+    copyDirSync(HIST_BK_DIR, path.join(stagePath, 'history_backup'));
+    log(`  history_backup/ 복사 완료 (${countFiles(path.join(stagePath, 'history_backup'))}개 파일)`);
   }
 
   return stagePath;
@@ -112,93 +103,43 @@ function createBackupDir(timestamp) {
 
 // ── 3. tar.gz 압축 ──
 function compress(stagePath) {
-  const name    = path.basename(stagePath);
-  const tarPath = stagePath + '.tar.gz';
+  const name = path.basename(stagePath);
   try {
     execSync(`tar -czf "${name}.tar.gz" "${name}"`, {
       cwd: BACKUP_DIR,
-      timeout: 300000, // 5분
+      timeout: 300000,
       stdio: 'pipe',
     });
     deleteDirSync(stagePath);
-    const sizeMB = (fs.statSync(tarPath).size / (1024 * 1024)).toFixed(2);
+    const sizeMB = (fs.statSync(path.join(BACKUP_DIR, `${name}.tar.gz`)).size / (1024 * 1024)).toFixed(2);
     log(`  압축 완료: ${name}.tar.gz (${sizeMB}MB)`);
-    return tarPath;
   } catch (e) {
     log(`  압축 실패 (폴더 백업 유지): ${e.message}`);
-    return stagePath; // 폴더 형태로 남김
   }
 }
 
-// ── 4. 오래된 백업 정리 ──
-function cleanup() {
-  const entries = fs.readdirSync(BACKUP_DIR)
-    .filter(n => n.startsWith('history_'))
-    .map(n => ({
-      name  : n,
-      full  : path.join(BACKUP_DIR, n),
-      isDir : fs.statSync(path.join(BACKUP_DIR, n)).isDirectory(),
-      mtime : fs.statSync(path.join(BACKUP_DIR, n)).mtimeMs,
-    }))
-    .sort((a, b) => b.mtime - a.mtime);
-
-  const archives = entries.filter(e => e.name.endsWith('.tar.gz'));
-  const folders  = entries.filter(e => e.isDir);
-
-  // 압축본이 있는 폴더는 중복 삭제
-  for (const folder of folders) {
-    if (archives.some(a => a.name === folder.name + '.tar.gz')) {
-      try { deleteDirSync(folder.full); log(`  중복 폴더 삭제: ${folder.name}`); } catch (_) {}
-    }
-  }
-
-  // 최신 N개만 유지
-  const remaining = fs.readdirSync(BACKUP_DIR)
-    .filter(n => n.startsWith('history_'))
-    .map(n => ({ name: n, full: path.join(BACKUP_DIR, n), mtime: fs.statSync(path.join(BACKUP_DIR, n)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime);
-
-  const toDelete = remaining.slice(BACKUP_KEEP);
-  for (const item of toDelete) {
-    try {
-      item.full.endsWith('.tar.gz') ? fs.unlinkSync(item.full) : deleteDirSync(item.full);
-      log(`  오래된 백업 삭제: ${item.name}`);
-    } catch (e) {
-      log(`  삭제 실패: ${item.name} — ${e.message}`);
-    }
-  }
-  if (toDelete.length > 0) log(`정리 완료: ${toDelete.length}개 삭제, ${BACKUP_KEEP}개 유지`);
-}
-
-// ── 5. 현황 출력 ──
+// ── 4. 현황 출력 ──
 function reportStatus() {
-  if (!fs.existsSync(BACKUP_DIR)) return;
   const items = fs.readdirSync(BACKUP_DIR).filter(n => n.startsWith('history_'));
   let totalBytes = 0;
   for (const n of items) {
     const p = path.join(BACKUP_DIR, n);
-    const stat = fs.statSync(p);
-    totalBytes += stat.isDirectory() ? 0 : stat.size;
+    if (!fs.statSync(p).isDirectory()) totalBytes += fs.statSync(p).size;
   }
-  const sizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
-  log(`현재 백업 현황: ${items.length}개, 총 ${sizeMB}MB, 유지 정책: 최근 ${BACKUP_KEEP}개`);
+  log(`현재 백업 현황: ${items.length}개, 총 ${(totalBytes / (1024 * 1024)).toFixed(2)}MB (삭제 없음, 무제한 누적)`);
 }
 
 // ── 실행 ──
 log('=== history 수동 백업 시작 ===');
 log(`백업 경로: ${BACKUP_DIR}`);
-log(`유지 개수: ${BACKUP_KEEP}개`);
 
 try {
   validateHistory();
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-  const timestamp = formatDate(nowKST());
-  log(`백업 타임스탬프: ${timestamp}`);
-
-  const stagePath = createBackupDir(timestamp);
+  const ts        = formatDate(nowKST());
+  const stagePath = stage(ts);
   compress(stagePath);
-  cleanup();
   reportStatus();
   log('=== history 수동 백업 완료 ===');
 } catch (e) {
