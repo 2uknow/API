@@ -9,7 +9,7 @@ import { root, reportsDir, logsDir, readCfg } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { debugLog, batchLog, matchPattern } from '../utils/debug.js';
 import { broadcastState, broadcastLog, markJobAsScheduled, unmarkJobAsScheduled } from '../utils/sse.js';
-import { state, registerRunningJob, unregisterRunningJob, broadcastRunningJobs, finalizeJobCompletion } from '../state/running-jobs.js';
+import { state, registerRunningJob, unregisterRunningJob, finalizeJobCompletion } from '../state/running-jobs.js';
 import { histAppend } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
 import { sendAlert, buildNewmanFailureReport, buildBinaryFailureReport, buildYamlScenarioFailureReport, buildBatchFailureReport } from '../services/alert-integration.js';
@@ -2045,23 +2045,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       overallSuccess: overallSuccess
     });
 
-    debugLog(`[YAML_BATCH] Clearing state.running and broadcasting null state`);
-    console.log(`[YAML_BATCH] About to clear runningJobs - current:`, [...state.runningJobs.keys()]);
-    console.log(`[YAML_BATCH] About to deactivate batch mode - current:`, state.batchMode);
-    
-    unregisterRunningJob(jobName);
-    state.batchMode = false; // 배치 모드 비활성화
-    
-    console.log(`[YAML_BATCH] State cleared - running:`, state.running, 'batchMode:', state.batchMode);
-    console.log(`[YAML_BATCH] About to broadcast state`);
-    try {
-      broadcastRunningJobs();
-      console.log(`[YAML_BATCH] State broadcast completed`);
-    } catch (broadcastError) {
-      console.error(`[YAML_BATCH] WARNING: broadcastState failed:`, broadcastError.message);
-      debugLog(`[YAML_BATCH] WARNING: broadcastState failed: ${broadcastError.message}`);
-    }
-    debugLog(`[YAML_BATCH_DEBUG] After broadcastState, about to reach batch report section`);
     debugLog(`[YAML_BATCH_DEBUG] REACHED BATCH REPORT GENERATION SECTION`);
 
     // 배치 요약 리포트 생성 - 기본 방식으로 복구
@@ -2232,16 +2215,18 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     });
     console.log(`[BATCH_COMPLETE] About to broadcast completion message`);
     broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`, jobName);
-    console.log(`[BATCH_COMPLETE] About to return finalResult`);
+
+    state.batchMode = false;
+    await finalizeJobCompletion(jobName, overallSuccess ? 0 : 1, overallSuccess);
 
     return finalResult;
 
   } catch (error) {
     console.error(`[YAML_BATCH] Batch execution error:`, error.message);
 
-    unregisterRunningJob(jobName);
     state.batchMode = false;
-    
+    await finalizeJobCompletion(jobName, 1, false);
+
     return {
       started: false,
       reason: 'batch_execution_error',
