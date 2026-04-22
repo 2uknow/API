@@ -644,11 +644,6 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   };
   
   history.push(historyEntry);
-  
-  const { history_keep = 500 } = readCfg();
-  if (history_keep > 0 && history.length > history_keep) {
-    history.splice(0, history.length - history_keep);
-  }
 
   await histWriteAsync(history);
   cleanupOldReports();
@@ -1058,11 +1053,6 @@ async function runBinaryJob(jobName, job) {
 
         history.push(historyEntry);
 
-        const { history_keep = 500 } = readCfg();
-        if (history_keep > 0 && history.length > history_keep) {
-          history.splice(0, history.length - history_keep);
-        }
-
         await histWriteAsync(history);
         cleanupOldReports();
         
@@ -1345,11 +1335,6 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           };
           
           history.push(historyEntry);
-
-          const { history_keep = 500 } = readCfg();
-          if (history_keep > 0 && history.length > history_keep) {
-            history.splice(0, history.length - history_keep);
-          }
 
           await histWriteAsync(history);
           cleanupOldReports();
@@ -2234,12 +2219,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
     const history = await histReadAsync();
     history.push(historyEntry);
-    
-    // 최대 기록 개수 유지
-    const { history_keep = 500 } = readCfg();
-    if (history_keep > 0 && history.length > history_keep) {
-      history.splice(0, history.length - history_keep);
-    }
 
     // 히스토리 파일에 저장
     try {
@@ -2401,12 +2380,6 @@ async function runSClientScenarioJob(jobName, job) {
     
     const history = await histReadAsync();
     history.push(historyEntry);
-    
-    // 최대 기록 개수 유지
-    const { history_keep = 500 } = readCfg();
-    if (history_keep > 0 && history.length > history_keep) {
-      history.splice(0, history.length - history_keep);
-    }
     await histWriteAsync(history);
 
     broadcastState({ history_updated: true });

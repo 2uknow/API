@@ -21,7 +21,6 @@ export function readCfg() {
   try { return JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); }
   catch { return { 
     site_port: 3000, 
-    history_keep: 500, 
     report_keep_days: 30, 
     timezone: 'Asia/Seoul', 
     run_mode:'cli', 
