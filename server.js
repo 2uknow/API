@@ -6,8 +6,8 @@ import { fileURLToPath } from 'url';
 
 // === 리팩토링 모듈 import ===
 import { root, reportsDir, logsDir, readCfg } from './src/utils/config.js';
-import { stateClients, logClients, unifiedClients, broadcastLog } from './src/utils/sse.js';
-import { state } from './src/state/running-jobs.js';
+import { stateClients, logClients, unifiedClients, broadcastLog, broadcastState, recentLogHistory } from './src/utils/sse.js';
+import { state, stateEvents } from './src/state/running-jobs.js';
 import { initLogManagement } from './src/services/log-manager.js';
 import { initHistoryCache } from './src/services/history-service.js';
 import { loadSchedules } from './src/services/schedule-service.js';
@@ -127,8 +127,26 @@ async function processScheduleQueue() {
   
 }
 
-// Job 완료 시 보류된 스케줄 큐 재처리 콜백
-state._processScheduleQueue = () => processScheduleQueue();
+// state 이벤트 구독 — SSE 브리지 + 스케줄 큐 재처리 + 로그 버퍼 정리
+// running-jobs.js는 emit만 담당, 실제 SSE/스케줄/로그 효과는 여기서 수행
+stateEvents.on('running-jobs-changed', (payload) => {
+  broadcastState(payload);
+});
+
+stateEvents.on('log', ({ line, jobName }) => {
+  broadcastLog(line, jobName);
+});
+
+stateEvents.on('job-finalized', () => {
+  if (state.scheduleQueue.length > 0) {
+    setTimeout(() => processScheduleQueue(), 2000);
+  }
+});
+
+stateEvents.on('all-jobs-done', () => {
+  recentLogHistory.length = 0;
+  console.log('[FINALIZE] All jobs done - log history cleared');
+});
 
 // SSE Heartbeat 통합 (20초마다, 1개로 통합)
 setInterval(() => {

@@ -3,7 +3,8 @@ import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { root } from '../utils/config.js';
-import { stateClients, logClients, unifiedClients, broadcastLog, scheduledJobNames } from '../utils/sse.js';
+import { stateClients, logClients, unifiedClients, broadcastLog } from '../utils/sse.js';
+import { scheduledJobNames } from '../state/schedule-state.js';
 import { state, unregisterRunningJob, broadcastRunningJobs } from '../state/running-jobs.js';
 import { runJob } from '../runners/job-runner.js';
 

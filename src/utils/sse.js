@@ -1,5 +1,7 @@
 // src/utils/sse.js — SSE 헬퍼 (클라이언트 Set, broadcast 함수, 로그 버퍼)
 
+import { scheduledJobNames } from '../state/schedule-state.js';
+
 // SSE 클라이언트 Set들 (싱글톤)
 export const stateClients = new Set();
 export const logClients = new Set();
@@ -8,19 +10,6 @@ export const unifiedClients = new Set();
 // 최근 로그 히스토리 (신규 SSE 클라이언트에게 재전송용)
 export const recentLogHistory = [];
 export const MAX_LOG_HISTORY = 200;
-
-// 스케줄 실행 Job 추적 (프론트엔드 실시간 로그에서 숨김)
-export const scheduledJobNames = new Set();
-
-export function markJobAsScheduled(jobName) {
-  scheduledJobNames.add(jobName);
-  console.log(`[SSE] Marked job as scheduled (log suppressed): ${jobName}`);
-}
-
-export function unmarkJobAsScheduled(jobName) {
-  scheduledJobNames.delete(jobName);
-  console.log(`[SSE] Unmarked scheduled job: ${jobName}`);
-}
 
 // SSE 헤더 최적화
 export function sseHeaders(res) {
