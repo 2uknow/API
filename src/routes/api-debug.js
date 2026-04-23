@@ -1,6 +1,6 @@
 // src/routes/api-debug.js — 디버그/진단 라우트
 import { Router } from 'express';
-import { stateClients, logClients, logBuffer } from '../utils/sse.js';
+import { stateClients, logClients } from '../utils/sse.js';
 
 const router = Router();
 
@@ -9,7 +9,6 @@ router.get('/debug/sse-status', (req, res) => {
   res.json({
     stateClients: stateClients.size,
     logClients: logClients.size,
-    logBuffer: logBuffer.length,
     serverTime: new Date().toISOString()
   });
 });

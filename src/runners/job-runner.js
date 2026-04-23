@@ -131,10 +131,6 @@ async function runJob(jobName, fromSchedule = false){
         }
       });
     });
-    
-
-
-// runJob 함수의 proc.on('close') 부분을 이렇게 개선하세요:
 
 proc.on('close', async (code) => {
   outStream.end(); 

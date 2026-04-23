@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 // === 리팩토링 모듈 import ===
 import { root, reportsDir, logsDir, readCfg } from './src/utils/config.js';
-import { stateClients, logClients, unifiedClients, logBuffer, broadcastLog } from './src/utils/sse.js';
+import { stateClients, logClients, unifiedClients, broadcastLog } from './src/utils/sse.js';
 import { state } from './src/state/running-jobs.js';
 import { initLogManagement } from './src/services/log-manager.js';
 import { initHistoryCache } from './src/services/history-service.js';
@@ -69,7 +69,10 @@ app.use((req, res, next) => {
   console.log(`[REQUEST] ${req.method} ${req.url} - ${new Date().toISOString()}`);
   if (req.url.startsWith('/api/run/')) {
     console.log(`[REQUEST] Critical API call detected: ${req.method} ${req.url}`);
-    console.log(`[REQUEST] Headers:`, JSON.stringify(req.headers, null, 2));
+    const safeHeaders = { ...req.headers };
+    if (safeHeaders.authorization) safeHeaders.authorization = '***';
+    if (safeHeaders.cookie) safeHeaders.cookie = '***';
+    console.log(`[REQUEST] Headers:`, JSON.stringify(safeHeaders, null, 2));
   }
   next();
 });
@@ -179,7 +182,6 @@ if (process.env.NODE_ENV === 'development') {
     const memUsage = process.memoryUsage();
     console.log(`[MONITOR] Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
     console.log(`[MONITOR] SSE Connections - State: ${stateClients.size}, Log: ${logClients.size}`);
-    console.log(`[MONITOR] Log Buffer: ${logBuffer.length} pending`);
     console.log(`[MONITOR] Running Jobs: ${state.runningJobs.size}`);
   }, 30000);
 }

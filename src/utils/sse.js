@@ -5,12 +5,6 @@ export const stateClients = new Set();
 export const logClients = new Set();
 export const unifiedClients = new Set();
 
-// 로그 버퍼링을 위한 변수들
-export let logBuffer = [];
-export let broadcastTimeoutId = null;
-export const BATCH_SIZE = 10;
-export const BATCH_INTERVAL = 50;
-
 // 최근 로그 히스토리 (신규 SSE 클라이언트에게 재전송용)
 export const recentLogHistory = [];
 export const MAX_LOG_HISTORY = 200;
@@ -172,60 +166,5 @@ export function broadcastLog(line, jobName = '') {
   if (line.includes('[HISTORY_UPDATE]') || line.includes('[EXECUTION_COMPLETE]') || line.includes('[BINARY DONE]')) {
     const totalClients = logSuccessCount + unifiedSuccessCount;
     console.log(`[BROADCAST_LOG] ${logData.type} signal sent to ${totalClients} clients: ${line.substring(0, 100)}`);
-  }
-}
-
-// 향상된 로그 버퍼 플러시
-export function flushLogBuffer() {
-  if (logBuffer.length === 0) return;
-  
-  const batch = logBuffer.splice(0, BATCH_SIZE);
-  const data = batch.map(line => 
-    `event: log\ndata: ${JSON.stringify({ line, at: Date.now() })}\n\n`
-  ).join('');
-  
-  const deadLogClients = new Set();
-  for (const c of logClients) {
-    try {
-      if (!c.destroyed && !c.finished) {
-        c.write(data);
-        c.flushHeaders?.();
-      } else {
-        deadLogClients.add(c);
-      }
-    } catch (error) {
-      console.log(`[SSE] Log client error: ${error.message}`);
-      deadLogClients.add(c);
-    }
-  }
-  
-  // 통합 클라이언트들에게도 로그 전송
-  const deadUnifiedClients = new Set();
-  for (const c of unifiedClients) {
-    try {
-      if (!c.destroyed && !c.finished) {
-        c.write(data);
-        c.flushHeaders?.();
-      } else {
-        deadUnifiedClients.add(c);
-      }
-    } catch (error) {
-      deadUnifiedClients.add(c);
-    }
-  }
-  
-  // 끊어진 연결 정리
-  for (const c of deadLogClients) {
-    logClients.delete(c);
-  }
-  for (const c of deadUnifiedClients) {
-    unifiedClients.delete(c);
-  }
-  
-  // 다음 배치 스케줄링
-  if (logBuffer.length > 0) {
-    broadcastTimeoutId = setTimeout(flushLogBuffer, 20);
-  } else {
-    broadcastTimeoutId = null;
   }
 }
