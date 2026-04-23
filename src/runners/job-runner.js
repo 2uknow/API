@@ -8,7 +8,8 @@ import { execSync } from 'child_process';
 import { root, reportsDir, logsDir, readCfg } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { debugLog, batchLog, matchPattern } from '../utils/debug.js';
-import { broadcastState, broadcastLog, markJobAsScheduled, unmarkJobAsScheduled } from '../utils/sse.js';
+import { broadcastState, broadcastLog } from '../utils/sse.js';
+import { markJobAsScheduled } from '../state/schedule-state.js';
 import { state, registerRunningJob, unregisterRunningJob, finalizeJobCompletion } from '../state/running-jobs.js';
 import { histAppend } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
@@ -131,10 +132,6 @@ async function runJob(jobName, fromSchedule = false){
         }
       });
     });
-    
-
-
-// runJob 함수의 proc.on('close') 부분을 이렇게 개선하세요:
 
 proc.on('close', async (code) => {
   outStream.end(); 

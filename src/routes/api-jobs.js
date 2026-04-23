@@ -3,7 +3,8 @@ import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { root } from '../utils/config.js';
-import { stateClients, logClients, unifiedClients, broadcastLog, scheduledJobNames } from '../utils/sse.js';
+import { stateClients, logClients, unifiedClients, broadcastLog } from '../utils/sse.js';
+import { scheduledJobNames } from '../state/schedule-state.js';
 import { state, unregisterRunningJob, broadcastRunningJobs } from '../state/running-jobs.js';
 import { runJob } from '../runners/job-runner.js';
 
@@ -19,7 +20,10 @@ router.get('/jobs', (req, res) => {
     for (const f of files) {
       try {
         const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
-        if (!j.name || !j.type) continue;
+        if (!j.name || !j.type) {
+          console.warn(`[JOBS] Skipping ${f}: missing required field (name/type)`);
+          continue;
+        }
         items.push({
           file: f,
           name: j.name,
@@ -29,7 +33,9 @@ router.get('/jobs', (req, res) => {
           reporters: j.reporters || ['cli', 'htmlextra', 'junit', 'json'],
           extra: j.extra || []
         });
-      } catch {}
+      } catch (err) {
+        console.warn(`[JOBS] Skipping ${f}: invalid job file — ${err.message}`);
+      }
     }
     res.json(items);
   } catch (e) { res.status(500).json({ error: e.message }); }

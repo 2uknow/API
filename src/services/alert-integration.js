@@ -77,11 +77,7 @@ export async function sendAlert(type, data) {
         }
 
         if (data.failureReport) {
-          console.log(`[ALERT DEBUG] failureReport length: ${data.failureReport.length}`);
-          console.log(`[ALERT DEBUG] failureReport preview: ${data.failureReport.substring(0, 500)}`);
           message += `\n${data.failureReport}`;
-        } else {
-          console.log(`[ALERT DEBUG] failureReport is empty or null`);
         }
 
         if (data.stdout && !data.failureReport) {
@@ -110,12 +106,6 @@ export async function sendAlert(type, data) {
 
 // Newman 실패 리포트 생성 함수
 export function buildNewmanFailureReport(newmanParsed, detailedFailures) {
-  console.log('[DEBUG] buildNewmanFailureReport called');
-  console.log('[DEBUG] newmanParsed:', newmanParsed ? 'exists' : 'null');
-  console.log('[DEBUG] newmanParsed.summary:', newmanParsed?.summary ? 'exists' : 'null');
-  console.log('[DEBUG] newmanParsed.failedExecutions:', newmanParsed?.failedExecutions?.length || 0);
-  console.log('[DEBUG] detailedFailures:', detailedFailures?.length || 0);
-
   const lines = [];
 
   lines.push('=== Newman Test Failure Report ===');

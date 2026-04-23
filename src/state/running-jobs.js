@@ -1,6 +1,12 @@
 // src/state/running-jobs.js — 런타임 상태 관리 (싱글톤) + Stale Job 자동 정리
 // runId 기반 Map으로 동일 jobName 동시 실행 지원
-import { broadcastState, broadcastLog, recentLogHistory, unmarkJobAsScheduled, scheduledJobNames } from '../utils/sse.js';
+import { EventEmitter } from 'events';
+import { unmarkJobAsScheduled, scheduledJobNames } from './schedule-state.js';
+
+// 상태 이벤트 버스 — SSE/스케줄/버퍼 등 프레젠테이션 레이어가 구독
+// 이벤트: 'running-jobs-changed' (payload), 'log' ({line, jobName}),
+//        'job-finalized' ({jobName, runId, exitCode}), 'all-jobs-done'
+export const stateEvents = new EventEmitter();
 
 // SSE + history — Map<runId, { runId, jobName, startTime, startTs, type, proc }>
 export const state = {
@@ -19,6 +25,14 @@ let _runIdSeq = 0;
 function genRunId() {
   _runIdSeq = (_runIdSeq + 1) % 1_000_000;
   return `run_${Date.now()}_${_runIdSeq.toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+// 같은 jobName의 running run이 남아있는지 확인 (호출 시점에 자신의 runId는 이미 삭제되었다고 가정)
+export function hasOtherRunsWithName(jobName) {
+  for (const info of state.runningJobs.values()) {
+    if (info.jobName === jobName) return true;
+  }
+  return false;
 }
 
 // 병렬 실행 관리 헬퍼 함수 — runId를 반환 (호출자가 unregister/finalize에 사용)
@@ -51,7 +65,8 @@ export function unregisterRunningJob(runIdOrName) {
   broadcastRunningJobs();
 }
 
-export function broadcastRunningJobs() {
+// 현재 running 상태를 SSE payload 형태로 빌드 — 순수 함수(테스트 가능)
+export function buildRunningJobsPayload() {
   const runningList = [];
   for (const [runId, info] of state.runningJobs) {
     runningList.push({
@@ -63,7 +78,11 @@ export function broadcastRunningJobs() {
       fromSchedule: scheduledJobNames.has(info.jobName)
     });
   }
-  broadcastState({ running: state.running, runningJobs: runningList });
+  return { running: state.running, runningJobs: runningList };
+}
+
+export function broadcastRunningJobs() {
+  stateEvents.emit('running-jobs-changed', buildRunningJobsPayload());
 }
 
 // ★ Stale Job 감지 및 자동 정리 — runId 단위 정리, unmarkJobAsScheduled는 같은 이름 남은 게 없을 때만
@@ -91,13 +110,12 @@ function cleanupStaleJobs() {
       }
     }
 
-    broadcastLog(`[STALE_JOB] ⏰ "${info.jobName}" 강제 종료 (${elapsedMin}분 경과)`, 'SYSTEM');
+    stateEvents.emit('log', { line: `[STALE_JOB] ⏰ "${info.jobName}" 강제 종료 (${elapsedMin}분 경과)`, jobName: 'SYSTEM' });
 
     state.runningJobs.delete(runId);
 
     // 같은 jobName의 다른 run이 남아있지 않을 때만 스케줄 해제
-    const hasMoreWithSameName = [...state.runningJobs.values()].some(v => v.jobName === info.jobName);
-    if (!hasMoreWithSameName) unmarkJobAsScheduled(info.jobName);
+    if (!hasOtherRunsWithName(info.jobName)) unmarkJobAsScheduled(info.jobName);
   }
 
   if (staleEntries.length > 0) {
@@ -145,9 +163,9 @@ export function finalizeJobCompletion(runIdOrName, exitCode, success = null) {
 
     console.log(`[FINALIZE] Starting job completion for ${jobName} (runId=${runId}), exitCode: ${exitCode}, success: ${success}`);
 
-    broadcastLog(`[DONE] ${jobName} exit=${exitCode}`, 'SYSTEM');
-    broadcastLog(`[EXECUTION_COMPLETE] ${jobName}`, 'SYSTEM');
-    broadcastLog(`[JOB_FINISHED] ${jobName} with code ${exitCode}`, 'SYSTEM');
+    stateEvents.emit('log', { line: `[DONE] ${jobName} exit=${exitCode}`, jobName: 'SYSTEM' });
+    stateEvents.emit('log', { line: `[EXECUTION_COMPLETE] ${jobName}`, jobName: 'SYSTEM' });
+    stateEvents.emit('log', { line: `[JOB_FINISHED] ${jobName} with code ${exitCode}`, jobName: 'SYSTEM' });
 
     console.log(`[FINALIZE] Before state reset - runningJobs:`, [...state.runningJobs.keys()]);
 
@@ -165,17 +183,17 @@ export function finalizeJobCompletion(runIdOrName, exitCode, success = null) {
     broadcastRunningJobs();
 
     // 같은 이름 run 남아있는지 확인
-    const hasMoreWithSameName = [...state.runningJobs.values()].some(v => v.jobName === jobName);
-    if (!hasMoreWithSameName) {
+    if (!hasOtherRunsWithName(jobName)) {
       unmarkJobAsScheduled(jobName);
     } else {
-      console.log(`[FINALIZE] ${jobName}: 같은 이름의 다른 run이 ${[...state.runningJobs.values()].filter(v => v.jobName === jobName).length}개 남음 — scheduled 유지`);
+      const remaining = [...state.runningJobs.values()].filter(v => v.jobName === jobName).length;
+      console.log(`[FINALIZE] ${jobName}: 같은 이름의 다른 run이 ${remaining}개 남음 — scheduled 유지`);
     }
 
     console.log(`[FINALIZE] Job completion finalized for ${jobName} (runId=${runId}), remaining jobs:`, [...state.runningJobs.keys()]);
 
     setTimeout(() => {
-      broadcastLog(`[HISTORY_UPDATE] ${jobName} completed`, 'SYSTEM');
+      stateEvents.emit('log', { line: `[HISTORY_UPDATE] ${jobName} completed`, jobName: 'SYSTEM' });
 
       setTimeout(() => {
         if (runId && state.runningJobs.has(runId)) {
@@ -185,15 +203,12 @@ export function finalizeJobCompletion(runIdOrName, exitCode, success = null) {
         }
         console.log(`[FINALIZE] Completion process finished for ${jobName} (runId=${runId})`);
 
-        // 작업 완료 후 스케줄 큐에 대기 중인 job 재처리
-        if (state.scheduleQueue.length > 0 && state._processScheduleQueue) {
-          setTimeout(() => state._processScheduleQueue(), 2000);
-        }
+        // 작업 완료 알림 — 구독자가 스케줄 큐 재처리 담당
+        stateEvents.emit('job-finalized', { jobName, runId, exitCode });
 
-        // 모든 Job이 완료되면 로그 히스토리 초기화
+        // 모든 Job이 완료되면 구독자가 로그 히스토리 초기화
         if (state.runningJobs.size === 0) {
-          recentLogHistory.length = 0;
-          console.log(`[FINALIZE] All jobs done - log history cleared`);
+          stateEvents.emit('all-jobs-done');
         }
 
         resolve();
