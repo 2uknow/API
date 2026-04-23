@@ -19,7 +19,10 @@ router.get('/jobs', (req, res) => {
     for (const f of files) {
       try {
         const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
-        if (!j.name || !j.type) continue;
+        if (!j.name || !j.type) {
+          console.warn(`[JOBS] Skipping ${f}: missing required field (name/type)`);
+          continue;
+        }
         items.push({
           file: f,
           name: j.name,
@@ -29,7 +32,9 @@ router.get('/jobs', (req, res) => {
           reporters: j.reporters || ['cli', 'htmlextra', 'junit', 'json'],
           extra: j.extra || []
         });
-      } catch {}
+      } catch (err) {
+        console.warn(`[JOBS] Skipping ${f}: invalid job file — ${err.message}`);
+      }
     }
     res.json(items);
   } catch (e) { res.status(500).json({ error: e.message }); }
