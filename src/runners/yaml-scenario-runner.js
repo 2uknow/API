@@ -4,6 +4,7 @@ import { root, reportsDir, logsDir } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { debugLog, batchLog } from '../utils/debug.js';
 import { filterYamlFiles } from './batch/file-filter.js';
+import { computeBatchStats, buildBatchHistoryEntry } from './batch/batch-result.js';
 import { broadcastState, broadcastLog } from '../utils/sse.js';
 import { state, registerRunningJob, unregisterRunningJob, finalizeJobCompletion } from '../state/running-jobs.js';
 import { histAppend } from '../services/history-service.js';
@@ -699,23 +700,9 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       }
     }
 
-    const endTime = nowInTZString();
-    const duration = Date.now() - startTs;
-    const successFiles = batchResults.filter(r => r.success).length;
-    const failedFiles = yamlFiles.length - successFiles;
-    const successRate = ((successFiles / yamlFiles.length) * 100).toFixed(1);
-
-    console.log(`[YAML_BATCH] Batch execution completed`);
-    console.log(`[YAML_BATCH] Results: ${successFiles}/${yamlFiles.length} files passed (${successRate}%)`);
-    
-    debugLog(`[YAML_BATCH] Final batch statistics`, {
-      totalFiles: yamlFiles.length,
-      successFiles: successFiles,
-      failedFiles: failedFiles,
-      successRate: successRate,
-      duration: duration,
-      overallSuccess: overallSuccess
-    });
+    const { endTime, duration, successFiles, failedFiles, successRate } = computeBatchStats(
+      batchResults, yamlFiles.length, startTs, overallSuccess
+    );
 
     // 배치 요약 리포트 생성 - 기본 방식으로 복구
     let batchReportPath = null;
@@ -804,53 +791,20 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       }
     });
 
-    // 배치 실행 결과를 히스토리에 저장
-    // batchResults를 요약 정보만 포함하도록 축소 (JSON.stringify 크기 제한 문제 방지)
-    const batchResultsSummary = batchResults.map(r => ({
-      fileName: r.fileName,
-      success: r.success,
-      duration: r.duration,
-      summary: r.summary ? {
-        total: r.summary.total,
-        passed: r.summary.passed,
-        failed: r.summary.failed
-      } : null
-    }));
-
-    const historyEntry = {
-      timestamp: endTime,
-      job: jobName,
-      runId: runId,
-      type: 'binary',
-      exitCode: overallSuccess ? 0 : 1,
-      summary: `${successFiles}/${yamlFiles.length} files passed (batch)`,
-      report: batchReportPath,
-      htmlReport: batchReportPath,
-      reportPath: batchReportPath,
-      stdout: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
-      stderr: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
-      tags: ['binary', 'yaml', 'batch'],
-      duration: Math.round(duration / 1000), // ms를 초로 변환
-      batchStats: {
-        totalFiles: yamlFiles.length,
-        successFiles: successFiles,
-        failedFiles: failedFiles,
-        successRate: parseFloat(successRate),
-        results: batchResultsSummary // 요약 정보만 저장
-      },
-      detailedStats: {
-        totalSteps: batchResults.reduce((sum, r) => sum + (r.summary?.total || 0), 0),
-        passedSteps: batchResults.reduce((sum, r) => sum + (r.summary?.passed || 0), 0),
-        failedSteps: batchResults.reduce((sum, r) => sum + (r.summary?.failed || 0), 0),
-        avgResponseTime: Math.round(batchResults.reduce((sum, r) => {
-          const fileDuration = r.duration || 0;
-          const total = r.summary?.total || 1;
-          return sum + (total > 0 ? fileDuration / total : 0);
-        }, 0) / Math.max(batchResults.length, 1)),
-        totalDuration: duration,
-        successRate: parseFloat(successRate)
-      }
-    };
+    // 배치 실행 결과를 히스토리 엔트리로 변환 (요약 정보로 축소)
+    const historyEntry = buildBatchHistoryEntry({
+      jobName,
+      runId,
+      endTime,
+      duration,
+      batchResults,
+      totalFiles: yamlFiles.length,
+      successFiles,
+      failedFiles,
+      successRate,
+      batchReportPath,
+      overallSuccess,
+    });
     
     debugLog(`[YAML_BATCH] Adding batch result to history`, {
       jobName: historyEntry.job,
