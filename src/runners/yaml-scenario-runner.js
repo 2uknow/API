@@ -56,9 +56,9 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
   console.log(`[YAML] Starting YAML scenario: ${jobName} (timeout=${job.timeout || 15000}ms)`);
 
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
+  let runId = null;
 
-  return new Promise(async (resolve) => {
-    try {
+  try {
       console.log('[YAML SCENARIO] Loading YAML collection:', collectionPath);
       
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
@@ -70,14 +70,13 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       // SClient 바이너리 경로 확인
       const binaryPath = getBinaryPath(job);
       if (!fs.existsSync(binaryPath)) {
-        resolve({ started: false, reason: 'binary_not_found', path: binaryPath });
-        return;
+        return { started: false, reason: 'binary_not_found', path: binaryPath };
       }
-      
+
       const startTime = nowInTZString();
       const startTs = Date.now();
-      
-      const runId = registerRunningJob(jobName, startTime, 'yaml_scenario', null);
+
+      runId = registerRunningJob(jobName, startTime, 'yaml_scenario', null);
       broadcastLog(`[YAML SCENARIO START] ${jobName} - ${scenario.info.name}`, jobName);
       
       // 시작 알람 전송
@@ -294,9 +293,9 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
         }
       });
 
-      // Promise를 즉시 resolve
-      resolve(resultData);
-      
+      // setImmediate 예약 후 즉시 반환 — 나머지 정리는 백그라운드
+      return resultData;
+
     } catch (scenarioError) {
       // 임시 파일 정리
       try {
@@ -306,8 +305,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       }
       throw scenarioError;
     }
-    
-    } catch (error) {
+
+  } catch (error) {
       console.error('[YAML SCENARIO ERROR]', error);
       outStream.end();
       errStream.end();
@@ -341,13 +340,13 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
         failureReport: `YAML Scenario Error:\n${error.message}\n\nStack Trace:\n${error.stack}`
       });
       
-      // 통합 완료 처리 함수 사용 (완료를 기다림)
-      await finalizeJobCompletion(jobName, 1, false);
-      
-      resolve({ started: false, reason: 'yaml_scenario_error', error: error.message });
+      // 통합 완료 처리 함수 사용 (runId 우선, 미등록 에러면 jobName fallback)
+      await finalizeJobCompletion(runId || jobName, 1, false);
+
+      return { started: false, reason: 'yaml_scenario_error', error: error.message };
     }
-  });
 }
+
 // YAML 단일 파일 실행 함수 (state.running 체크 없음)
 async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJobName) {
   // broadcastJobName: 부모 배치 job 이름 (탭에 표시될 이름). 없으면 jobName 사용
@@ -355,9 +354,8 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
   console.log(`[SINGLE_YAML] Starting: ${jobName} (broadcast as: ${logJobName})`);
   
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
-  
-  return new Promise(async (resolve) => {
-    try {
+
+  try {
       console.log('[SINGLE_YAML] Loading YAML collection:', collectionPath);
 
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
@@ -375,13 +373,12 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       // SClient 바이너리 경로 확인
       const binaryPath = getBinaryPath(job);
       if (!fs.existsSync(binaryPath)) {
-        resolve({ started: false, reason: 'binary_not_found', path: binaryPath });
-        return;
+        return { started: false, reason: 'binary_not_found', path: binaryPath };
       }
-      
+
       const startTime = nowInTZString();
       const startTs = Date.now();
-      
+
       // 개별 파일용 로그 브로드캐스트 (logJobName = 부모 배치 job 이름 또는 자기 자신)
       broadcastLog(`[SINGLE_YAML START] ${jobName} - ${scenario.info.name}`, logJobName);
       
@@ -480,7 +477,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       const message = `${statusIcon} ${jobName}: ${success ? 'SUCCESS' : 'FAILED'} (${duration}ms)`;
       broadcastLog(message, logJobName);
 
-      resolve({
+      return {
         started: true,
         success: success,
         duration: duration,
@@ -488,25 +485,24 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
         endTime: endTime,
         reportPath: finalReportPath,
         result: executionResult
-      });
+      };
 
-    } catch (error) {
-      debugLog(`[SINGLE_YAML] Error in ${jobName}`, {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      console.error(`[SINGLE_YAML] Error in ${jobName}:`, error);
-      broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`, logJobName);
+  } catch (error) {
+    debugLog(`[SINGLE_YAML] Error in ${jobName}`, {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    console.error(`[SINGLE_YAML] Error in ${jobName}:`, error);
+    broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`, logJobName);
 
-      resolve({
-        started: true,
-        success: false,
-        error: error.message,
-        result: null
-      });
-    }
-  });
+    return {
+      started: true,
+      success: false,
+      error: error.message,
+      result: null
+    };
+  }
 }
 
 // debugLog, batchLog → src/utils/debug.js에서 import
@@ -519,7 +515,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
   state.batchMode = true;
 
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
-  
+  let runId = null;
+
   try {
     // YAML 파일들 찾기
     const allFiles = fs.readdirSync(collectionPath);
@@ -554,7 +551,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     const startTime = nowInTZString();
     const startTs = Date.now();
 
-    const runId = registerRunningJob(jobName, startTime, 'yaml_batch', null);
+    runId = registerRunningJob(jobName, startTime, 'yaml_batch', null);
     broadcastLog(`[YAML_BATCH START] ${jobName} - ${yamlFiles.length} files`, jobName);
     
     // 전체 배치 로그에 시작 정보 기록
@@ -907,7 +904,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     console.error(`[YAML_BATCH] Batch execution error:`, error.message);
 
     state.batchMode = false;
-    await finalizeJobCompletion(jobName, 1, false);
+    await finalizeJobCompletion(runId || jobName, 1, false);
 
     return {
       started: false,
