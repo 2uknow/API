@@ -565,6 +565,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
   const historyEntry = {
     timestamp: endTime,
     job: jobName,
+    runId: runId,
     type: job.type,
     exitCode: code,
     summary: summary, // 개선된 summary 사용

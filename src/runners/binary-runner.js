@@ -337,6 +337,7 @@ async function runBinaryJob(jobName, job) {
         const historyEntry = {
           timestamp: endTime,
           job: jobName,
+          runId: runId,
           type: 'binary',
           exitCode: code,
           summary: parsedResult.summary,

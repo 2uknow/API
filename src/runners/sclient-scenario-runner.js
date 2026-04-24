@@ -112,6 +112,7 @@ async function runSClientScenarioJob(jobName, job) {
 
     const historyEntry = {
       job: jobName,
+      runId: runId,
       type: 'sclient_scenario',
       startTime,
       endTime,

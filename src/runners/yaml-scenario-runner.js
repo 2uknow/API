@@ -186,6 +186,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           const historyEntry = {
             timestamp: endTime,
             job: jobName,
+            runId: runId,
             type: 'binary', // binary 타입으로 유지
             exitCode: scenarioResult.success ? 0 : 1,
             summary: `${scenarioResult.summary.passed}/${scenarioResult.summary.total} steps passed`,
@@ -1038,6 +1039,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     const historyEntry = {
       timestamp: endTime,
       job: jobName,
+      runId: runId,
       type: 'binary',
       exitCode: overallSuccess ? 0 : 1,
       summary: `${successFiles}/${yamlFiles.length} files passed (batch)`,
