@@ -51,23 +51,16 @@ async function generateYamlHtmlReport(scenarioResult, reportPath, options = {}) 
 }
 
 async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
-  console.log(`[YAML] Starting YAML scenario: ${jobName}`);
-  console.log(`[YAML] Collection path: ${collectionPath}`);
-  console.log(`[YAML] Job timeout: ${job.timeout || 15000}ms`);
-  
+  console.log(`[YAML] Starting YAML scenario: ${jobName} (timeout=${job.timeout || 15000}ms)`);
+
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
-  
+
   return new Promise(async (resolve) => {
-    console.log(`[YAML] Promise wrapper created for ${jobName}`);
-    
     try {
-      console.log(`[YAML] Importing modules...`);
-      
       // YAML 파서와 SClient 엔진 import
       const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
       const { SClientScenarioEngine, SClientReportGenerator } = await import('../engine/sclient-engine.js');
-      
-      console.log(`[YAML] Modules imported successfully`);
+
       console.log('[YAML SCENARIO] Loading YAML collection:', collectionPath);
       
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
@@ -139,52 +132,43 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
     fs.writeFileSync(tempScenarioPath, JSON.stringify(scenario, null, 2));
     
     try {
-      console.log(`[YAML] Starting scenario execution with timeout: ${job.timeout || 15000}ms`);
-      
       // 시나리오 실행 (타임아웃 적용)
       const scenarioPromise = engine.runScenario(tempScenarioPath);
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Scenario execution timeout')), 
+        setTimeout(() => reject(new Error('Scenario execution timeout')),
                   job.timeout || 15000);
       });
-      
-      console.log(`[YAML] Promise.race started, waiting for completion...`);
+
       const scenarioResult = await Promise.race([scenarioPromise, timeoutPromise]);
-      console.log(`[YAML] Scenario execution completed, success: ${scenarioResult.success}`);
-      
+
       // 공통 테스트 검증 모듈 적용 - run-yaml.js와 동일한 검증 로직 사용
       try {
         const yamlContent = fs.readFileSync(collectionPath, 'utf8');
         const { load } = await import('js-yaml');
         const yamlData = load(yamlContent);
         const validatedResult = validateTestsWithYamlData(scenarioResult, yamlData);
-        console.log(`[YAML] Test validation completed - Updated success: ${validatedResult.success}`);
-        
+
         // 검증 결과로 시나리오 결과 업데이트
         Object.assign(scenarioResult, validatedResult);
       } catch (validateError) {
-        console.log(`[YAML] Test validation failed, using original results: ${validateError.message}`);
+        console.warn(`[YAML] Test validation failed, using original results: ${validateError.message}`);
       }
-      
+
       const endTime = nowInTZString();
       const duration = Math.round((Date.now() - startTs) / 1000);
-      console.log(`[YAML] Execution duration: ${duration}s`);
-      
+
       broadcastLog(`[YAML SCENARIO DONE] ${jobName} completed in ${duration}s`, 'SYSTEM');
-      
+
       // Promise resolve를 먼저 실행하여 blocking 방지
-      console.log(`[YAML] Preparing result data for immediate resolve`);
-      const resultData = { 
-        started: true, 
-        exitCode: scenarioResult.success ? 0 : 1, 
+      const resultData = {
+        started: true,
+        exitCode: scenarioResult.success ? 0 : 1,
         success: scenarioResult.success,
         scenarioResult
       };
-      
+
       // 비동기적으로 리포트 생성 및 정리 작업 수행
-      console.log(`[YAML] Starting async cleanup operations`);
       setImmediate(async () => {
-        console.log(`[YAML] Async cleanup started`);
         try {
           outStream.end();
           errStream.end();
@@ -236,16 +220,11 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
 
           await histAppend(historyEntry);
           cleanupOldReports();
-          
-          // 히스토리 저장 후 추가 상태 확인 및 초기화
-          console.log(`[HIST_SAVE] YAML scenario ${jobName} saved to history, checking state...`);
+
           if (state.runningJobs.has(runId)) {
-            console.log(`[HIST_SAVE] Cleaning up runningJobs for ${jobName} (runId=${runId})`);
             unregisterRunningJob(runId);
           }
-          
-          // 강화된 History 업데이트 신호
-          console.log(`[HISTORY_UPDATE] YAML scenario ${jobName} history updated`);
+
           broadcastLog(`[HISTORY_UPDATE] Job completed and history updated`, 'SYSTEM');
           
           // 지연된 완료 신호 전송 (SSE 완전 전송 보장)
@@ -319,7 +298,6 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       });
 
       // Promise를 즉시 resolve
-      console.log(`[YAML] Resolving Promise immediately with result:`, resultData);
       resolve(resultData);
       
     } catch (scenarioError) {
@@ -383,19 +361,15 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
   
   return new Promise(async (resolve) => {
     try {
-      debugLog(`[SINGLE_YAML] Importing modules for: ${jobName}`);
       // YAML 파서와 SClient 엔진 import
       const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
       const { SClientScenarioEngine } = await import('../engine/sclient-engine.js');
-      debugLog(`[SINGLE_YAML] Modules imported successfully for: ${jobName}`);
-      
-      debugLog(`[SINGLE_YAML] Reading YAML file: ${collectionPath}`);
+
       console.log('[SINGLE_YAML] Loading YAML collection:', collectionPath);
-      
+
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
       const yamlContent = fs.readFileSync(collectionPath, 'utf-8');
-      debugLog(`[SINGLE_YAML] YAML content read, length: ${yamlContent.length} chars`);
-      
+
       const yamlBasePath = path.dirname(path.resolve(collectionPath));
       const scenario = SClientYAMLParser.parseYamlToScenario(yamlContent, yamlBasePath);
       debugLog(`[SINGLE_YAML] Scenario parsed for: ${jobName}`, {
@@ -432,8 +406,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       }
       const tempScenarioPath = path.join(tempDir, `scenario_${jobName}_${stamp}.json`);
       fs.writeFileSync(tempScenarioPath, JSON.stringify(scenario, null, 2));
-      console.log('[SINGLE_YAML] Temp scenario written to:', tempScenarioPath);
-      
+
       // 실시간 로그 이벤트 연결 (logJobName 사용하여 부모 탭에 표시)
       engine.on('log', (data) => {
         outStream.write(data.message + '\n');
@@ -460,9 +433,6 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
         });
       });
       
-      // 시나리오 실행
-      debugLog(`[SINGLE_YAML] Starting scenario execution for: ${jobName}`);
-
       const executionResult = await engine.runScenario(tempScenarioPath);
 
       debugLog(`[SINGLE_YAML] Scenario execution completed for: ${jobName}`, {
@@ -517,15 +487,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       const statusIcon = success ? '✅' : '❌';
       const message = `${statusIcon} ${jobName}: ${success ? 'SUCCESS' : 'FAILED'} (${duration}ms)`;
       broadcastLog(message, logJobName);
-      
-      // HTML 리포트 생성 완료 후 resolve
-      debugLog(`[SINGLE_YAML] Final resolve for: ${jobName}`, {
-        success: success,
-        duration: duration,
-        reportsGenerated: job.generateHtmlReport,
-        finalReportPath: finalReportPath
-      });
-      
+
       resolve({
         started: true,
         success: success,
@@ -535,7 +497,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
         reportPath: finalReportPath,
         result: executionResult
       });
-      
+
     } catch (error) {
       debugLog(`[SINGLE_YAML] Error in ${jobName}`, {
         message: error.message,
@@ -544,15 +506,13 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       });
       console.error(`[SINGLE_YAML] Error in ${jobName}:`, error);
       broadcastLog(`❌ ${jobName}: ERROR - ${error.message}`, logJobName);
-      
-      const errorResult = {
+
+      resolve({
         started: true,
         success: false,
         error: error.message,
         result: null
-      };
-      debugLog(`[SINGLE_YAML] Resolving with error result for: ${jobName}`, errorResult);
-      resolve(errorResult);
+      });
     }
   });
 }
@@ -561,25 +521,11 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
 
 // YAML 디렉토리 배치 실행 함수 (기존 runYamlSClientScenario 방식 재사용)
 async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
-  console.log('🎯🎯🎯 [BATCH_FUNCTION] runYamlDirectoryBatch called! 🎯🎯🎯');
-  process.stdout.write('🎯🎯🎯 [BATCH_FUNCTION] runYamlDirectoryBatch called! 🎯🎯🎯\n');
-  
-  batchLog(`\n🚀 === BATCH FUNCTION ENTRY === 🚀`);
-  batchLog(`[BATCH_ENTRY] Function called at: ${new Date().toISOString()}`);
-  batchLog(`[BATCH_ENTRY] jobName: ${jobName}`);
-  batchLog(`[BATCH_ENTRY] collectionPath: ${collectionPath}`);
-  batchLog(`[BATCH_ENTRY] Function parameters received successfully`);
-  
-  debugLog(`[YAML_BATCH] Starting YAML directory batch: ${jobName}`);
-  debugLog(`[YAML_BATCH] Directory path: ${collectionPath}`);
-  debugLog(`[YAML_BATCH] Job configuration`, job);
-  debugLog(`[YAML_BATCH] Paths configuration`, paths);
-  
+  batchLog(`[BATCH_ENTRY] ${jobName} — ${collectionPath}`);
+
   // 배치 모드 활성화
   state.batchMode = true;
-  console.log(`[YAML_BATCH] Batch mode activated for concurrent file execution`);
-  console.log(`[YAML_BATCH] Current state before start:`, state.running);
-  
+
   const { stdoutPath, stderrPath, txtReport, outStream, errStream, stamp } = paths;
   
   try {
@@ -592,40 +538,26 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     // excludePatterns 적용
     let yamlFiles = allYamlFiles;
     if (job.excludePatterns && Array.isArray(job.excludePatterns)) {
-      debugLog(`[YAML_BATCH] Applying exclude patterns`, job.excludePatterns);
       yamlFiles = allYamlFiles.filter(file => {
         const filePath = path.join(collectionPath, file);
         const relativePath = path.relative(collectionPath, filePath);
-        
+
         // 각 제외 패턴과 비교
         for (const pattern of job.excludePatterns) {
           if (matchPattern(file, pattern) || matchPattern(relativePath, pattern)) {
-            debugLog(`[YAML_BATCH] Excluding file: ${file} (matches pattern: ${pattern})`);
             return false; // 제외
           }
         }
-        debugLog(`[YAML_BATCH] Including file: ${file}`);
         return true; // 포함
       });
     }
-    debugLog(`[YAML_BATCH] Final YAML files for execution`, yamlFiles);
-    
-    batchLog(`\n📂 === FILE FILTERING RESULT === 📂`);
-    batchLog(`[FILE_FILTER] Total YAML files found: ${allYamlFiles.length}`);
-    batchLog(`[FILE_FILTER] After exclude patterns: ${yamlFiles.length}`);
-    batchLog(`[FILE_FILTER] Files to process:`, yamlFiles);
-    
+
+    batchLog(`[FILE_FILTER] ${allYamlFiles.length} found, ${yamlFiles.length} after exclude — files:`, yamlFiles);
+
     if (yamlFiles.length === 0) {
-      console.log(`[YAML_BATCH] No YAML files found in ${collectionPath}`);
-      batchLog(`[FILE_FILTER] ⚠️ EARLY RETURN: No files to process`);
+      console.log(`[YAML_BATCH] No YAML files to process in ${collectionPath}`);
       return { started: false, reason: 'no_yaml_files', path: collectionPath };
     }
-    
-    console.log(`[YAML_BATCH] All YAML files found: ${allYamlFiles.length}`);
-    allYamlFiles.forEach(file => console.log(`[YAML_BATCH] ALL: ${file}`));
-    
-    console.log(`[YAML_BATCH] After exclude patterns: ${yamlFiles.length}`);
-    yamlFiles.forEach(file => console.log(`[YAML_BATCH] INCLUDED: ${file}`));
     
     const startTime = nowInTZString();
     const startTs = Date.now();
@@ -650,7 +582,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
         fileCount: yamlFiles.length,
         type: 'yaml_batch'
       });
-      console.log('[YAML_BATCH] Alert sent successfully');
     } catch (alertError) {
       console.error('[YAML_BATCH] Alert sending failed:', alertError.message);
       // 알람 실패는 배치 실행을 중단시키지 않음
@@ -707,17 +638,12 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       // 전체 배치 로그에도 진행률 기록
       outStream.write(`📊 Batch Progress: ${progressPercent}% (${i + 1}/${yamlFiles.length} files)\n`);
       
-      console.log(`[BATCH_LOOP] About to enter try block for ${fileName}`);
       try {
-        console.log('⭐⭐⭐ [TRY_ENTRY] Entered try block successfully! ⭐⭐⭐');
-        process.stdout.write('⭐⭐⭐ [TRY_ENTRY] Entered try block successfully! ⭐⭐⭐\n');
-        
         // 개별 파일을 위한 paths 생성
         const fileStamp = kstTimestamp();
-        console.log('⭐⭐⭐ [TRY_PATHS] Created fileStamp:', fileStamp, '⭐⭐⭐');
         const individualOutStream = fs.createWriteStream(path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
         const individualErrStream = fs.createWriteStream(path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
-        
+
         const filePaths = {
           stdoutPath: path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`),
           stderrPath: path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`),
@@ -726,30 +652,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
           errStream: individualErrStream,
           stamp: fileStamp
         };
-        
-        // 배치 전체 로그에도 기록하기 위한 로그 함수 오버라이드
-        const originalLog = console.log;
-        const enhancedLog = (...args) => {
-          const message = args.join(' ');
-          // 개별 파일 로그에 기록
-          if (individualOutStream && !individualOutStream.destroyed) {
-            individualOutStream.write(message + '\n');
-          }
-          // 전체 배치 로그에도 기록
-          if (outStream && !outStream.destroyed) {
-            outStream.write(`[${fileName}] ${message}\n`);
-          }
-          originalLog(...args);
-        };
-        
-        // runYamlSClientScenario 함수의 핵심 로직을 직접 실행 (state.running 체크 우회)
-        console.log(`[BATCH_LOOP] About to call runSingleYamlFile for: ${fileName}`);
-        console.log(`[BATCH_LOOP] File paths created:`, {
-          stdoutPath: filePaths.stdoutPath,
-          stderrPath: filePaths.stderrPath,
-          txtReport: filePaths.txtReport
-        });
-        
+
         // 전체 배치 로그에 개별 파일 시작 로그 기록
         outStream.write(`\n=== [${i + 1}/${yamlFiles.length}] Starting ${fileName} ===\n`);
 
@@ -788,90 +691,45 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
           } : null
         };
         batchResults.push(fileResult);
-        debugLog(`[YAML_BATCH] Added result to batch for: ${fileName}`, fileResult);
-        
+
         if (!result.success) {
           overallSuccess = false;
-          debugLog(`[YAML_BATCH] File failed, setting overallSuccess to false: ${fileName}`);
         }
-        
+
         const statusIcon = result.success ? '✅' : '❌';
-        const stepInfo = result.scenarioResult?.summary ? 
-          `${result.scenarioResult.summary.passed}/${result.scenarioResult.summary.total} steps passed` : 
+        const stepInfo = result.scenarioResult?.summary ?
+          `${result.scenarioResult.summary.passed}/${result.scenarioResult.summary.total} steps passed` :
           'No steps';
         const message = `${statusIcon} ${fileName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${stepInfo})`;
         console.log(`[YAML_BATCH] ${message}`);
         broadcastLog(message, jobName);
-        
+
         // 개별 파일 상세 진행 상황 브로드캐스트
         if (result.scenarioResult?.summary) {
           const detailMessage = `[${fileName}] Steps: ${result.scenarioResult.summary.passed}✅ ${result.scenarioResult.summary.failed}❌ Duration: ${result.duration}ms`;
           broadcastLog(detailMessage, jobName);
         }
-        
-        debugLog(`[YAML_BATCH] Broadcasted result for: ${fileName}`, { statusIcon, success: result.success, stepInfo });
-        
-        console.log(`[BATCH_LOOP] Completed processing ${fileName} successfully`);
-        console.log(`[BATCH_LOOP] Moving to next file...`);
-        
+
       } catch (error) {
-        console.error(`[BATCH_LOOP] *** ERROR processing ${fileName} ***`);
-        console.error(`[BATCH_LOOP] Error message:`, error.message);
-        console.error(`[BATCH_LOOP] Error stack:`, error.stack);
-        console.error(`[BATCH_LOOP] Current state when error occurred:`, {
-          running: state.running,
-          batchMode: state.batchMode,
-          fileName: fileName,
-          fileIndex: i,
-          totalFiles: yamlFiles.length
-        });
-        
         console.error(`[YAML_BATCH] Error processing ${fileName}:`, error);
-        console.error(`[YAML_BATCH] Error stack:`, error.stack);
         debugLog(`[YAML_BATCH] Critical error processing file: ${fileName}`, {
           message: error.message,
           stack: error.stack,
           fileName,
           index: i
         });
-        
+
         batchResults.push({
           fileName,
           filePath,
           success: false,
           result: { success: false, error: error.message }
         });
-        
+
         overallSuccess = false;
         broadcastLog(`❌ ${fileName}: ERROR - ${error.message}`, jobName);
       }
-      
-      // 각 파일 처리 후 상태 확인
-      console.log(`[BATCH_LOOP] === File ${i + 1}/${yamlFiles.length} processing completed ===`);
-      console.log(`[BATCH_LOOP] Batch results count: ${batchResults.length}`);
-      console.log(`[BATCH_LOOP] Overall success: ${overallSuccess}`);
-      console.log(`[BATCH_LOOP] Will continue: ${(i < yamlFiles.length - 1)}`);
-      console.log(`[BATCH_LOOP] Current state.running: ${JSON.stringify(state.running)}`);
-      console.log(`[BATCH_LOOP] Current state.batchMode: ${state.batchMode}`);
-      
-      debugLog(`[YAML_BATCH] File ${i + 1}/${yamlFiles.length} processing completed: ${fileName}`, {
-        batchResults: batchResults.length,
-        overallSuccess,
-        willContinue: (i < yamlFiles.length - 1)
-      });
-      console.log(`[YAML_BATCH] Completed ${i + 1}/${yamlFiles.length}: ${fileName}`);
-      
-      if (i < yamlFiles.length - 1) {
-        console.log(`[BATCH_LOOP] Continuing to next file...`);
-      } else {
-        console.log(`[BATCH_LOOP] All files processed, exiting loop`);
-      }
     }
-
-    console.log(`\n=== [BATCH_LOOP] Loop completed ===`);
-    console.log(`[BATCH_LOOP] Final batch results count: ${batchResults.length}`);
-    console.log(`[BATCH_LOOP] Final overall success: ${overallSuccess}`);
-    console.log(`[BATCH_LOOP] About to proceed to batch completion...`);
 
     const endTime = nowInTZString();
     const duration = Date.now() - startTs;
@@ -891,13 +749,10 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       overallSuccess: overallSuccess
     });
 
-    debugLog(`[YAML_BATCH_DEBUG] REACHED BATCH REPORT GENERATION SECTION`);
-
     // 배치 요약 리포트 생성 - 기본 방식으로 복구
     let batchReportPath = null;
     if (job.generateHtmlReport !== false) {
       try {
-        console.log(`[YAML_BATCH] Generating simple batch summary report...`);
         batchReportPath = await generateSimpleBatchReport(jobName, {
           startTime,
           endTime,
@@ -1040,7 +895,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     // history 저장 (비동기 - 이벤트 루프 블로킹 방지)
     try {
       await histAppend(historyEntry);
-      console.log(`[YAML_BATCH] History saved successfully`);
 
       // 히스토리 업데이트 신호 브로드캐스트
       broadcastLog(`[HISTORY_UPDATE] Batch job ${jobName} completed and history updated`, 'SYSTEM');
@@ -1050,17 +904,6 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
     }
 
     const statusIcon = overallSuccess ? '✅' : '❌';
-    console.log(`\n🏁 === BATCH COMPLETION === 🏁`);
-    console.log(`[BATCH_COMPLETE] Final results:`, {
-      started: finalResult.started,
-      success: finalResult.success,
-      totalFiles: yamlFiles.length,
-      successFiles: successFiles,
-      failedFiles: failedFiles,
-      duration: finalResult.duration,
-      batchReportPath: finalResult.batchReportPath
-    });
-    console.log(`[BATCH_COMPLETE] About to broadcast completion message`);
     broadcastLog(`[YAML_BATCH COMPLETE] ${jobName} - ${statusIcon} ${successFiles}/${yamlFiles.length} files passed`, jobName);
 
     state.batchMode = false;
