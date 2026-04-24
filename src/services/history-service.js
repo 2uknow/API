@@ -143,10 +143,11 @@ async function _flushToDisk() {
       console.log(`[HIST_PROTECT] 보호 백업 생성: ${backupPath}`);
 
       const existingArr = JSON.parse(existing);
-      const keySet = new Set(arr.map(m => `${m.timestamp}_${m.job}`));
+      const makeKey = (m) => `${m.timestamp}_${m.job}_${m.runId || ''}`;
+      const keySet = new Set(arr.map(makeKey));
       const merged = [...arr];
       for (const item of existingArr) {
-        const key = `${item.timestamp}_${item.job}`;
+        const key = makeKey(item);
         if (!keySet.has(key)) { merged.push(item); keySet.add(key); }
       }
       arr = merged;
