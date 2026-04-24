@@ -12,7 +12,10 @@ import { decodeUrlEncodedContent } from '../utils/crypto.js';
 import { generateSimpleBatchReport } from '../services/report-generator.js';
 import { getBinaryPath } from './spawn-helpers.js';
 import { SClientScenarioEngine, SClientReportGenerator } from '../engine/sclient-engine.js';
+import { SClientYAMLParser } from '../engine/simple-yaml-parser.js';
+import { SClientToNewmanConverter } from '../engine/newman-converter.js';
 import { validateTestsWithYamlData } from '../engine/sclient-test-validator.js';
+import { load as yamlLoad } from 'js-yaml';
 
 // Newman 스타일 HTML 리포트 생성. 실패 시 SClientReportGenerator 기본 생성기로 폴백.
 // 반환값: 성공 시 reportPath, 실패 시 null.
@@ -24,7 +27,6 @@ async function generateYamlHtmlReport(scenarioResult, reportPath, options = {}) 
   } = options;
 
   try {
-    const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
     const converter = new SClientToNewmanConverter();
     const newmanRun = converter.convertToNewmanRun(scenarioResult);
     await converter.generateNewmanStyleHTML(newmanRun.run, reportPath, { title, browserTitle });
@@ -57,10 +59,6 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
 
   return new Promise(async (resolve) => {
     try {
-      // YAML 파서와 SClient 엔진 import
-      const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
-      const { SClientScenarioEngine, SClientReportGenerator } = await import('../engine/sclient-engine.js');
-
       console.log('[YAML SCENARIO] Loading YAML collection:', collectionPath);
       
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
@@ -144,8 +142,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       // 공통 테스트 검증 모듈 적용 - run-yaml.js와 동일한 검증 로직 사용
       try {
         const yamlContent = fs.readFileSync(collectionPath, 'utf8');
-        const { load } = await import('js-yaml');
-        const yamlData = load(yamlContent);
+        const yamlData = yamlLoad(yamlContent);
         const validatedResult = validateTestsWithYamlData(scenarioResult, yamlData);
 
         // 검증 결과로 시나리오 결과 업데이트
@@ -361,10 +358,6 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
   
   return new Promise(async (resolve) => {
     try {
-      // YAML 파서와 SClient 엔진 import
-      const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
-      const { SClientScenarioEngine } = await import('../engine/sclient-engine.js');
-
       console.log('[SINGLE_YAML] Loading YAML collection:', collectionPath);
 
       // YAML 파일을 JSON 시나리오로 변환 (변수 치환 포함)
@@ -445,8 +438,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       // 공통 테스트 검증 모듈 적용 - run-yaml.js와 동일한 검증 로직 사용
       try {
         const yamlContentForValidation = fs.readFileSync(collectionPath, 'utf8');
-        const { load } = await import('js-yaml');
-        const yamlDataForValidation = load(yamlContentForValidation);
+        const yamlDataForValidation = yamlLoad(yamlContentForValidation);
         const validatedExecutionResult = validateTestsWithYamlData(executionResult, yamlDataForValidation);
 
         // 검증 결과로 실행 결과 업데이트
