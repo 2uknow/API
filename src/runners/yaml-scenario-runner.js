@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { root, reportsDir, logsDir } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
-import { debugLog, batchLog, matchPattern } from '../utils/debug.js';
+import { debugLog, batchLog } from '../utils/debug.js';
+import { filterYamlFiles } from './batch/file-filter.js';
 import { broadcastState, broadcastLog } from '../utils/sse.js';
 import { state, registerRunningJob, unregisterRunningJob, finalizeJobCompletion } from '../state/running-jobs.js';
 import { histAppend } from '../services/history-service.js';
@@ -518,30 +519,8 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
   let runId = null;
 
   try {
-    // YAML 파일들 찾기
-    const allFiles = fs.readdirSync(collectionPath);
-    
-    const allYamlFiles = allFiles.filter(file => file.toLowerCase().endsWith('.yaml'));
-    debugLog(`[YAML_BATCH] All YAML files found`, allYamlFiles);
-    
-    // excludePatterns 적용
-    let yamlFiles = allYamlFiles;
-    if (job.excludePatterns && Array.isArray(job.excludePatterns)) {
-      yamlFiles = allYamlFiles.filter(file => {
-        const filePath = path.join(collectionPath, file);
-        const relativePath = path.relative(collectionPath, filePath);
-
-        // 각 제외 패턴과 비교
-        for (const pattern of job.excludePatterns) {
-          if (matchPattern(file, pattern) || matchPattern(relativePath, pattern)) {
-            return false; // 제외
-          }
-        }
-        return true; // 포함
-      });
-    }
-
-    batchLog(`[FILE_FILTER] ${allYamlFiles.length} found, ${yamlFiles.length} after exclude — files:`, yamlFiles);
+    // YAML 파일 탐색 + excludePatterns 필터링
+    const yamlFiles = filterYamlFiles(collectionPath, job.excludePatterns);
 
     if (yamlFiles.length === 0) {
       console.log(`[YAML_BATCH] No YAML files to process in ${collectionPath}`);
