@@ -14,6 +14,42 @@ import { getBinaryPath } from './spawn-helpers.js';
 import { SClientScenarioEngine, SClientReportGenerator } from '../engine/sclient-engine.js';
 import { validateTestsWithYamlData } from '../engine/sclient-test-validator.js';
 
+// Newman 스타일 HTML 리포트 생성. 실패 시 SClientReportGenerator 기본 생성기로 폴백.
+// 반환값: 성공 시 reportPath, 실패 시 null.
+async function generateYamlHtmlReport(scenarioResult, reportPath, options = {}) {
+  const {
+    title = 'Test Report',
+    browserTitle = 'Test Report',
+    logPrefix = '[HTML]'
+  } = options;
+
+  try {
+    const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
+    const converter = new SClientToNewmanConverter();
+    const newmanRun = converter.convertToNewmanRun(scenarioResult);
+    await converter.generateNewmanStyleHTML(newmanRun.run, reportPath, { title, browserTitle });
+    if (fs.existsSync(reportPath)) {
+      console.log(`${logPrefix} ✅ Newman style HTML generated: ${path.basename(reportPath)}`);
+      return reportPath;
+    }
+    return null;
+  } catch (error) {
+    console.warn(`${logPrefix} Newman report failed, falling back: ${error.message}`);
+    try {
+      const content = SClientReportGenerator.generateHTMLReport(scenarioResult);
+      fs.writeFileSync(reportPath, content);
+      if (fs.existsSync(reportPath)) {
+        console.log(`${logPrefix} ✅ Fallback HTML generated: ${path.basename(reportPath)}`);
+        return reportPath;
+      }
+      return null;
+    } catch (fallbackError) {
+      console.error(`${logPrefix} Fallback also failed: ${fallbackError.message}`);
+      return null;
+    }
+  }
+}
+
 async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
   console.log(`[YAML] Starting YAML scenario: ${jobName}`);
   console.log(`[YAML] Collection path: ${collectionPath}`);
@@ -155,28 +191,11 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
           
           // Newman 스타일 HTML 리포트 생성
           const htmlReport = path.join(reportsDir, `${jobName}_${stamp}.html`);
-          
-          try {
-            // Newman 컨버터 사용하여 Newman 스타일 리포트 생성
-            const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
-            const converter = new SClientToNewmanConverter();
-            
-            console.log(`[BATCH_HTML] Converting ${jobName} to Newman format...`);
-            const newmanRun = converter.convertToNewmanRun(scenarioResult);
-            console.log(`[BATCH_HTML] Newman run executions:`, (newmanRun.executions || []).length);
-            
-            console.log(`[BATCH_HTML] Generating Newman style HTML for ${jobName}...`);
-            await converter.generateNewmanStyleHTML(newmanRun.run, htmlReport, {
-              title: `${jobName} Test Report`,
-              browserTitle: `${jobName} Report`
-            });
-            console.log(`[BATCH_HTML] ✅ Newman style HTML generated successfully for ${jobName}`);
-            
-          } catch (error) {
-            console.warn(`[YAML NEWMAN REPORT] Error generating Newman report: ${error.message}`);
-            const htmlContent = SClientReportGenerator.generateHTMLReport(scenarioResult);
-            fs.writeFileSync(htmlReport, htmlContent);
-          }
+          await generateYamlHtmlReport(scenarioResult, htmlReport, {
+            title: `${jobName} Test Report`,
+            browserTitle: `${jobName} Report`,
+            logPrefix: `[BATCH_HTML ${jobName}]`
+          });
           
           // 텍스트 리포트 생성
           const txtContent = SClientReportGenerator.generateTextReport(scenarioResult);
@@ -367,7 +386,7 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       debugLog(`[SINGLE_YAML] Importing modules for: ${jobName}`);
       // YAML 파서와 SClient 엔진 import
       const { SClientYAMLParser } = await import('../engine/simple-yaml-parser.js');
-      const { SClientScenarioEngine, SClientReportGenerator } = await import('../engine/sclient-engine.js');
+      const { SClientScenarioEngine } = await import('../engine/sclient-engine.js');
       debugLog(`[SINGLE_YAML] Modules imported successfully for: ${jobName}`);
       
       debugLog(`[SINGLE_YAML] Reading YAML file: ${collectionPath}`);
@@ -484,73 +503,12 @@ async function runSingleYamlFile(jobName, job, collectionPath, paths, broadcastJ
       let finalReportPath = null;
 
       if (job.generateHtmlReport) {
-        try {
-          const { SClientToNewmanConverter } = await import('../engine/newman-converter.js');
-          const reportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
-
-          try {
-            const converter = new SClientToNewmanConverter();
-            const newmanRun = converter.convertToNewmanRun(executionResult);
-
-            await converter.generateNewmanStyleHTML(newmanRun.run, reportPath, {
-              title: job.reportOptions?.title || `${jobName} Test Report`,
-              browserTitle: job.reportOptions?.browserTitle || `${jobName} Report`
-            });
-
-            // 파일이 실제로 생성되었는지 확인
-            if (fs.existsSync(reportPath)) {
-              finalReportPath = reportPath;
-            }
-
-          } catch (htmlError) {
-            console.error('[HTML_GENERATION] HTML generation failed:', htmlError.message);
-
-            // 폴백: 기본 HTML 리포트 생성 시도
-            try {
-              const { SClientReportGenerator } = await import('../engine/sclient-engine.js');
-              const fallbackContent = SClientReportGenerator.generateHTMLReport(executionResult);
-              fs.writeFileSync(reportPath, fallbackContent);
-
-              if (fs.existsSync(reportPath)) {
-                finalReportPath = reportPath;
-              }
-            } catch (fallbackError) {
-              console.error('[HTML_FALLBACK] Fallback generation failed:', fallbackError.message);
-            }
-          }
-        } catch (reportError) {
-          debugLog(`[SINGLE_YAML] HTML report generation failed for: ${jobName}`, {
-            error: reportError.message,
-            stack: reportError.stack
-          });
-          console.error('[SINGLE_YAML] HTML report generation failed:', reportError);
-          
-          // 폴백 HTML 생성
-          try {
-            debugLog(`[SINGLE_YAML] Attempting fallback HTML generation for: ${jobName}`);
-            const { SClientReportGenerator } = await import('../engine/sclient-engine.js');
-            const fallbackReportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
-            SClientReportGenerator.generateHTMLReport(executionResult, fallbackReportPath, jobName);
-            
-            // 폴백 파일이 실제로 생성되었는지 확인
-            const fallbackExists = fs.existsSync(fallbackReportPath);
-            debugLog(`[SINGLE_YAML] Fallback HTML report file exists: ${fallbackExists}`, {
-              reportPath: fallbackReportPath,
-              fileSize: fallbackExists ? fs.statSync(fallbackReportPath).size : 'N/A'
-            });
-            
-            if (fallbackExists) {
-              finalReportPath = fallbackReportPath;
-              console.log(`[SINGLE_YAML] Fallback HTML report generated: ${fallbackReportPath}`);
-            }
-          } catch (fallbackError) {
-            debugLog(`[SINGLE_YAML] Fallback HTML generation failed for: ${jobName}`, {
-              error: fallbackError.message,
-              stack: fallbackError.stack
-            });
-            console.error('[SINGLE_YAML] Fallback HTML report generation failed:', fallbackError);
-          }
-        }
+        const reportPath = path.join(reportsDir, `${jobName}_${stamp}.html`);
+        finalReportPath = await generateYamlHtmlReport(executionResult, reportPath, {
+          title: job.reportOptions?.title || `${jobName} Test Report`,
+          browserTitle: job.reportOptions?.browserTitle || `${jobName} Report`,
+          logPrefix: `[SINGLE_YAML ${jobName}]`
+        });
       } else {
         debugLog(`[SINGLE_YAML] HTML report generation SKIPPED for: ${jobName} (generateHtmlReport=false)`);
       }
