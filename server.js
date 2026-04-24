@@ -12,6 +12,7 @@ import { initLogManagement } from './src/services/log-manager.js';
 import { initHistoryCache } from './src/services/history-service.js';
 import { loadSchedules } from './src/services/schedule-service.js';
 import { setupDailyReportScheduler } from './src/services/statistics-service.js';
+import { initDiskMonitor } from './src/services/disk-monitor.js';
 import { runJob } from './src/runners/job-runner.js';
 import cron from 'node-cron';
 
@@ -284,6 +285,9 @@ setupDailyReportScheduler();
 
 // 로그 관리 스케줄러 초기화 (일별 스플릿 + 7일 이후 압축)
 initLogManagement();
+
+// 디스크 사용량 모니터링 초기화 (임계값 초과 시 네이버 웍스 알람)
+initDiskMonitor();
 
 // 주간 자동 백업 (매주 일요일 새벽 2시)
 cron.schedule('0 2 * * 0', async () => {
