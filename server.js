@@ -289,69 +289,58 @@ initLogManagement();
 // 디스크 사용량 모니터링 초기화 (임계값 초과 시 네이버 웍스 알람)
 initDiskMonitor();
 
+// ── 백업 cron: 자식 프로세스를 detached/unref로 분리해 PM2 라이프사이클과 독립 ──
+//   - cron callback은 즉시 리턴 → 서버 메인 흐름 안 막음
+//   - 자식 stdout/stderr는 별도 로그 파일로 → PM2 로그 truncate에 영향 없음
+//   - PM2 cron_restart(04:00)에 자식 프로세스가 같이 죽지 않음
+function spawnDetachedBackup(label, scriptRelPath, logFileName) {
+  return async () => {
+    const { spawn } = await import('child_process');
+    const fs = await import('fs');
+    const logPath = path.join(root, 'logs', logFileName);
+    const startedAt = new Date().toISOString();
+
+    try {
+      const out = fs.openSync(logPath, 'a');
+      const err = fs.openSync(logPath, 'a');
+
+      // 트리거 흔적을 무조건 별도 로그에 먼저 남김
+      fs.writeSync(out, `\n===== [${startedAt}] ${label} cron triggered =====\n`);
+
+      const child = spawn(process.execPath, [scriptRelPath], {
+        cwd: root,
+        detached: true,
+        stdio: ['ignore', out, err],
+        windowsHide: true,
+      });
+      child.unref();
+      fs.closeSync(out);
+      fs.closeSync(err);
+
+      console.log(`[${label}] cron triggered → PID ${child.pid} 분리 실행 (log: ${logPath})`);
+    } catch (e) {
+      console.error(`[${label}] spawn 실패:`, e.message);
+      try { fs.appendFileSync(logPath, `[${startedAt}] spawn 실패: ${e.message}\n`); } catch (_) {}
+    }
+  };
+}
+
 // 주간 자동 백업 (매주 일요일 새벽 2시)
-cron.schedule('0 2 * * 0', async () => {
-  console.log('[BACKUP] 주간 자동 백업 시작...');
-  try {
-    const { execSync } = await import('child_process');
-    execSync('node scripts/auto-backup.js', { 
-      cwd: root, 
-      stdio: 'inherit',
-      timeout: 1800000  // 30분
-    });
-    console.log('[BACKUP] 주간 자동 백업 완료');
-  } catch (err) {
-    console.error('[BACKUP] 자동 백업 실패:', err.message);
-  }
-}, { timezone: 'Asia/Seoul' });
+cron.schedule(
+  '0 2 * * 0',
+  spawnDetachedBackup('BACKUP', 'scripts/auto-backup.js', 'auto-backup.log'),
+  { timezone: 'Asia/Seoul' }
+);
 
 // 일간 history 백업 (매일 새벽 3시)
-cron.schedule('0 3 * * *', async () => {
-  const { promises: fsp } = await import('fs');
-  const srcPath = path.join(root, 'logs', 'history.json');
-  const dailyDir = path.join(root, 'logs', 'history_daily');
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const destPath = path.join(dailyDir, `history_${dateStr}.json`);
+cron.schedule(
+  '0 3 * * *',
+  spawnDetachedBackup('HIST_BACKUP', 'scripts/history-backup.js', 'history-backup.log'),
+  { timezone: 'Asia/Seoul' }
+);
 
-  try {
-    await fsp.access(srcPath);
-  } catch {
-    console.log('[HIST_BACKUP] history.json 없음, 백업 skip');
-    return;
-  }
-
-  try {
-    await fsp.mkdir(dailyDir, { recursive: true });
-    await fsp.copyFile(srcPath, destPath);
-
-    // 복사본 JSON 유효성 검증
-    try {
-      const content = await fsp.readFile(destPath, 'utf8');
-      JSON.parse(content);
-    } catch (parseErr) {
-      await fsp.unlink(destPath).catch(() => {});
-      console.warn(`[HIST_BACKUP] 복사본 JSON 유효성 실패, 삭제: ${parseErr.message}`);
-      return;
-    }
-
-    console.log(`[HIST_BACKUP] 일간 백업 완료: ${destPath}`);
-
-    // 오래된 백업 삭제 — 최신 5개만 유지
-    try {
-      const files = (await fsp.readdir(dailyDir))
-        .filter(f => f.startsWith('history_') && f.endsWith('.json'))
-        .sort();
-      for (const old of files.slice(0, -5)) {
-        await fsp.unlink(path.join(dailyDir, old));
-        console.log(`[HIST_BACKUP] 오래된 백업 삭제: ${old}`);
-      }
-    } catch (pruneErr) {
-      console.warn('[HIST_BACKUP] 오래된 백업 삭제 실패:', pruneErr.message);
-    }
-  } catch (err) {
-    console.error('[HIST_BACKUP] 일간 백업 실패:', err.message);
-  }
-}, { timezone: 'Asia/Seoul' });
+// 등록 시점 흔적 — 서버 재시작 시 cron이 실제로 등록됐는지 확인용
+console.log('[CRON] 백업 스케줄 등록: 주간(일 02:00) + 일간(매일 03:00) [Asia/Seoul]');
 
 app.listen(site_port, '0.0.0.0', () => {
   const displayUrl = base_url || `http://localhost:${site_port}`;

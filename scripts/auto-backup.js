@@ -1,12 +1,13 @@
 /**
  * 자동 백업 스크립트 (PM2 cron 용)
  *
- * reports, logs/history.json, config, jobs 폴더를 날짜별로 백업합니다.
- * 최근 3개 백업만 유지하고 오래된 백업은 자동 삭제합니다.
+ * config, jobs, logs/history.json, logs/history_backup 을 tar.gz 로 묶고,
+ * reports 는 backups/reports_mirror/ 로 증분 동기화합니다.
+ * 최근 BACKUP_KEEP 개의 압축본만 유지합니다 (mirror 는 영구 보존).
  *
  * 환경변수:
- *   BACKUP_DIR: 백업 저장 경로 (기본: ./backups)
- *   BACKUP_KEEP: 유지할 백업 개수 (기본: 3)
+ *   BACKUP_DIR  : 백업 저장 경로 (기본: ./backups)
+ *   BACKUP_KEEP : 유지할 압축본 개수 (기본: 1)
  */
 
 import fs from 'fs';
@@ -20,6 +21,7 @@ const projectDir = path.resolve(__dirname, '..');
 
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(projectDir, 'backups');
 const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP, 10) || 1;
+const MIRROR_DIR = path.join(BACKUP_DIR, 'reports_mirror');
 
 function nowKST() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -35,21 +37,59 @@ function log(msg) {
   console.log(`[${ts}] [BACKUP] ${msg}`);
 }
 
+// ── reports 증분 동기화 (size + mtime 비교, 평탄 구조 가정) ──
+function syncReportsIncremental(srcRoot, mirrorRoot) {
+  fs.mkdirSync(mirrorRoot, { recursive: true });
+  let copied = 0;
+  let skipped = 0;
+
+  for (const name of fs.readdirSync(srcRoot)) {
+    const s = path.join(srcRoot, name);
+    const srcStat = fs.statSync(s);
+    if (srcStat.isDirectory()) continue;
+
+    const d = path.join(mirrorRoot, name);
+    if (fs.existsSync(d)) {
+      const dStat = fs.statSync(d);
+      // mtime은 FS 정밀도 차이를 감안해 2초 tolerance
+      if (dStat.size === srcStat.size && Math.abs(dStat.mtimeMs - srcStat.mtimeMs) < 2000) {
+        skipped++;
+        continue;
+      }
+    }
+    fs.copyFileSync(s, d);
+    fs.utimesSync(d, srcStat.atime, srcStat.mtime);
+    copied++;
+  }
+
+  return { copied, skipped };
+}
+
 function createBackup() {
   const timestamp = formatDate(nowKST());
   const backupName = `backup_${timestamp}`;
   const backupPath = path.join(BACKUP_DIR, backupName);
 
-  // 백업 디렉토리 생성
   if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
   }
   fs.mkdirSync(backupPath, { recursive: true });
 
+  // ── 1. reports 증분 sync (압축 대상에서 분리) ──
+  const reportsSrc = path.join(projectDir, 'reports');
+  if (fs.existsSync(reportsSrc)) {
+    const t0 = Date.now();
+    const { copied, skipped } = syncReportsIncremental(reportsSrc, MIRROR_DIR);
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    log(`  reports 증분 sync: 신규/변경 ${copied}개, 스킵 ${skipped}개 (${elapsed}s)`);
+  } else {
+    log(`  스킵 (없음): reports`);
+  }
+
+  // ── 2. 압축 대상 복사 (작은 파일들만) ──
   const targets = [
     { src: 'config', type: 'dir' },
     { src: 'jobs', type: 'dir' },
-    { src: 'reports', type: 'dir' },
     { src: path.join('logs', 'history.json'), type: 'file' },
     { src: path.join('logs', 'history_backup'), type: 'dir' },
   ];
@@ -80,16 +120,15 @@ function createBackup() {
     }
   }
 
-  // tar.gz 압축 (tar 사용 가능한 경우)
+  // ── 3. tar.gz 압축 ──
   let compressed = false;
   try {
     const tarPath = `${backupPath}.tar.gz`;
     execSync(`tar -czf "${backupName}.tar.gz" "${backupName}"`, {
       cwd: BACKUP_DIR,
-      timeout: 1800000,  // 30분 (29만개+ 파일 압축 대응)
+      timeout: 1800000,  // 30분
       stdio: 'pipe'
     });
-    // 압축 성공 시 원본 폴더 삭제
     deleteDirSync(backupPath);
     const sizeMB = (fs.statSync(tarPath).size / (1024 * 1024)).toFixed(2);
     log(`  압축 완료: ${backupName}.tar.gz (${sizeMB}MB)`);
@@ -113,12 +152,12 @@ function cleanupOldBackups() {
       isDir: fs.statSync(path.join(BACKUP_DIR, name)).isDirectory(),
       mtime: fs.statSync(path.join(BACKUP_DIR, name)).mtimeMs,
     }))
-    .sort((a, b) => b.mtime - a.mtime); // 최신순 정렬
+    .sort((a, b) => b.mtime - a.mtime);
 
   const archives = entries.filter(e => !e.isDir && e.name.endsWith('.tar.gz'));
   const folders = entries.filter(e => e.isDir);
 
-  // 1단계: tar.gz가 존재하는 폴더는 중복이므로 무조건 삭제
+  // 1단계: tar.gz가 존재하는 폴더는 중복이므로 삭제
   for (const folder of folders) {
     const matchingArchive = `${folder.name}.tar.gz`;
     if (archives.some(a => a.name === matchingArchive)) {
@@ -131,7 +170,7 @@ function cleanupOldBackups() {
     }
   }
 
-  // 2단계: 남은 항목 재조회 (중복 폴더 삭제 후)
+  // 2단계: 남은 항목 재조회
   const remaining = fs.readdirSync(BACKUP_DIR)
     .filter(name => name.startsWith('backup_'))
     .map(name => ({
@@ -177,19 +216,25 @@ function cleanupOldBackups() {
 function reportBackupStatus() {
   if (!fs.existsSync(BACKUP_DIR)) return;
 
-  let totalSize = 0;
-  let count = 0;
+  let backupTotal = 0;
+  let backupCount = 0;
 
   for (const entry of fs.readdirSync(BACKUP_DIR)) {
+    if (!entry.startsWith('backup_')) continue;
     const entryPath = path.join(BACKUP_DIR, entry);
     const stat = fs.statSync(entryPath);
-    totalSize += stat.isDirectory() ? getDirSize(entryPath) : stat.size;
-    count++;
+    backupTotal += stat.isDirectory() ? getDirSize(entryPath) : stat.size;
+    backupCount++;
   }
 
-  const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-  const sizeGB = (totalSize / (1024 * 1024 * 1024)).toFixed(2);
-  log(`현재 백업 현황: ${count}개, 총 ${sizeMB}MB (${sizeGB}GB), 유지 정책: 최근 ${BACKUP_KEEP}개`);
+  const mirrorSize = fs.existsSync(MIRROR_DIR) ? getDirSize(MIRROR_DIR) : 0;
+  const mirrorCount = fs.existsSync(MIRROR_DIR)
+    ? fs.readdirSync(MIRROR_DIR).filter(n => fs.statSync(path.join(MIRROR_DIR, n)).isFile()).length
+    : 0;
+
+  const fmtMB = b => (b / (1024 * 1024)).toFixed(2);
+  log(`압축본 현황: ${backupCount}개, 총 ${fmtMB(backupTotal)}MB, 유지 정책: 최근 ${BACKUP_KEEP}개`);
+  log(`reports 미러: ${mirrorCount}개 파일, ${fmtMB(mirrorSize)}MB (영구 보존)`);
 }
 
 function getDirSize(dir) {
@@ -248,6 +293,7 @@ function countFiles(dir) {
 // 실행
 log('=== 자동 백업 시작 ===');
 log(`백업 경로: ${BACKUP_DIR}`);
+log(`미러 경로: ${MIRROR_DIR}`);
 
 try {
   createBackup();
