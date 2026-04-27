@@ -32,7 +32,9 @@
     "docker:build": "docker build -t danal-api-monitor .",
     "docker:run": "node scripts/docker-run.js",
     "install-reporters": "npm install newman newman-reporter-htmlextra",
-    "update-newman": "npm install newman@latest newman-reporter-htmlextra@latest"
+    "update-newman": "npm install newman@latest newman-reporter-htmlextra@latest",
+    "build:css": "tailwindcss -i ./public/styles/tailwind.src.css -o ./public/styles/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./public/styles/tailwind.src.css -o ./public/styles/tailwind.css --watch"
   },
   "keywords": [
     "danal",
@@ -62,7 +64,8 @@
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "tailwindcss": "^3.4.19"
   },
   "engines": {
     "node": ">=16.0.0",

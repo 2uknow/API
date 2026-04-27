@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+/* 다크모드 CSS 변수 */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --shadow-color: rgba(148, 163, 184, 0.15);
+  --shadow-inset: rgba(255, 255, 255, 0.8);
+  --btn-primary: linear-gradient(to right, #4f46e5, #7c3aed);
+  --btn-primary-hover: linear-gradient(to right, #4338ca, #6d28d9);
+  --btn-disabled: #9ca3af;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #374151;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: #4b5563;
+  --glass-bg: rgba(30, 41, 59, 0.95);
+  --glass-border: rgba(71, 85, 105, 0.3);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --shadow-inset: rgba(51, 65, 85, 0.9);
+  --btn-primary: linear-gradient(to right, #3b82f6, #1d4ed8);
+  --btn-primary-hover: linear-gradient(to right, #2563eb, #1e40af);
+  --btn-disabled: #4b5563;
+}
+
+body {
+  font-family: 'Manrope', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.app-bg {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+}
+
+/* CSS 변수 기반 utility 클래스 (inline style 대체) */
+.t-pri { color: var(--text-primary); }
+.t-sec { color: var(--text-secondary); }
+.t-mut { color: var(--text-muted); }
+.bg-pri-var { background: var(--bg-primary); }
+.bg-sec-var { background: var(--bg-secondary); }
+.bg-ter-var { background: var(--bg-tertiary); }
+.bd-c { border-color: var(--border-color); }
+.bd-1-c { border: 1px solid var(--border-color); }
+
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+}
+
+.gradient-border {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 1px;
+  border-radius: 1rem;
+}
+
+.gradient-border > div {
+  background: var(--bg-primary);
+  border-radius: calc(1rem - 1px);
+}
+
+.neo-shadow {
+  box-shadow:
+    8px 8px 16px var(--shadow-color),
+    -8px -8px 16px var(--shadow-inset),
+    inset 0 0 0 1px var(--glass-border);
+}
+
+.floating-card {
+  transform: translateY(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.floating-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.glow-on-hover {
+  transition: all 0.3s ease;
+}
+
+.glow-on-hover:hover {
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+}

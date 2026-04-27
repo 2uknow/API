@@ -1,0 +1,204 @@
+/* === 로그 콘솔 공통 스타일 === */
+.log-console {
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.log-console::-webkit-scrollbar {
+  width: 10px;
+}
+.log-console::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 5px;
+}
+.log-console::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 5px;
+}
+.log-console::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* 로그 라인 스타일 */
+.log-line {
+  padding: 2px 6px 2px 10px;
+  border-left: 3px solid transparent;
+  margin: 1px 0;
+  line-height: 1.6;
+  transition: background 0.15s;
+}
+.log-line:hover {
+  background: rgba(51, 65, 85, 0.4);
+}
+.log-line-system { border-left-color: #3b82f6 !important; }
+.log-line-error { border-left-color: #ef4444 !important; }
+.log-line-job-0 { border-left-color: #10b981 !important; }
+.log-line-job-1 { border-left-color: #f59e0b !important; }
+.log-line-job-2 { border-left-color: #8b5cf6 !important; }
+.log-line-job-3 { border-left-color: #06b6d4 !important; }
+.log-line-job-4 { border-left-color: #ec4899 !important; }
+.log-line-job-5 { border-left-color: #f97316 !important; }
+
+/* 로그 탭 바 */
+.log-tabs-bar {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+.log-tabs-bar::-webkit-scrollbar {
+  height: 4px;
+}
+.log-tabs-bar::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 2px;
+}
+
+/* 모달 풀스크린 */
+#modalConsole {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+#logModal .modal-console-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  flex: 1 !important;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* 페이지네이션 버튼 스타일 */
+.pagination-btn {
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.pagination-btn:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+.pagination-current {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+.pagination-ellipsis {
+  color: var(--text-secondary) !important;
+}
+
+/* 로그 탭 스타일 */
+.log-tab {
+  cursor: pointer;
+  opacity: 0.5;
+  border: 1px solid transparent;
+}
+.log-tab:hover {
+  opacity: 0.8;
+}
+.log-tab.active {
+  opacity: 1 !important;
+}
+
+/* 실행 중 Job 아이템 */
+.running-job-item {
+  animation: pulse-border 2s infinite;
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(59, 130, 246, 0.3); }
+  50% { border-color: rgba(59, 130, 246, 0.8); }
+}
+
+/* === Live 토글 스위치 === */
+.live-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  user-select: none;
+}
+.live-toggle-wrap:hover {
+  border-color: #6b7280;
+}
+.live-toggle-wrap.active {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+}
+[data-theme="dark"] .live-toggle-wrap.active {
+  background: rgba(239, 68, 68, 0.15);
+}
+.live-toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #d1d5db;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.live-toggle-wrap.active .live-toggle-track {
+  background: #ef4444;
+}
+.live-toggle-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+}
+.live-toggle-wrap.active .live-toggle-thumb {
+  transform: translateX(16px);
+}
+.live-toggle-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  transition: color 0.3s;
+}
+.live-toggle-wrap.active .live-toggle-label {
+  color: #ef4444;
+}
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #9ca3af;
+  transition: background 0.3s;
+}
+.live-toggle-wrap.active .live-dot {
+  background: #ef4444;
+  animation: live-blink 1.2s ease-in-out infinite;
+}
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+/* Polling 인디케이터 */
+.polling-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
