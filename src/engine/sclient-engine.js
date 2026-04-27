@@ -518,8 +518,9 @@ export class SClientScenarioEngine {
 
       try {
         // step 실행 전 sleepDuration 처리 (args에 있는 경우)
-        const stepSleepDuration = request.arguments?.sleepDuration;
-        if (stepSleepDuration && stepSleepDuration > 0) {
+        // YAML 파서가 숫자도 문자열로 저장하므로 Number() 캐스팅 필수
+        const stepSleepDuration = Number(request.arguments?.sleepDuration) || 0;
+        if (stepSleepDuration > 0) {
           this.log(`[STEP ${stepNumber}] 실행 전 ${stepSleepDuration/1000}초 대기...`);
           await new Promise(resolve => setTimeout(resolve, stepSleepDuration));
           this.log(`[STEP ${stepNumber}] 대기 완료, 실행 시작`);
@@ -545,8 +546,8 @@ export class SClientScenarioEngine {
         }
 
         // sleepDuration으로 대기한 시간을 step duration에 합산 (리포트 반영용)
-        if (stepSleepDuration && stepSleepDuration > 0 && response) {
-          response.duration = (response.duration || 0) + stepSleepDuration;
+        if (stepSleepDuration > 0 && response) {
+          response.duration = Number(response.duration || 0) + stepSleepDuration;
         }
 
         // 변수 추출
