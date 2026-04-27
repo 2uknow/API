@@ -1,0 +1,87 @@
+# ** ----------------------------------------------------------------------------------------------------------------
+#  *  BILL_CANCEL
+#  * ----------------------------------------------------------------------------------------------------------------*
+
+steps:
+  - name: "BILL_CANCEL"
+    description: "결제 취소 및 환불"
+
+    args:
+      Command: "BILL_CANCEL"
+      IFVERSION: "V1.1.9"
+      ID: "A010002002"
+      PWD: "bbbbb"
+      TID: "042313492102247929" 
+
+  # 응답 데이터 추출
+    extract:
+      - name: "Result"
+        pattern: "Result"
+        variable: "B_RESULT"
+
+      - name: "ErrMsg"
+        pattern: "ErrMsg"
+        variable: "B_ErrMsg"
+
+      - name: "ServerInfo"
+        pattern: "ServerInfo"
+        variable: "B_ServerInfo" 
+
+      - name: DNTID"
+        pattern: "DNTID"
+        variable: "B_DNTID"
+        
+      - name: "Date"
+        pattern: "Date"
+        variable: "B_DATE"
+
+    # SKT 통신사 휴대폰결제 차단/미동의 상태인 경우 해당 시나리오 Skip 처리
+    skip_if:
+      - condition: "js: (RESULT_CODE == 422 || RESULT_CODE == 531)"
+        action: "skip_remaining_steps"
+        reason: "SKT 통신사 휴대폰결제 차단/미동의 상태로 이후 시나리오를 진행하지 않음"
+
+
+##############################################  Assertion  ###################################################
+
+
+    test:
+      - name: "결과 코드(RESULT) 정상 출력"
+        assertion: "B_RESULT == 0"
+
+      - name: "결과 메시지(ErrMsg) 정상 출력"
+        assertion: "B_ErrMsg == No Information"
+
+      - name: "거래인증 key(ServerInfo) 정상 출력"
+        assertion: "js: B_ServerInfo !== null && B_ServerInfo.trim().length > 0 && typeof B_ServerInfo !== undefined" 
+
+      - name: "거래 번호(DNTID) 정상 출력_1"
+        assertion: "js: B_DNTID && B_DNTID.trim().length > 0 && /^\\d{22}$/.test(B_DNTID)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_1"
+        assertion: "js: B_DATE && B_DATE.trim().length > 0 && /^\\d{12}$/.test(B_DATE)"
+
+      - name: "결제 완료 시간(Date) 정상 출력_2"
+        description: "결제 완료 시간(Date)이 현재 시각(yyyymmddhhmm) 기준 +1~2분 중 하나라도 일치하면 PASS 처리"
+        assertion: "js: (() => {
+          if (!B_DATE || B_DATE.length < 12) return false;
+
+          const tidPrefix = B_DATE.slice(0, 12);
+
+          const pad = n => String(n).padStart(2, '0');
+          const now = new Date();
+
+          for (let i = 0; i <= 2; i++) {
+            const d = new Date(now);
+            d.setMinutes(d.getMinutes() - i);
+
+            const t = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`;
+            if (tidPrefix === t) return true;
+          }
+          return false;})()"
+
+# 시나리오 설정
+options:
+  stopOnError: false
+  timeout: 40000
+  retryCount: 0
