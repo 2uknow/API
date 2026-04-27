@@ -614,7 +614,7 @@ export class SClientScenarioEngine {
           scenarioResult.summary.failed++;
         }
 
-        scenarioResult.summary.duration += response.duration;
+        scenarioResult.summary.duration += Number(response.duration) || 0;
 
         this.emit('step-complete', stepResult);
 
