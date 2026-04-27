@@ -16,6 +16,16 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import {
+  nowKST,
+  formatDate,
+  createLogger,
+  copyDirSync,
+  deleteDirSync,
+  countFiles,
+  getDirSize,
+  syncReportsIncremental,
+} from './lib/backup-util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -25,85 +35,7 @@ const BACKUP_DIR  = process.env.BACKUP_DIR  || path.join(projectDir, 'backups');
 const BACKUP_KEEP = parseInt(process.env.BACKUP_KEEP, 10) || 3;
 const MIRROR_DIR  = path.join(BACKUP_DIR, 'reports_mirror');
 
-function nowKST() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-}
-
-function formatDate(d) {
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
-
-function log(msg) {
-  const ts = nowKST().toISOString().replace('T', ' ').substring(0, 19);
-  console.log(`[${ts}] [FULL_BACKUP] ${msg}`);
-}
-
-function copyDirSync(src, dest) {
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src)) {
-    const s = path.join(src, entry);
-    const d = path.join(dest, entry);
-    fs.statSync(s).isDirectory() ? copyDirSync(s, d) : fs.copyFileSync(s, d);
-  }
-}
-
-function countFiles(dir) {
-  if (!fs.existsSync(dir)) return 0;
-  let n = 0;
-  for (const e of fs.readdirSync(dir)) {
-    const p = path.join(dir, e);
-    n += fs.statSync(p).isDirectory() ? countFiles(p) : 1;
-  }
-  return n;
-}
-
-function deleteDirSync(dir) {
-  if (!fs.existsSync(dir)) return;
-  for (const e of fs.readdirSync(dir)) {
-    const p = path.join(dir, e);
-    fs.statSync(p).isDirectory() ? deleteDirSync(p) : fs.unlinkSync(p);
-  }
-  fs.rmdirSync(dir);
-}
-
-function getDirSize(dir) {
-  if (!fs.existsSync(dir)) return 0;
-  let size = 0;
-  for (const e of fs.readdirSync(dir)) {
-    const p = path.join(dir, e);
-    const stat = fs.statSync(p);
-    size += stat.isDirectory() ? getDirSize(p) : stat.size;
-  }
-  return size;
-}
-
-// ── reports 증분 동기화 (size + mtime 비교, 평탄 구조 가정) ──
-function syncReportsIncremental(srcRoot, mirrorRoot) {
-  fs.mkdirSync(mirrorRoot, { recursive: true });
-  let copied = 0;
-  let skipped = 0;
-
-  for (const name of fs.readdirSync(srcRoot)) {
-    const s = path.join(srcRoot, name);
-    const srcStat = fs.statSync(s);
-    if (srcStat.isDirectory()) continue;
-
-    const d = path.join(mirrorRoot, name);
-    if (fs.existsSync(d)) {
-      const dStat = fs.statSync(d);
-      if (dStat.size === srcStat.size && Math.abs(dStat.mtimeMs - srcStat.mtimeMs) < 2000) {
-        skipped++;
-        continue;
-      }
-    }
-    fs.copyFileSync(s, d);
-    fs.utimesSync(d, srcStat.atime, srcStat.mtime);
-    copied++;
-  }
-
-  return { copied, skipped };
-}
+const log = createLogger('FULL_BACKUP');
 
 // ── 1. 스테이징 폴더 생성 + 파일/폴더 복사 ──
 function createBackup(timestamp) {

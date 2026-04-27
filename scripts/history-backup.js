@@ -16,6 +16,14 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import {
+  nowKST,
+  formatDate,
+  createLogger,
+  copyDirSync,
+  deleteDirSync,
+  countFiles,
+} from './lib/backup-util.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -25,47 +33,7 @@ const BACKUP_DIR  = process.env.HIST_BACKUP_DIR || path.join(projectDir, 'logs',
 const HIST_PATH   = path.join(projectDir, 'logs', 'history.json');
 const HIST_BK_DIR = path.join(projectDir, 'logs', 'history_backup');
 
-function nowKST() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-}
-
-function formatDate(d) {
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
-
-function log(msg) {
-  const ts = nowKST().toISOString().replace('T', ' ').substring(0, 19);
-  console.log(`[${ts}] [HIST_BACKUP] ${msg}`);
-}
-
-function copyDirSync(src, dest) {
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src)) {
-    const s = path.join(src, entry);
-    const d = path.join(dest, entry);
-    fs.statSync(s).isDirectory() ? copyDirSync(s, d) : fs.copyFileSync(s, d);
-  }
-}
-
-function countFiles(dir) {
-  if (!fs.existsSync(dir)) return 0;
-  let n = 0;
-  for (const e of fs.readdirSync(dir)) {
-    const p = path.join(dir, e);
-    n += fs.statSync(p).isDirectory() ? countFiles(p) : 1;
-  }
-  return n;
-}
-
-function deleteDirSync(dir) {
-  if (!fs.existsSync(dir)) return;
-  for (const e of fs.readdirSync(dir)) {
-    const p = path.join(dir, e);
-    fs.statSync(p).isDirectory() ? deleteDirSync(p) : fs.unlinkSync(p);
-  }
-  fs.rmdirSync(dir);
-}
+const log = createLogger('HIST_BACKUP');
 
 // ── 1. history.json 존재 + JSON 유효성 검증 ──
 function validateHistory() {
