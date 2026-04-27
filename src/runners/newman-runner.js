@@ -9,6 +9,7 @@ import { histAppend } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
 import { sendAlert, buildNewmanFailureReport } from '../services/alert-integration.js';
 import { processResponseBody } from '../utils/crypto.js';
+import { attachLineProcessor } from '../utils/stream-line-processor.js';
 import { spawnNewmanCLI } from './spawn-helpers.js';
 
 async function runNewmanJob(jobName, job) {
@@ -65,29 +66,27 @@ async function runNewmanJob(jobName, job) {
     }
     let errorOutput = '';
 
-    proc.stdout.on('data', d => {
-      const s = d.toString();
-      console.log('[NEWMAN STDOUT]', s.substring(0, 100) + '...');
-      outStream.write(s);
-      s.split(/\r?\n/).forEach(line => {
-        if (line) {
-          console.log('[NEWMAN STDOUT LINE]', line.substring(0, 50) + '...');
-          broadcastLog(line, jobName);
-        }
-      });
+    attachLineProcessor(proc.stdout, {
+      encoding: 'utf8',
+      fileStream: outStream,
+      onChunk: s => console.log('[NEWMAN STDOUT]', s.substring(0, 100) + '...'),
+      onLine: line => {
+        console.log('[NEWMAN STDOUT LINE]', line.substring(0, 50) + '...');
+        broadcastLog(line, jobName);
+      },
     });
-    
-    proc.stderr.on('data', d => {
-      const s = d.toString();
-      console.log('[NEWMAN STDERR]', s.substring(0, 100) + '...');
-      errStream.write(s);
-      errorOutput += s; // 에러 내용 수집
-      s.split(/\r?\n/).forEach(line => {
-        if (line) {
-          console.log('[NEWMAN STDERR LINE]', line.substring(0, 50) + '...');
-          broadcastLog(line, jobName);
-        }
-      });
+
+    attachLineProcessor(proc.stderr, {
+      encoding: 'utf8',
+      fileStream: errStream,
+      onChunk: s => {
+        console.log('[NEWMAN STDERR]', s.substring(0, 100) + '...');
+        errorOutput += s;
+      },
+      onLine: line => {
+        console.log('[NEWMAN STDERR LINE]', line.substring(0, 50) + '...');
+        broadcastLog(line, jobName);
+      },
     });
 
 proc.on('close', async (code) => {

@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import iconv from 'iconv-lite';
 import { execSync } from 'child_process';
 import { root, reportsDir, logsDir, readCfg } from '../utils/config.js';
 import { nowInTZString, kstTimestamp } from '../utils/time.js';
 import { broadcastLog } from '../utils/sse.js';
+import { attachLineProcessor } from '../utils/stream-line-processor.js';
 import { state, registerRunningJob, unregisterRunningJob, finalizeJobCompletion } from '../state/running-jobs.js';
 import { histAppend } from '../services/history-service.js';
 import { cleanupOldReports } from '../services/log-manager.js';
@@ -144,50 +144,21 @@ async function runBinaryJob(jobName, job) {
       let stderr = '';
       let errorOutput = '';
 
-      proc.stdout.on('data', d => {
-        let s;
-        try {
-          // Windows에서 Korean 인코딩 처리 (CP949/EUC-KR)
-          if (process.platform === 'win32') {
-            s = iconv.decode(d, 'cp949');
-          } else {
-            s = d.toString('utf8');
-          }
-        } catch (err) {
-          // 인코딩 실패시 기본 처리
-          s = d.toString();
-        }
-        stdout += s;
-        outStream.write(s);
-        s.split(/\r?\n/).forEach(line => {
-          if (line) {
-            broadcastLog(line, jobName);
-          }
-        });
+      attachLineProcessor(proc.stdout, {
+        encoding: 'auto-windows',
+        fileStream: outStream,
+        onChunk: s => { stdout += s; },
+        onLine: line => broadcastLog(line, jobName),
       });
-      
-      proc.stderr.on('data', d => {
-        let s;
-        try {
-          // Windows에서 Korean 인코딩 처리 (CP949/EUC-KR)
-          if (process.platform === 'win32') {
-            s = iconv.decode(d, 'cp949');
-          } else {
-            s = d.toString('utf8');
-          }
-        } catch (err) {
-          // 인코딩 실패시 기본 처리
-          s = d.toString();
-        }
-        stderr += s;
-        errorOutput += s;
-        errStream.write(s);
-        s.split(/\r?\n/).forEach(line => {
-          if (line) {
-            console.log(`[BINARY STDERR] ${jobName}: ${line}`);
-            broadcastLog(line, jobName);
-          }
-        });
+
+      attachLineProcessor(proc.stderr, {
+        encoding: 'auto-windows',
+        fileStream: errStream,
+        onChunk: s => { stderr += s; errorOutput += s; },
+        onLine: line => {
+          console.log(`[BINARY STDERR] ${jobName}: ${line}`);
+          broadcastLog(line, jobName);
+        },
       });
 
       // 타임아웃 처리
