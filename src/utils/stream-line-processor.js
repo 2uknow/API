@@ -42,14 +42,22 @@ export function decodeChunk(buf, encoding) {
  * @param {(line: string) => void} [opts.onLine]        - 비어있지 않은 라인 단위 콜백
  */
 export function attachLineProcessor(stream, { encoding, fileStream, onChunk, onLine }) {
+  // 청크 경계에서 한 라인이 둘로 쪼개지지 않도록 미종결 꼬리를 다음 청크와 이어붙인다
+  let leftover = '';
   stream.on('data', (buf) => {
     const s = decodeChunk(buf, encoding);
     if (fileStream) fileStream.write(s);
     if (onChunk) onChunk(s);
     if (onLine) {
-      for (const line of s.split(/\r?\n/)) {
+      const parts = (leftover + s).split(/\r?\n/);
+      leftover = parts.pop();
+      for (const line of parts) {
         if (line) onLine(line);
       }
     }
+  });
+  stream.on('end', () => {
+    if (onLine && leftover) onLine(leftover);
+    leftover = '';
   });
 }
