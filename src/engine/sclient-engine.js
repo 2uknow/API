@@ -544,6 +544,11 @@ export class SClientScenarioEngine {
           );
         }
 
+        // sleepDuration으로 대기한 시간을 step duration에 합산 (리포트 반영용)
+        if (stepSleepDuration && stepSleepDuration > 0 && response) {
+          response.duration = (response.duration || 0) + stepSleepDuration;
+        }
+
         // 변수 추출
         const extracted = this.extractVariables(response, request.extractors);
 
