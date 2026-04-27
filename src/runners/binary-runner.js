@@ -231,7 +231,8 @@ async function runBinaryJob(jobName, job) {
         errStream.end();
 
         const endTime = nowInTZString();
-        const duration = Math.round((Date.now() - startTs) / 1000);
+        const durationMs = Date.now() - startTs;
+        const duration = Math.round(durationMs / 1000);
 
         broadcastLog(`[BINARY DONE] ${jobName} completed in ${duration}s with exit code ${code}`, 'SYSTEM');
 
@@ -347,6 +348,7 @@ async function runBinaryJob(jobName, job) {
           stderr: path.basename(stderrPath),
           tags: ['binary'],
           duration: duration,
+          durationMs: durationMs,
           binaryPath: binaryPath,
           arguments: args,
           parsedResult: parsedResult

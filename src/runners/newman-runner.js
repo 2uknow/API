@@ -95,7 +95,8 @@ proc.on('close', async (code) => {
   errStream.end();
   
   const endTime = nowInTZString();
-  const duration = Math.round((Date.now() - startTs) / 1000);
+  const durationMs = Date.now() - startTs;
+  const duration = Math.round(durationMs / 1000);
   
   broadcastLog(`[DONE] ${jobName} exit=${code}`, jobName);
 
@@ -574,6 +575,7 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
     stderr: path.basename(stderrPath),
     tags: [],
     duration: duration,
+    durationMs: durationMs,
     // 상세 Newman 통계 추가
     newmanStats: newmanStats,
     detailedStats: detailedStats

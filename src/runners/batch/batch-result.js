@@ -74,7 +74,8 @@ export function buildBatchHistoryEntry({
     stdout: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
     stderr: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
     tags: ['binary', 'yaml', 'batch'],
-    duration: Math.round(duration / 1000), // ms를 초로 변환
+    duration: Math.round(duration / 1000), // ms를 초로 변환 (호환용 유지)
+    durationMs: duration,
     batchStats: {
       totalFiles: totalFiles,
       successFiles: successFiles,

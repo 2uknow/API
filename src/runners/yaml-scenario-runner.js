@@ -154,7 +154,8 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
       }
 
       const endTime = nowInTZString();
-      const duration = Math.round((Date.now() - startTs) / 1000);
+      const durationMs = Date.now() - startTs;
+      const duration = Math.round(durationMs / 1000);
 
       broadcastLog(`[YAML SCENARIO DONE] ${jobName} completed in ${duration}s`, 'SYSTEM');
 
@@ -197,6 +198,7 @@ async function runYamlSClientScenario(jobName, job, collectionPath, paths) {
             stderr: path.basename(stderrPath),
             tags: ['binary', 'yaml', 'scenario'],
             duration: duration,
+            durationMs: durationMs,
             scenarioResult: {
               name: scenario.info.name,
               passed: scenarioResult.summary.passed,

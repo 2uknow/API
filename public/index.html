@@ -1626,13 +1626,25 @@ function setStatusChip() {
   }
 }
 
+function formatHistoryDuration(row) {
+  // durationMs (정밀) 우선, 없으면 duration(seconds) * 1000 으로 폴백 (구버전 히스토리 호환)
+  const ms = (row.durationMs != null) ? row.durationMs
+    : (row.duration != null ? row.duration * 1000 : null);
+  if (ms == null) return '-';
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec - min * 60;
+  return `${min}m${sec.toFixed(1)}s`;
+}
+
 function renderHistory() {
   const tb = document.getElementById('histTbody');
   tb.innerHTML = '';
   historyView.forEach(row => {
     const ok = row.exitCode === 0;
-    const duration = !row.duration && row.duration !== 0 ? '-' : 
-      row.duration < 60 ? `${row.duration}s` : `${Math.floor(row.duration/60)}m${row.duration%60}s`;
+    const duration = formatHistoryDuration(row);
     
     const summaryTooltip = (row.summary || '').replace(/"/g, '&quot;');
     const summaryDisplay = row.summary && row.summary.length > 100 
