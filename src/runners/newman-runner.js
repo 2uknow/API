@@ -70,6 +70,7 @@ async function runNewmanJob(jobName, job) {
     attachLineProcessor(proc.stdout, {
       encoding: 'utf8',
       fileStream: outStream,
+      stripAnsiForFile: true,
       onChunk: s => console.log('[NEWMAN STDOUT]', s.substring(0, 100) + '...'),
       onLine: line => {
         console.log('[NEWMAN STDOUT LINE]', line.substring(0, 50) + '...');
@@ -80,6 +81,7 @@ async function runNewmanJob(jobName, job) {
     attachLineProcessor(proc.stderr, {
       encoding: 'utf8',
       fileStream: errStream,
+      stripAnsiForFile: true,
       onChunk: s => {
         console.log('[NEWMAN STDERR]', s.substring(0, 100) + '...');
         errorOutput += s;
