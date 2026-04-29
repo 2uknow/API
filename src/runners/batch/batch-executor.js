@@ -85,6 +85,20 @@ export async function executeBatchFiles({
       const individualOutStream = fs.createWriteStream(path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
       const individualErrStream = fs.createWriteStream(path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`), { flags:'a' });
 
+      // 개별 파일에 적히는 SClient 상세 로그(STEP/COMMAND/TEST PASS 등)를 배치 메인 stdout 에도 함께 누적.
+      // 이렇게 해야 history 테이블의 stdout 링크가 라이브 로그와 동일한 내용을 보여준다.
+      // 순차 실행이라 race 없음 (for 루프 + await).
+      const origIndividualOutWrite = individualOutStream.write.bind(individualOutStream);
+      individualOutStream.write = (chunk, ...rest) => {
+        try { outStream.write(chunk); } catch (_) { /* 메인 stream 종료/에러는 개별 기록을 막지 않음 */ }
+        return origIndividualOutWrite(chunk, ...rest);
+      };
+      const origIndividualErrWrite = individualErrStream.write.bind(individualErrStream);
+      individualErrStream.write = (chunk, ...rest) => {
+        try { outStream.write(chunk); } catch (_) {}
+        return origIndividualErrWrite(chunk, ...rest);
+      };
+
       const filePaths = {
         stdoutPath: path.join(logsDir, `stdout_${jobName}_${fileName}_${fileStamp}.log`),
         stderrPath: path.join(logsDir, `stderr_${jobName}_${fileName}_${fileStamp}.log`),
