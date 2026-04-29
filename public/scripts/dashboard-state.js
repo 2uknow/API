@@ -5,7 +5,8 @@ let historyView = [];
 let running = null;
 let runningJobs = []; // 실행 중인 run 목록 (runId 단위로 독립 추적)
 let currentPage = 1;
-let pageSize = 10;
+// 모바일은 화면 폭 좁으니 기본 5건, 데스크톱은 10건
+let pageSize = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 767px)').matches) ? 5 : 10;
 let totalItems = 0;
 let totalPages = 0;
 let isModalOpen = false;

@@ -202,3 +202,708 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
+/* =========================================================
+ * Mobile Dashboard (≤767px)
+ * 옵션 A: Job 실행 + History + 상세 리포트 + 스케줄 풀기능 유지
+ * 빼는 것: Reset State 버튼
+ * 축소: 실시간 로그(접힌 상태로 시작)
+ * ========================================================= */
+
+/* 모바일/PC 분기용 표시 헬퍼 */
+.mobile-only { display: none !important; }
+@media (max-width: 767px) {
+  .mobile-only { display: initial !important; }
+  .mobile-only.flex { display: flex !important; }
+  .mobile-only.block { display: block !important; }
+  .desktop-only { display: none !important; }
+}
+
+@media (max-width: 767px) {
+  html, body { overflow-x: hidden; }
+  body { font-size: 14px; }
+
+  /* === 전체 컨테이너 === */
+  .max-w-full.mx-auto.p-6 {
+    padding: 12px !important;
+  }
+  .max-w-full.mx-auto.p-6.space-y-8 > * + * {
+    margin-top: 16px !important;
+  }
+
+  /* === 헤더 === */
+  header.glass-effect {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+  }
+  /* 모바일: 제목/로고 한 줄, 그 아래에 컨트롤 묶음 우측 정렬 */
+  header.glass-effect > .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  header.glass-effect h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.2 !important;
+  }
+  header.glass-effect p {
+    font-size: 0.7rem !important;
+  }
+  header.glass-effect .w-12.h-12 {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 12px !important;
+  }
+  header.glass-effect .w-12.h-12 svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  header.glass-effect .space-x-4 > * + * {
+    margin-left: 10px !important;
+  }
+  /* 컨트롤 묶음(Standby / Theme / Alert Settings): 우측 정렬 */
+  header.glass-effect > .flex.items-center.justify-between > .flex.items-center.space-x-3 {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  header.glass-effect .space-x-3 > * + * {
+    margin-left: 0 !important;
+  }
+  /* Reset State 버튼: 모바일 숨김 */
+  #resetStateBtn { display: none !important; }
+  /* Theme 토글 작게 */
+  #themeToggle {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  #themeToggle svg { width: 18px !important; height: 18px !important; }
+  /* Alert Settings 진입 버튼: 모바일은 아이콘+짧은 라벨 */
+  header a[href="/alert-config.html"] {
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+    border-radius: 10px !important;
+  }
+  /* Status Chip */
+  #statusChip {
+    font-size: 0.65rem !important;
+    padding: 4px 8px !important;
+  }
+
+  /* === Today's Execution Statistics: 강제 2x2 + 컴팩트 === */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+  /* 통계 카드 자체: 더 짧고 균일한 높이 */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 > .rounded-2xl.p-6 {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    min-height: 64px !important;
+  }
+  /* 카드 내부 좌우 → 세로 스택 (라벨 위 / 숫자 아래) */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 > .rounded-2xl.p-6 > .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+  /* 우측 아이콘 박스 숨김 — 좁은 폭에서 텍스트를 압박 */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 > .rounded-2xl.p-6 .w-12.h-12 {
+    display: none !important;
+  }
+  /* 라벨 컴팩트 */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 > .rounded-2xl.p-6 .text-sm {
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important;
+  }
+  /* 숫자: 더 작게 + 줄간격 타이트 */
+  section .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 > .rounded-2xl.p-6 .text-3xl {
+    font-size: 1.15rem !important;
+    line-height: 1.05 !important;
+    margin-top: 1px !important;
+  }
+
+  /* "Today's Execution Statistics" 섹션 헤더 */
+  section.glass-effect .flex.items-center.justify-between.mb-6 {
+    margin-bottom: 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  section.glass-effect h2 { font-size: 1.05rem !important; }
+  #refreshStats {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* === Job 실행 / 알람 / 스케줄 사이드 카드 === */
+  /* 사이드 카드(첫 영역)와 History 영역이 1열로 떨어짐 */
+  .glass-effect.rounded-2xl.p-6 {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+  /* Job Selection & Execution 영역 컴팩트화 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > * + * {
+    margin-top: 10px !important;
+  }
+  /* 섹션 타이틀 */
+  .glass-effect.rounded-2xl.p-6 .text-lg.font-bold {
+    font-size: 0.95rem !important;
+  }
+  /* Job select / Run 버튼 */
+  #jobSelect {
+    padding: 10px 12px !important;
+    font-size: 0.9rem !important;
+    border-radius: 10px !important;
+  }
+  #runBtn {
+    padding: 10px !important;
+    font-size: 0.92rem !important;
+    border-radius: 10px !important;
+  }
+  /* Current Job Configuration 라벨 */
+  .glass-effect.rounded-2xl.p-6 .text-sm.font-medium.t-sec {
+    font-size: 0.72rem !important;
+  }
+  /* Job Summary 박스 */
+  #jobSummary {
+    padding: 10px !important;
+    border-radius: 10px !important;
+    font-size: 0.78rem !important;
+    min-height: 40px !important;
+  }
+  /* 알람 시스템 / 자동 스케줄 박스 컴팩트 */
+  .glass-effect.rounded-2xl.p-6 > .text-sm.border.rounded-xl {
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+  }
+  /* 알람/스케줄 박스 안 라벨 */
+  .glass-effect.rounded-2xl.p-6 > .text-sm.border.rounded-xl .font-semibold.t-pri {
+    font-size: 0.85rem !important;
+  }
+  /* 자동 스케줄 헤더 안 아이콘(보라 시계) */
+  .glass-effect.rounded-2xl.p-6 > .text-sm.border.rounded-xl .w-5.h-5 {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  /* 알람/스케줄 우측 칩 */
+  #alertIndicator, #scheduleIndicator {
+    font-size: 0.72rem !important;
+    padding: 3px 9px !important;
+  }
+  /* 스케줄 "관리" 버튼 */
+  #scheduleToggle {
+    padding: 4px 10px !important;
+    font-size: 0.72rem !important;
+  }
+  /* 자동 스케줄 영역 mb-3을 줄여 카드 자체 높이 단축 */
+  .glass-effect.rounded-2xl.p-6 > .text-sm.border.rounded-xl > .flex.items-center.justify-between.mb-3 {
+    margin-bottom: 6px !important;
+  }
+  /* 스케줄 리스트 항목 */
+  #scheduleList > div {
+    font-size: 0.78rem !important;
+    padding: 8px 10px !important;
+  }
+  /* History 컨테이너와의 간격 */
+  section.grid.grid-cols-1.xl\:grid-cols-4 {
+    gap: 12px !important;
+  }
+
+  /* === History 영역 === */
+  .xl\:col-span-3.glass-effect {
+    padding: 14px !important;
+  }
+  /* "Execution History" 헤더: pageSize는 숨김(모바일은 더보기 사용) */
+  .xl\:col-span-3 .flex.items-center.justify-between.mb-4 .flex.items-center.gap-3 {
+    display: none !important;
+  }
+  /* 필터 패널: 기본 숨김 → 바텀시트로 동작 */
+  .history-filter-panel {
+    display: none;
+  }
+  /* History 테이블 → 카드 레이아웃 */
+  .xl\:col-span-3 table {
+    border: none !important;
+  }
+  .xl\:col-span-3 thead { display: none !important; }
+  .xl\:col-span-3 table,
+  .xl\:col-span-3 tbody,
+  .xl\:col-span-3 tr,
+  .xl\:col-span-3 td {
+    display: block !important;
+    width: 100% !important;
+  }
+  /* tr 컴팩트 + relative (Status 칩 absolute 위치 기준) */
+  .xl\:col-span-3 tbody tr {
+    margin: 0 0 8px 0 !important;
+    padding: 10px 12px !important;
+    border: 1px solid var(--border-color) !important;
+    border-left-width: 3px !important;
+    border-radius: 10px !important;
+    background: var(--bg-secondary) !important;
+    position: relative !important;
+  }
+  /* td 공통: block 정렬, 라벨(::before) 모두 숨김 */
+  .xl\:col-span-3 tbody tr td {
+    display: block !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: left !important;
+    width: auto !important;
+    font-size: 0.8rem !important;
+  }
+  .xl\:col-span-3 tbody tr td::before {
+    display: none !important;
+  }
+  /* Time: 작은 회색, 우상단 Status 자리 비움 */
+  .xl\:col-span-3 tbody tr td[data-label="Time"] {
+    font-size: 0.7rem !important;
+    color: var(--text-secondary) !important;
+    margin-bottom: 2px !important;
+    padding-right: 70px !important;
+    line-height: 1.2 !important;
+  }
+  /* Status: 우상단 absolute 칩 */
+  .xl\:col-span-3 tbody tr td[data-label="Status"] {
+    position: absolute !important;
+    top: 10px !important;
+    right: 12px !important;
+  }
+  /* Job: 메인 강조 (제일 굵고 크게) */
+  .xl\:col-span-3 tbody tr td[data-label="Job"] {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 4px !important;
+    padding-right: 70px !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.25 !important;
+  }
+  /* Summary: 회색 작게 + 하단 구분선으로 푸터와 분리 */
+  .xl\:col-span-3 tbody tr td[data-label="Summary"] {
+    font-size: 0.76rem !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 6px !important;
+    line-height: 1.4 !important;
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+  }
+  /* Summary가 비어있으면 구분선만 떠 있어 어색 — 빈 Summary는 padding/border 제거 */
+  .xl\:col-span-3 tbody tr td[data-label="Summary"]:empty {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* 푸터 한 줄: ⏱ Duration · 📄 HTML · 📋 stdout */
+  .xl\:col-span-3 tbody tr td[data-label="Duration"],
+  .xl\:col-span-3 tbody tr td[data-label="Report"],
+  .xl\:col-span-3 tbody tr td[data-label="Log"] {
+    display: inline-block !important;
+    margin-right: 14px !important;
+    font-size: 0.76rem !important;
+    vertical-align: middle !important;
+  }
+  .xl\:col-span-3 tbody tr td[data-label="Duration"] {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+  }
+  /* 라벨을 prefix(이모지)로 다시 살림 — 기존 ::before display:none 무력화 */
+  .xl\:col-span-3 tbody tr td[data-label="Duration"]::before,
+  .xl\:col-span-3 tbody tr td[data-label="Report"]::before,
+  .xl\:col-span-3 tbody tr td[data-label="Log"]::before {
+    display: inline !important;
+    font-weight: normal !important;
+    font-size: 0.76rem !important;
+    color: var(--text-secondary) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    margin: 0 6px 0 0 !important;
+    content: "" !important;
+  }
+  .xl\:col-span-3 tbody tr td[data-label="Duration"]::before { content: "⏱" !important; }
+  .xl\:col-span-3 tbody tr td[data-label="Report"]::before { content: "📄" !important; }
+  .xl\:col-span-3 tbody tr td[data-label="Log"]::before { content: "📋" !important; }
+
+  /* 기존 페이지네이션 컨테이너 숨김 → 더 보기로 대체 */
+  #paginationContainer { display: none !important; }
+  /* History 영역 가로 스크롤 래퍼: 모바일에선 자연 스택 */
+  .xl\:col-span-3 .overflow-x-auto { overflow-x: visible !important; }
+
+  /* === 실시간 로그 섹션: 모바일에선 더 컴팩트, 기본 접힘은 JS에서 처리 === */
+  #logSection { padding: 14px !important; border-radius: 14px !important; }
+  #logSection .flex.items-center.justify-between.mb-4 {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px !important;
+  }
+  #logSection h2 { font-size: 1rem !important; }
+  #logSection .w-10.h-10 {
+    width: 36px !important; height: 36px !important;
+  }
+  #logControls {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+  #logControls .live-toggle-wrap { padding: 4px 10px 4px 6px; }
+  #logControls .live-toggle-label { font-size: 11px; }
+  #expandLogModal, #clearConsole {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+  }
+  #console {
+    height: 240px !important;
+    font-size: 0.72rem !important;
+    padding: 10px !important;
+  }
+  /* 로그 탭 가로 스크롤은 그대로 유지 (기존 overflow-x-auto OK) */
+
+  /* === Footer === */
+  footer .flex.items-center.justify-end {
+    justify-content: center !important;
+  }
+  footer .max-w-full.mx-auto.px-6.py-4 {
+    padding: 10px !important;
+  }
+
+  /* =========================================================
+   * 모바일 가독성 보강 — 불필요 요소 숨김 + 영역 간격 축소
+   * ========================================================= */
+
+  /* (A) 외부 컨테이너 간격 더 축소 */
+  .max-w-full.mx-auto.p-6.space-y-8 > * + * {
+    margin-top: 8px !important;
+  }
+  .max-w-full.mx-auto.p-6 {
+    padding: 8px !important;
+  }
+
+  /* (B) 헤더 부제목 숨김 — 브랜드 이름만으로 충분 */
+  header.glass-effect h1 + p {
+    display: none !important;
+  }
+  header.glass-effect h1 {
+    font-size: 1.2rem !important;
+    margin-bottom: 0 !important;
+  }
+  /* 헤더 로고 더 작게 */
+  header.glass-effect .w-12.h-12 {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 10px !important;
+  }
+  header.glass-effect .w-12.h-12 svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* (C) Today's Statistics 섹션 헤더 압축 */
+  section.glass-effect.floating-card {
+    padding: 10px !important;
+  }
+  section.glass-effect.floating-card > .flex.items-center.justify-between.mb-6 {
+    margin-bottom: 8px !important;
+  }
+  section.glass-effect.floating-card > .flex.items-center.justify-between.mb-6 .w-10.h-10 {
+    display: none !important;
+  }
+  section.glass-effect.floating-card > .flex.items-center.justify-between.mb-6 h2 {
+    font-size: 0.95rem !important;
+  }
+  #todayDate {
+    font-size: 0.7rem !important;
+  }
+  /* 헤더와 새로고침 버튼 사이 spacing */
+  #refreshStats {
+    padding: 4px 10px !important;
+    font-size: 0.7rem !important;
+  }
+
+  /* (D) Job Selection & Execution 영역 정리 — 강력 컴팩트 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 {
+    padding: 10px !important;
+  }
+  .glass-effect.rounded-2xl.p-6.space-y-4 > * + * {
+    margin-top: 6px !important;
+  }
+  /* 첫 번째 .text-lg.font-bold (= "Job Selection & Execution" 타이틀) 숨김 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .text-lg.font-bold {
+    display: none !important;
+  }
+  /* "Current Job Configuration" 라벨 숨김 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .text-sm.font-medium.t-sec {
+    display: none !important;
+  }
+  /* jobSummary 박스(Collections/env 정보): 모바일 완전 숨김
+     — Job 종류는 select 옵션 텍스트에 이미 표시됨. 운영자가 모바일에서
+     collection/environment 파일 경로까지 볼 필요는 없다. */
+  #jobSummary { display: none !important; }
+  /* Select와 Run 버튼: 한 줄에 묶기 (Select 1fr + Run 80px) */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > #jobSelect {
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+    border-radius: 10px !important;
+  }
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .flex.gap-3 {
+    margin-top: 6px !important;
+  }
+  #runBtn {
+    padding: 7px 10px !important;
+    font-size: 0.85rem !important;
+    border-radius: 10px !important;
+  }
+
+  /* (E) 알람 / 자동 스케줄 박스 더 컴팩트 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .text-sm.border.rounded-xl {
+    padding: 6px 10px !important;
+  }
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .text-sm.border.rounded-xl .font-semibold.t-pri {
+    font-size: 0.8rem !important;
+  }
+  /* 자동 스케줄 헤더 사이 간격 */
+  .glass-effect.rounded-2xl.p-6.space-y-4 > .text-sm.border.rounded-xl > .flex.items-center.justify-between.mb-3 {
+    margin-bottom: 4px !important;
+  }
+  /* "활성 스케줄 없음" 칩이 그 다음 줄에 또 있어 자리 차지 → 헤더 우측 indicator로 통합 시각 정리 */
+  #scheduleIndicator {
+    font-size: 0.68rem !important;
+    padding: 2px 8px !important;
+  }
+  #alertIndicator {
+    font-size: 0.68rem !important;
+    padding: 2px 8px !important;
+  }
+
+  /* History 헤더 영역 압축 */
+  .xl\:col-span-3 .flex.items-center.justify-between.mb-4 {
+    margin-bottom: 10px !important;
+  }
+  .xl\:col-span-3 .text-lg.font-bold {
+    font-size: 0.95rem !important;
+  }
+
+  /* === 스케줄 모달: 모바일은 풀스크린 다이얼로그 === */
+  #scheduleModal { padding: 0 !important; }
+  #scheduleModal > div {
+    padding: 16px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+  }
+  #scheduleModal h3 { font-size: 1.25rem !important; }
+  #scheduleModal h4 { font-size: 0.95rem !important; }
+  #scheduleForm input, #scheduleForm select {
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    font-size: 1rem !important;
+  }
+  #scheduleForm button[type="submit"] {
+    padding: 14px !important;
+    border-radius: 12px !important;
+    font-size: 1rem !important;
+  }
+  #cronExpr {
+    /* 등폭 폰트로 cron 식 가독성 향상 */
+    font-family: 'Monaco', 'Consolas', 'Courier New', monospace !important;
+    letter-spacing: 0.5px !important;
+  }
+  /* 모달 스케줄 리스트의 항목 모바일 카드화 */
+  #modalScheduleList > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  #modalScheduleList > div > div { min-width: 0 !important; word-break: break-all; }
+  #modalScheduleList button {
+    align-self: flex-end !important;
+  }
+
+  /* === 로그 풀스크린 모달: 모바일 컨트롤 정리 === */
+  #logModal .flex.items-center.justify-between.px-6.py-3 {
+    padding: 10px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  #logModal h3 { font-size: 0.95rem !important; }
+  #logModal .px-6.pt-2.pb-1 { padding: 4px 12px 0 !important; }
+  #logModal .modal-console-wrapper { padding: 0 12px 12px !important; }
+  #logModal #modalConsole { font-size: 0.72rem !important; padding: 10px !important; }
+  #closeLogModal { padding: 8px 12px !important; font-size: 0.78rem !important; }
+  #clearModalConsole { padding: 8px 12px !important; font-size: 0.78rem !important; }
+
+  /* === 모바일 전용: History 필터 토글 버튼 (HTML에 추가) === */
+  .mobile-filter-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+  }
+  .mobile-filter-toggle .filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #3b82f6;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .mobile-filter-toggle .filter-badge:empty { display: none; }
+
+  /* === History 더 보기 버튼 === */
+  .mobile-load-more {
+    display: block !important;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .mobile-load-more:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mobile-load-info {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+  }
+}
+
+/* === 필터 바텀시트 (모바일 한정 동작) === */
+.filter-bottom-sheet-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+}
+.filter-bottom-sheet {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 61;
+  background: var(--bg-primary);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  animation: sheet-up 0.25s ease-out;
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.filter-bottom-sheet.open { display: block; }
+.filter-bottom-sheet-backdrop.open { display: block; }
+.filter-bottom-sheet .sheet-handle {
+  width: 40px; height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+.filter-bottom-sheet .sheet-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+.filter-bottom-sheet .sheet-row {
+  margin-bottom: 14px;
+}
+.filter-bottom-sheet .sheet-row label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.filter-bottom-sheet .sheet-row select,
+.filter-bottom-sheet .sheet-row input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+.filter-bottom-sheet .sheet-row .date-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.filter-bottom-sheet .sheet-row .date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.filter-bottom-sheet .sheet-row .date-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+.filter-bottom-sheet .sheet-row .date-chip.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+.filter-bottom-sheet .sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+.filter-bottom-sheet .sheet-actions button {
+  padding: 13px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border: none;
+  cursor: pointer;
+}
+.filter-bottom-sheet .sheet-actions .btn-reset {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.filter-bottom-sheet .sheet-actions .btn-apply {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+}

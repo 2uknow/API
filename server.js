@@ -2,6 +2,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // === 리팩토링 모듈 import ===
@@ -10,6 +11,7 @@ import { stateClients, logClients, unifiedClients, broadcastLog, broadcastState,
 import { state, stateEvents } from './src/state/running-jobs.js';
 import { initLogManagement } from './src/services/log-manager.js';
 import { initHistoryCache } from './src/services/history-service.js';
+import { injectNewmanReportMobileStyles } from './src/services/newman-report-mobile.js';
 import { loadSchedules } from './src/services/schedule-service.js';
 import { setupDailyReportScheduler } from './src/services/statistics-service.js';
 import { initDiskMonitor } from './src/services/disk-monitor.js';
@@ -209,6 +211,24 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // 정적 파일 서빙 (캐시 비활성화)
+// /reports/*.html 요청 시 모바일 친화 CSS를 lazy inject (멱등성 보장)
+// 옛 리포트도 모바일에서 잘 보이도록. 첫 요청 시 1회 inject 후 정적 서빙으로 위임.
+app.use('/reports', async (req, res, next) => {
+  try {
+    const decoded = decodeURIComponent(req.path);
+    if (!decoded.toLowerCase().endsWith('.html')) return next();
+    const filePath = path.join(reportsDir, decoded.replace(/^\/+/, ''));
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(path.resolve(reportsDir))) return next();
+    if (fs.existsSync(resolved)) {
+      // 멱등성: 이미 marker 있으면 inject 함수가 즉시 skip
+      await injectNewmanReportMobileStyles(resolved);
+    }
+  } catch (e) {
+    console.warn('[reports lazy-inject] skip:', e.message);
+  }
+  next();
+});
 app.use('/reports', express.static(reportsDir, {
   setHeaders: (res, filePath) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

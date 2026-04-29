@@ -201,3 +201,150 @@ input:checked + .toggle-slider:before {
   color: white;
   border-color: #1d4ed8;
 }
+
+/* =========================================================
+ * Mobile (≤767px)
+ * ========================================================= */
+@media (max-width: 767px) {
+  html, body { overflow-x: hidden; }
+
+  .alert-config-container {
+    padding: 12px !important;
+  }
+  .alert-config-container > * + * {
+    margin-top: 14px !important;
+  }
+  .alert-config-container > section,
+  .alert-config-container > header {
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+
+  /* 헤더: 세로 스택 */
+  .alert-config-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .alert-config-header > div:first-child .w-12.h-12 {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 12px !important;
+  }
+  .alert-config-header h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.2 !important;
+  }
+  .alert-config-header p { font-size: 0.7rem !important; }
+  .alert-config-header #themeToggle {
+    width: 36px !important; height: 36px !important;
+  }
+  .alert-config-header .back-to-dashboard {
+    padding: 8px 14px !important;
+    font-size: 0.78rem !important;
+    border-radius: 10px !important;
+  }
+
+  /* 섹션 제목 */
+  .alert-config-container h2 { font-size: 1.05rem !important; }
+  .alert-config-container h3 { font-size: 0.95rem !important; }
+  .alert-config-container h4 { font-size: 0.88rem !important; }
+
+  /* 웹훅 폼: 입력/버튼 세로 스택 */
+  .webhook-form-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .webhook-form-row input,
+  .webhook-form-row button {
+    width: 100% !important;
+    padding: 12px 14px !important;
+    font-size: 0.95rem !important;
+    border-radius: 12px !important;
+  }
+
+  /* 알람 활성화 / 정기 리포트 활성화 박스 */
+  .alert-config-container .p-6.rounded-2xl {
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+  .alert-config-container .p-6.rounded-2xl .text-lg { font-size: 0.95rem !important; }
+  .alert-config-container .p-6.rounded-2xl .text-sm { font-size: 0.78rem !important; }
+  .alert-config-container .p-4.rounded-xl { padding: 12px !important; }
+
+  /* 토글 스위치는 작은 화면에서도 충분히 큰 편이라 유지하되, 우측 정렬 보장 */
+  .alert-config-container label.toggle-switch { flex-shrink: 0; }
+
+  /* 커스텀 체크박스/라디오: 모바일 탭 영역 확대 */
+  .custom-checkbox, .custom-radio {
+    padding: 6px 0 6px 35px !important;
+    font-size: 15px !important;
+  }
+  .custom-checkbox .checkmark,
+  .custom-radio .checkmark {
+    top: 8px !important;
+    height: 22px !important;
+    width: 22px !important;
+  }
+  .custom-checkbox .ml-2 > p,
+  .custom-radio .ml-2 > p {
+    font-size: 0.78rem !important;
+  }
+
+  /* 요일 체크박스: 한 줄에 4-7개 다 안 들어가니 wrap + 균등 분포 */
+  .day-checkbox { flex: 0 0 calc(25% - 8px); }
+  .day-label {
+    display: block !important;
+    text-align: center;
+    padding: 12px 6px !important;
+    font-size: 13px !important;
+  }
+  .alert-config-container .flex.flex-wrap.gap-2 {
+    gap: 8px !important;
+  }
+
+  /* 발송 시간 추가 버튼 */
+  #addTimeBtn {
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* 시간 입력 필드 (timesList 안 동적 생성 항목) */
+  #timesList .flex {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  #timesList input[type="time"] {
+    flex: 1 1 100% !important;
+    padding: 12px !important;
+    font-size: 1rem !important;
+    border-radius: 10px !important;
+  }
+  #timesList button {
+    padding: 8px 12px !important;
+  }
+
+  /* 저장 / 테스트 발송 버튼 */
+  .alert-config-container button[type="submit"],
+  #testDailyReport {
+    width: 100% !important;
+    padding: 14px !important;
+    font-size: 1rem !important;
+    border-radius: 12px !important;
+  }
+  .alert-config-container .flex.justify-end,
+  .alert-config-container .flex.justify-start {
+    justify-content: stretch !important;
+  }
+
+  /* "현재 설정 상태" 동적 카드: 1열 */
+  #currentStatus {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  #currentStatus > div { padding: 12px !important; }
+}
+
+/* Extra small */
+@media (max-width: 380px) {
+  .day-checkbox { flex: 0 0 calc(33.333% - 8px); }
+}

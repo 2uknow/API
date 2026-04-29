@@ -12,10 +12,10 @@
     <link rel="stylesheet" href="/styles/alert-config.css" />
 </head>
 <body class="min-h-screen app-bg">
-    <div class="max-w-4xl mx-auto p-6 space-y-8">
+    <div class="alert-config-container max-w-4xl mx-auto p-6 space-y-8">
         <!-- 헤더 -->
         <header class="glass-effect rounded-2xl p-6 neo-shadow floating-card">
-            <div class="flex items-center justify-between">
+            <div class="alert-config-header flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,13 +27,13 @@
                         <p class="text-sm font-medium t-sec">API 모니터링 알람을 설정합니다</p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
+                <div class="header-actions flex items-center space-x-3">
                     <button id="themeToggle" class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 bg-ter-var t-pri" onmouseover="this.style.background='var(--border-color)'" onmouseout="this.style.background='var(--bg-tertiary)'" title="다크모드 토글">
                         <svg id="themeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
                     </button>
-                    <a href="/" class="px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all duration-300 glow-on-hover font-medium">
+                    <a href="/" class="back-to-dashboard px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all duration-300 glow-on-hover font-medium">
                         ← 대시보드
                     </a>
                 </div>
@@ -53,7 +53,7 @@
             <h2 class="text-xl font-bold mb-2 t-pri">웹훅 URL 설정</h2>
             <p class="text-sm mb-6 t-sec">네이버 웍스 웹훅 URL을 입력하세요. 알람 전송에 사용됩니다.</p>
             <form id="webhookForm" class="space-y-4">
-                <div class="flex gap-3">
+                <div class="webhook-form-row flex gap-3">
                     <input type="url" id="webhook_url_input"
                         placeholder="https://talk.worksmobile.com/webhook/..."
                         class="flex-1 px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-sec-var t-pri bd-c">

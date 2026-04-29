@@ -3,6 +3,250 @@ import newman from 'newman';
 import path from 'path';
 import fs from 'fs';
 
+// 3개 HTML 리포트 템플릿이 공유하는 모바일 가독성 CSS.
+// CSS 변수는 다크/라이트 테마가 정의된 템플릿(HTMLExtra/Batch Summary)과
+// 변수가 없는 fallback 템플릿(generateCustomHTML) 모두에서 동작하도록
+// fallback 값을 함께 지정한다.
+const MOBILE_RESPONSIVE_CSS = `
+        /* === Mobile Responsive (≤768px) === */
+        @media (max-width: 768px) {
+          html, body { overflow-x: hidden; }
+          body { font-size: 14px; }
+
+          .container {
+            max-width: 100% !important;
+            padding: 16px 12px !important;
+          }
+
+          /* Header 압축 */
+          .header {
+            padding: 22px 16px !important;
+            margin-bottom: 18px !important;
+            border-radius: 10px !important;
+            text-align: left !important;
+          }
+          .header h1 {
+            font-size: 1.5rem !important;
+            line-height: 1.3 !important;
+            margin-bottom: 6px !important;
+          }
+          .header .subtitle { font-size: 0.95rem !important; }
+          .header .meta {
+            font-size: 0.78rem !important;
+            margin-top: 10px !important;
+            line-height: 1.5 !important;
+          }
+
+          /* Theme toggle: 헤더 본문 침범 방지 */
+          .theme-toggle {
+            top: 8px !important;
+            right: 8px !important;
+            padding: 6px 12px !important;
+            font-size: 0.72rem !important;
+            border-radius: 16px !important;
+          }
+
+          /* 통계 카드: 2열 */
+          .dashboard, .stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-bottom: 20px !important;
+          }
+          /* Ring 들어있는 첫 카드는 풀폭 1열로(5개 카드 → [Ring 풀폭] + [4개 2x2])
+             5개 홀수 배치로 마지막 칸 비는 문제 해결 + Ring 카드를 강조 */
+          .dashboard .metric-card:first-child,
+          .stats .stat-card:first-child {
+            grid-column: 1 / -1 !important;
+          }
+          .metric-card, .stat-card {
+            padding: 14px 10px !important;
+            border-radius: 10px !important;
+          }
+          .metric-number, .stat-value {
+            font-size: 1.5rem !important;
+            line-height: 1.1 !important;
+          }
+          .metric-label, .stat-label {
+            font-size: 0.7rem !important;
+            letter-spacing: 0.3px !important;
+          }
+
+          /* Progress ring: grid 셀 겹침 방식으로 svg와 텍스트 정중앙 정렬
+             (absolute+transform은 baseline/stroke 두께 때문에 미세 어긋남) */
+          .progress-ring {
+            display: grid !important;
+            place-items: center !important;
+            width: 120px !important;
+            height: 120px !important;
+            margin: 0 auto 10px !important;
+            position: relative !important;
+          }
+          .progress-ring svg {
+            width: 120px !important;
+            height: 120px !important;
+            grid-area: 1 / 1 !important;
+          }
+          .progress-text {
+            grid-area: 1 / 1 !important;
+            position: static !important;
+            top: auto !important;
+            left: auto !important;
+            transform: none !important;
+            font-size: 1.25rem !important;
+            line-height: 1 !important;
+            white-space: nowrap !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          /* Details / 상세 패널 */
+          .details-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .summary-section { padding: 18px !important; }
+          .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+          .stat-item { padding: 14px 10px !important; }
+          .stat-number { font-size: 1.4rem !important; }
+          .stat-label { font-size: 0.72rem !important; }
+
+          /* Section header */
+          .section-header { padding: 18px 16px !important; }
+          .section-title { font-size: 1.15rem !important; }
+          .section-subtitle { font-size: 0.85rem !important; }
+
+          /* Assertion / Execution */
+          .assertion {
+            padding: 10px 12px !important;
+            font-size: 0.85rem !important;
+            flex-wrap: wrap !important;
+            line-height: 1.5 !important;
+          }
+          .execution { padding: 16px !important; }
+          .execution-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+          }
+
+          /* 코드/긴 텍스트가 셀/카드 밖으로 튀어나가는 문제 방지 */
+          code, pre, .detail-value, .file-name, .response-data {
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+            white-space: pre-wrap !important;
+            font-size: 0.78rem !important;
+          }
+          .detail-value { padding: 8px !important; }
+
+          /* Expandable value 우상단 아이콘이 화면 밖으로 잘리는 문제 */
+          .expandable-value::after { display: none !important; }
+          .expandable-value {
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+            max-width: 100% !important;
+          }
+
+          /* Tooltip: 모바일은 hover 불가 → 어쌔션 아래에 항상 펼쳐 보이도록 */
+          .tooltip {
+            display: block !important;
+            cursor: default !important;
+          }
+          .tooltip::before {
+            position: static !important;
+            transform: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: block !important;
+            margin-top: 8px !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+            background: var(--code-bg, #f3f4f6) !important;
+            color: var(--text-primary, #1f2937) !important;
+            border: 1px solid var(--border-color, #e5e7eb) !important;
+            box-shadow: none !important;
+            font-size: 0.78rem !important;
+            padding: 8px 10px !important;
+            border-radius: 6px !important;
+          }
+          .tooltip::after { display: none !important; }
+
+          /* === Batch table → Card layout === */
+          .batch-table thead { display: none !important; }
+          .batch-table,
+          .batch-table tbody,
+          .batch-table tr,
+          .batch-table td {
+            display: block !important;
+            width: 100% !important;
+          }
+          .batch-table tr {
+            margin: 0 0 10px 0 !important;
+            padding: 12px 14px !important;
+            border: 1px solid var(--border-color, #e5e7eb) !important;
+            border-radius: 10px !important;
+            background: var(--card-bg, #ffffff) !important;
+          }
+          .batch-table tr:hover { background: var(--card-bg, #ffffff) !important; }
+          .batch-table td {
+            border: none !important;
+            padding: 6px 0 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 10px !important;
+            font-size: 0.85rem !important;
+          }
+          .batch-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-secondary, #6b7280);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            flex-shrink: 0;
+          }
+          /* 첫 셀(파일명)은 위/아래 구조로, 길이 문제 회피 */
+          .batch-table td:first-child {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            border-bottom: 1px solid var(--border-color, #e5e7eb) !important;
+            padding: 0 0 8px 0 !important;
+            margin-bottom: 6px !important;
+          }
+          .batch-table td:first-child::before { margin-bottom: 4px; }
+          .file-name { font-size: 0.85rem !important; }
+          .report-link {
+            font-size: 0.78rem !important;
+            word-break: break-all !important;
+            text-align: right !important;
+          }
+          .batch-results {
+            border-radius: 10px !important;
+          }
+          .batch-results > .batch-table tr:first-of-type {
+            margin-top: 14px !important;
+          }
+          /* 카드 좌우 inset */
+          .batch-results { padding: 0 12px 12px !important; }
+        }
+
+        /* === Extra small (≤480px) === */
+        @media (max-width: 480px) {
+          .container { padding: 12px 8px !important; }
+          .header h1 { font-size: 1.3rem !important; }
+          /* 1열로 떨어뜨리지 않고 2열 유지 — 1열로 가면 카드 폭이 너무 넓어져서
+             progress-ring 등 고정 폭 요소와 시각 비율이 깨진다.
+             단 progress-ring 카드만 전체 폭을 차지하도록 별도 처리 가능. */
+          .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+`;
+
 /**
  * SClient 시나리오 결과를 Newman 실행 결과 형식으로 변환
  */
@@ -804,13 +1048,8 @@ export class SClientToNewmanConverter {
             content: '🔄';
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container { padding: 15px; }
-            .dashboard { grid-template-columns: repeat(2, 1fr); }
-            .details-grid { grid-template-columns: 1fr; }
-            .header h1 { font-size: 2rem; }
-        }
+        /* Responsive (공통 모바일 CSS는 아래 블록에서 처리) */
+${MOBILE_RESPONSIVE_CSS}
     </style>
 </head>
 <body>
@@ -1169,6 +1408,7 @@ export class SClientToNewmanConverter {
         .expandable-value.expanded::after {
             content: '🔄';
         }
+${MOBILE_RESPONSIVE_CSS}
     </style>
 </head>
 <body>
@@ -1743,12 +1983,7 @@ export class SClientToNewmanConverter {
         }
         .report-link:hover { background: rgba(88, 166, 255, 0.1); text-decoration: underline; }
 
-        @media (max-width: 768px) {
-            .container { padding: 15px; }
-            .dashboard { grid-template-columns: repeat(2, 1fr); }
-            .header h1 { font-size: 2rem; }
-            .batch-table th, .batch-table td { padding: 12px 15px; }
-        }
+${MOBILE_RESPONSIVE_CSS}
     </style>
 </head>
 <body>
@@ -1813,14 +2048,14 @@ export class SClientToNewmanConverter {
                       const path = require('path');
                       return `
                     <tr>
-                        <td><div class="file-name">${result.fileName || 'Unknown'}</div></td>
-                        <td><span class="status-badge ${result.success ? 'status-pass' : 'status-fail'}">
+                        <td data-label="File"><div class="file-name">${result.fileName || 'Unknown'}</div></td>
+                        <td data-label="Status"><span class="status-badge ${result.success ? 'status-pass' : 'status-fail'}">
                             ${result.success ? '✅ PASS' : '❌ FAIL'}
                         </span></td>
-                        <td>${result.result?.duration || 0}ms</td>
-                        <td>
-                            ${result.reportPath ? 
-                              `<a href="${path.basename(result.reportPath)}" class="report-link">${path.basename(result.reportPath)}</a>` : 
+                        <td data-label="Duration">${result.result?.duration || 0}ms</td>
+                        <td data-label="Report">
+                            ${result.reportPath ?
+                              `<a href="${path.basename(result.reportPath)}" class="report-link">${path.basename(result.reportPath)}</a>` :
                               '<span style="color: var(--text-muted);">N/A</span>'}
                         </td>
                     </tr>`;

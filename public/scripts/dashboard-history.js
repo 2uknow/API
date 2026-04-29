@@ -45,9 +45,10 @@ async function fetchHistory(){
   }
   
   console.log('최종 계산:', { totalItems, totalPages, currentPage, pageSize });
-  
+
   renderHistory();
   renderPagination();
+  if (typeof renderMobileLoadMore === 'function') renderMobileLoadMore();
 }
 
 
@@ -107,32 +108,99 @@ function formatHistoryDuration(row) {
   return `${min}m${sec.toFixed(1)}s`;
 }
 
-function renderHistory() {
+function renderHistory(append = false) {
   const tb = document.getElementById('histTbody');
-  tb.innerHTML = '';
+  if (!append) tb.innerHTML = '';
+  // 모바일 여부 — 같은 탭 이동 / target 결정에 사용
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  const reportTarget = isMobile ? '_self' : '_blank';
+
   historyView.forEach(row => {
     const ok = row.exitCode === 0;
     const duration = formatHistoryDuration(row);
-    
+
     const summaryTooltip = (row.summary || '').replace(/"/g, '&quot;');
-    const summaryDisplay = row.summary && row.summary.length > 100 
+    const summaryDisplay = row.summary && row.summary.length > 100
       ? row.summary.substring(0, 97) + '...'
       : row.summary || '';
-    
+
+    // 모바일에선 좌측 컬러 보더로 성공/실패 구분 (테이블 → 카드 변환과 함께 동작)
+    const borderColor = ok ? '#10b981' : '#ef4444';
+    const trStyle = `background: ${ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border-left-color: ${borderColor};`;
+
     tb.insertAdjacentHTML('beforeend', `
-      <tr class="transition-colors duration-200" style="background: ${ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};" onmouseover="this.style.background='${ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}'" onmouseout="this.style.background='${ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}'">
-        <td class="py-3 pr-4 text-sm font-medium t-pri">${row.timestamp || ''}</td>
-        <td class="py-3 pr-4 font-semibold t-pri">${row.job || ''}</td>
-        <td class="py-3 pr-4">${ok ? '<span class="text-emerald-700 text-sm font-semibold">Success</span>' : '<span class="text-rose-700 text-sm font-semibold">Failed</span>'}</td>
-        <td class="py-3 pr-4 text-sm t-sec" title="${summaryTooltip}">${summaryDisplay}</td>
-        <td class="py-3 pr-4 text-sm font-medium t-sec">${duration}</td>
-        <td class="py-3 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-sm hover:text-indigo-800 transition-colors duration-200" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="_blank">' + (row.report.endsWith('.html') ? 'HTML' : 'TXT') + '</a>') : ''}</td>
-        <td class="py-3">
+      <tr class="transition-colors duration-200" style="${trStyle}" onmouseover="this.style.background='${ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}'" onmouseout="this.style.background='${ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}'">
+        <td data-label="Time" class="py-3 pr-4 text-sm font-medium t-pri">${row.timestamp || ''}</td>
+        <td data-label="Job" class="py-3 pr-4 font-semibold t-pri">${row.job || ''}</td>
+        <td data-label="Status" class="py-3 pr-4">${ok ? '<span class="text-emerald-700 text-sm font-semibold">Success</span>' : '<span class="text-rose-700 text-sm font-semibold">Failed</span>'}</td>
+        <td data-label="Summary" class="py-3 pr-4 text-sm t-sec" title="${summaryTooltip}">${summaryDisplay}</td>
+        <td data-label="Duration" class="py-3 pr-4 text-sm font-medium t-sec">${duration}</td>
+        <td data-label="Report" class="py-3 pr-4">${row.report ? ('<a class="text-indigo-600 underline text-sm hover:text-indigo-800 transition-colors duration-200" href="' + row.report.replace(/^.*[\\/]reports[\\/]/, '/reports/') + '" target="' + reportTarget + '">' + (row.report.endsWith('.html') ? 'HTML' : 'TXT') + '</a>') : ''}</td>
+        <td data-label="Log" class="py-3">
           <a class="underline text-sm log-link transition-colors duration-200 t-pri" href="#" data-log-url="/logs/${row.stdout}" onmouseover="this.style.color='var(--text-secondary)'" onmouseout="this.style.color='var(--text-primary)'">stdout</a>
         </td>
       </tr>`
     );
   });
+}
+
+// === 모바일 전용: 더 보기 ===
+function renderMobileLoadMore() {
+  const btn = document.getElementById('mobileLoadMoreBtn');
+  const info = document.getElementById('mobileLoadInfo');
+  if (!btn || !info) return;
+
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  if (!isMobile) {
+    btn.style.display = 'none';
+    info.textContent = '';
+    return;
+  }
+
+  const loaded = Math.min(currentPage * pageSize, totalItems);
+  if (loaded < totalItems && currentPage < totalPages) {
+    btn.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = `더 보기 (${loaded} / ${totalItems})`;
+    info.textContent = '';
+  } else {
+    btn.style.display = 'none';
+    info.textContent = totalItems > 0 ? `전체 ${totalItems}건 표시 완료` : '데이터가 없습니다';
+  }
+}
+
+async function loadMoreHistory() {
+  const btn = document.getElementById('mobileLoadMoreBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
+  currentPage += 1;
+  await fetchHistoryAppend();
+}
+
+// 누적 조회: 기존 행 유지 + 신규만 append
+async function fetchHistoryAppend() {
+  const job = document.getElementById('filterJob').value;
+  const range = document.getElementById('range').value;
+  const search = document.getElementById('searchText').value.trim();
+  const status = document.getElementById('filterStatus').value;
+  const dateFrom = document.getElementById('dateFrom').value;
+  const dateTo = document.getElementById('dateTo').value;
+
+  const params = new URLSearchParams({ page: currentPage, size: pageSize });
+  if (job) params.append('job', job);
+  if (range) params.append('range', range);
+  if (search) params.append('search', search);
+  if (status) params.append('status', status);
+  if (dateFrom) params.append('dateFrom', dateFrom);
+  if (dateTo) params.append('dateTo', dateTo);
+
+  const r = await fetch(`/api/history?${params}`);
+  const data = await r.json();
+  historyView = data.items || [];
+  totalItems = data.total ?? totalItems;
+  totalPages = data.totalPages ?? totalPages;
+  currentPage = data.page ?? currentPage;
+  renderHistory(true); // append
+  renderMobileLoadMore();
 }
 // 페이징 렌더링
 function renderPagination() {

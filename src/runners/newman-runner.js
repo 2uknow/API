@@ -11,6 +11,7 @@ import { sendAlert, buildNewmanFailureReport } from '../services/alert-integrati
 import { processResponseBody } from '../utils/crypto.js';
 import { attachLineProcessor } from '../utils/stream-line-processor.js';
 import { spawnNewmanCLI } from './spawn-helpers.js';
+import { injectNewmanReportMobileStyles } from '../services/newman-report-mobile.js';
 
 async function runNewmanJob(jobName, job) {
   const collection  = path.resolve(root, job.collection);
@@ -638,12 +639,13 @@ summary = generateImprovedSummary(stats, run.timings, code, run.failures || []);
 
   // 통합 완료 처리 함수 사용 (완료를 기다림)
   await finalizeJobCompletion(runId, code);
-  
-  // Newman HTML 리포트에 다크모드 토글 추가 (원래 Newman HTMLExtra 리포트 유지)
-  // if (fs.existsSync(htmlReport)) {
-  //   addDarkModeToggleToHtml(htmlReport);
-  // }
-  
+
+  // Newman HTMLExtra 리포트에 모바일 친화 CSS 주입 (멱등성 보장)
+  if (fs.existsSync(htmlReport)) {
+    const injected = await injectNewmanReportMobileStyles(htmlReport);
+    console.log(`[NEWMAN MOBILE-INJECT] ${path.basename(htmlReport)} → ${injected ? 'OK' : 'FAIL'}`);
+  }
+
   resolve({ started: true, exitCode: code });
 });
   });

@@ -172,9 +172,14 @@
             <label class="font-medium t-sec">Page</label>
             <select id="pageSize" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 bg-sec-var bd-c t-pri"><option>10</option><option selected>10</option><option>50</option><option>100</option><option>500</option><option value="9999">All</option></select>
           </div>
+          <!-- 모바일 전용: 필터 토글 -->
+          <button type="button" id="mobileFilterToggle" class="mobile-only mobile-filter-toggle" onclick="openFilterSheet()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+            필터<span id="mobileFilterBadge" class="filter-badge"></span>
+          </button>
         </div>
 
-        <div class="flex flex-wrap items-end gap-4 mb-4">
+        <div class="history-filter-panel flex flex-wrap items-end gap-4 mb-4">
           <div>
             <label class="block text-sm mb-2 font-medium t-sec">Job</label>
             <select id="filterJob" class="border rounded-lg px-3 py-2 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 bg-sec-var bd-c t-pri"><option value="">All</option></select>
@@ -231,6 +236,11 @@
           <div id="paginationContainer" class="mt-6 flex items-center justify-between text-sm border-t pt-4 bd-c">
             <div id="paginationInfo" class="font-medium t-sec"></div>
             <div id="paginationControls" class="flex items-center space-x-2"></div>
+          </div>
+          <!-- 모바일 전용: 더 보기 -->
+          <div class="mobile-only block">
+            <button type="button" id="mobileLoadMoreBtn" class="mobile-load-more" onclick="loadMoreHistory()" style="display: none;">더 보기</button>
+            <div id="mobileLoadInfo" class="mobile-load-info"></div>
           </div>
         </div>
       </div>
@@ -298,6 +308,42 @@
       </div>
     </div>
   </footer>
+
+  <!-- 모바일 전용: History 필터 바텀시트 -->
+  <div id="filterSheetBackdrop" class="filter-bottom-sheet-backdrop" onclick="closeFilterSheet()"></div>
+  <div id="filterSheet" class="filter-bottom-sheet" role="dialog" aria-label="History 필터">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">필터</div>
+    <div class="sheet-row">
+      <label>Job</label>
+      <select id="sheetFilterJob"><option value="">All</option></select>
+    </div>
+    <div class="sheet-row">
+      <label>상태</label>
+      <select id="sheetFilterStatus">
+        <option value="">전체</option>
+        <option value="success">성공</option>
+        <option value="failed">실패</option>
+      </select>
+    </div>
+    <div class="sheet-row">
+      <label>날짜</label>
+      <div class="date-chips">
+        <button type="button" class="date-chip" data-range="today">오늘</button>
+        <button type="button" class="date-chip" data-range="yesterday">어제</button>
+        <button type="button" class="date-chip" data-range="7d">7일</button>
+        <button type="button" class="date-chip" data-range="30d">30일</button>
+      </div>
+      <div class="date-pair">
+        <input type="date" id="sheetDateFrom" placeholder="시작">
+        <input type="date" id="sheetDateTo" placeholder="종료">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-reset" onclick="resetFilterSheet()">초기화</button>
+      <button type="button" class="btn-apply" onclick="applyFilterSheet()">적용</button>
+    </div>
+  </div>
 
   <!-- 스케줄 관리 모달 -->
   <div id="scheduleModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50">
@@ -385,6 +431,7 @@
 <script src="/scripts/dashboard-logs.js" defer></script>
 <script src="/scripts/dashboard-schedule.js" defer></script>
 <script src="/scripts/dashboard-history.js" defer></script>
+<script src="/scripts/dashboard-mobile.js" defer></script>
 <script src="/scripts/dashboard-main.js" defer></script>
 </body>
 </html>
