@@ -138,6 +138,12 @@ document.getElementById('runBtn').onclick = async () => {
     return;
   }
   
+  // 잡 실행 시 접혀있던 로그 섹션 자동 펼침 — 모바일은 기본 접힘 상태라
+  // 라이브 로그가 즉시 안 보이는 문제 해결. PC 에서도 사용자가 수동으로 접었다면 같이 펼침.
+  if (typeof isLogSectionCollapsed !== 'undefined' && isLogSectionCollapsed && typeof toggleLogSection === 'function') {
+    toggleLogSection();
+  }
+
   // Live 모드 자동 활성화 + SSE 연결 대기 (로그 유실 방지)
   if (!isLiveMode) toggleLiveMode(true);
   if (!unifiedEventSource || unifiedEventSource.readyState !== EventSource.OPEN) {

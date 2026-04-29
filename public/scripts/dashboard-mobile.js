@@ -9,11 +9,12 @@
   // === 1) 첫 로드 시 모바일이면 로그 섹션 자동 접기 + 레이아웃 재배치 ===
   document.addEventListener('DOMContentLoaded', () => {
     if (isMobile()) {
-      // 로그 섹션 본문 영역 접기 (toggleLogSection이 정의되어 있을 때만)
-      const content = document.getElementById('logContentArea');
-      const arrow = document.getElementById('logSectionArrow');
-      if (content) content.style.display = 'none';
-      if (arrow) arrow.style.transform = 'rotate(-90deg)';
+      // 로그 섹션 접기 — toggleLogSection() 으로 DOM 과 isLogSectionCollapsed 플래그를
+      // 함께 동기화한다. 직접 DOM 만 숨기면 플래그가 false 인 상태로 남아 첫 클릭이
+      // "false → true" 분기로 빠지면서 시각 변화가 없어 두 번 눌러야 펼쳐지는 문제 발생.
+      if (typeof toggleLogSection === 'function' && typeof isLogSectionCollapsed !== 'undefined' && !isLogSectionCollapsed) {
+        toggleLogSection();
+      }
     }
 
     // 필터 바텀시트 Job 옵션을 데스크톱 #filterJob과 동기화
