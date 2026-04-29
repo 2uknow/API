@@ -48,10 +48,13 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Last-Event-ID');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  // 브라우저 호환성을 위한 추가 헤더
+  // 브라우저 호환성 + 보안 헤더 (외부 노출 환경 대비)
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
   // OPTIONS 요청 처리 (CORS preflight)
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
