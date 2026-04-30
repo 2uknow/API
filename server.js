@@ -38,11 +38,18 @@ app.set('view cache', false); // 뷰 캐시 비활성화
 
 // 모든 요청에 대해 캐시 비활성화 헤더 설정
 app.use((req, res, next) => {
-  // 강력한 캐시 비활성화
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Last-Modified', new Date().toUTCString());
+  // /reports/ 와 /logs/ 는 한 번 생성되면 immutable 한 정적 자원이라
+  // Cloudflare edge 캐싱이 가능하도록 전역 no-cache 를 덮지 않는다.
+  // (express.static 의 setHeaders 에서 별도로 public 캐시 헤더를 부여)
+  const isCacheableStatic = req.path.startsWith('/reports/') || req.path.startsWith('/logs/');
+
+  if (!isCacheableStatic) {
+    // 강력한 캐시 비활성화
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Last-Modified', new Date().toUTCString());
+  }
   
   // CORS 헤더 (로컬 개발 환경을 위한)
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -210,9 +217,13 @@ if (process.env.NODE_ENV === 'development') {
   }, 30000);
 }
 
-// 정적 파일 서빙 (캐시 비활성화)
+// 정적 파일 서빙
 // /reports/*.html 요청 시 모바일 친화 CSS를 lazy inject (멱등성 보장)
 // 옛 리포트도 모바일에서 잘 보이도록. 첫 요청 시 1회 inject 후 정적 서빙으로 위임.
+//
+// 처리 완료 경로를 인메모리 Set 에 기록 → 같은 파일 재요청 시 readFile 자체를 skip.
+// 14k 파일 풀 등록되어도 절대경로 문자열만 들어가므로 ~2MB 수준이라 무시 가능.
+const injectedReportsCache = new Set();
 app.use('/reports', async (req, res, next) => {
   try {
     const decoded = decodeURIComponent(req.path);
@@ -220,27 +231,33 @@ app.use('/reports', async (req, res, next) => {
     const filePath = path.join(reportsDir, decoded.replace(/^\/+/, ''));
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(path.resolve(reportsDir))) return next();
+    // 이미 처리한 파일이면 readFile/writeFile 비용 없이 즉시 통과
+    if (injectedReportsCache.has(resolved)) return next();
     if (fs.existsSync(resolved)) {
       // 멱등성: 이미 marker 있으면 inject 함수가 즉시 skip
       await injectNewmanReportMobileStyles(resolved);
+      injectedReportsCache.add(resolved);
     }
   } catch (e) {
     console.warn('[reports lazy-inject] skip:', e.message);
   }
   next();
 });
+// 리포트는 한 번 생성되면 immutable — Cloudflare edge 캐시가 5분/1시간 보유
+// (timestamp 가 파일명에 들어가므로 같은 URL 이 다른 내용을 가리킬 일 없음)
 app.use('/reports', express.static(reportsDir, {
-  setHeaders: (res, filePath) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  etag: true,
+  lastModified: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
   }
 }));
+// /logs/ 는 stdout 이 진행 중에 append 될 수 있어 보수적으로 짧은 캐시 + revalidate
 app.use('/logs', express.static(logsDir, {
-  setHeaders: (res, filePath) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  etag: true,
+  lastModified: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=30, must-revalidate');
   }
 }));
 
