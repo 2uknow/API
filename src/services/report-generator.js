@@ -332,7 +332,7 @@ async function generateSimpleBatchReport(jobName, batchData) {
         .results-table tr:hover { background: var(--hover-bg); }
         .results-table a { color: var(--info-color); text-decoration: none; font-weight: 500; border-bottom: 1px dotted var(--info-color); transition: all 0.2s ease; }
         .results-table a:hover { border-bottom: 1px solid var(--info-color); }
-        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
         .status-success { background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); }
         .status-failed { background: var(--error-bg); color: var(--error-color); border: 1px solid var(--error-border); }
         .footer { text-align: center; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border-color); }
@@ -346,6 +346,20 @@ async function generateSimpleBatchReport(jobName, batchData) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
             .stat-number { font-size: 2rem; }
             .results-table th, .results-table td { padding: 12px 8px; font-size: 0.9rem; }
+        }
+        @media (max-width: 640px) {
+            .results-section { padding: 16px; }
+            .results-section h2 { font-size: 1.25rem; margin-bottom: 16px; }
+            .results-table thead { display: none; }
+            .results-table, .results-table tbody, .results-table tr, .results-table td { display: block; width: 100%; }
+            .results-table tr { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+            .results-table tr:hover { background: var(--bg-secondary); }
+            .results-table td { border-bottom: none; padding: 6px 0; font-size: 0.9rem; }
+            .results-table td:not(:first-child) { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+            .results-table td:not(:first-child)::before { content: attr(data-label); font-weight: 600; color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+            .results-table td:first-child { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 8px; font-size: 0.95rem; word-break: break-all; }
+            .results-table td a { word-break: break-all; text-align: right; }
+            .results-table td > span[style*="color"] { text-align: right; }
         }
     </style>
 </head>
@@ -369,9 +383,9 @@ async function generateSimpleBatchReport(jobName, batchData) {
                 <tbody>
                     ${results.map(result => `
                     <tr>
-                        <td><strong>${result.fileName}</strong></td>
-                        <td><span class="status-badge ${result.success ? 'status-success' : 'status-failed'}">${result.success ? '✅ SUCCESS' : '❌ FAILED'}</span></td>
-                        <td>${result.reportPath ?
+                        <td data-label="File Name"><strong>${result.fileName}</strong></td>
+                        <td data-label="Status"><span class="status-badge ${result.success ? 'status-success' : 'status-failed'}">${result.success ? '✅ SUCCESS' : '❌ FAILED'}</span></td>
+                        <td data-label="Report">${result.reportPath ?
                           `<a href="${path.basename(result.reportPath)}">${path.basename(result.reportPath)}</a>` :
                           '<span style="color: var(--text-muted);">No report generated</span>'}</td>
                     </tr>`).join('')}
