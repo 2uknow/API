@@ -243,6 +243,89 @@ app.use('/logs', express.static(logsDir, {
     res.setHeader('Expires', '0');
   }
 }));
+
+// 로그 뷰어 — stdout/stderr .log 파일을 HTML wrapper 로 감싸 뒤로가기 버튼 제공.
+// 직접 /logs/xxx.log 를 새 탭으로 열면 닫기 외엔 대시보드로 돌아갈 방법이 없어
+// history 테이블 stdout 링크는 이쪽으로 우회시킨다.
+app.get('/log-viewer', (req, res) => {
+  const fileName = String(req.query.file || '').replace(/^\/+/, '');
+  const autoScroll = req.query.autoScroll === '1';
+  if (!fileName) return res.status(400).send('file query required');
+
+  const resolved = path.resolve(logsDir, fileName);
+  if (!resolved.startsWith(path.resolve(logsDir))) return res.status(403).send('forbidden');
+  if (!fs.existsSync(resolved)) return res.status(404).send('log not found');
+
+  let body;
+  try {
+    body = fs.readFileSync(resolved, 'utf-8');
+  } catch (e) {
+    return res.status(500).send('read failed: ' + e.message);
+  }
+
+  const escaped = body
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<title>Log: ${fileName}</title>
+<style>
+  :root { color-scheme: dark light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #0f172a; color: #e2e8f0; }
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #334155;
+  }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: #4f46e5; color: white; border: none; border-radius: 6px;
+    font-size: 0.9rem; font-weight: 500; cursor: pointer; text-decoration: none;
+  }
+  .back-btn:hover { background: #4338ca; }
+  .file-name { font-size: 0.85rem; color: #94a3b8; word-break: break-all; }
+  pre {
+    margin: 0; padding: 14px;
+    white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere;
+    font-size: 0.82rem; line-height: 1.5;
+  }
+  @media (max-width: 767px) {
+    .toolbar { padding: 8px 10px; }
+    .back-btn { padding: 6px 10px; font-size: 0.85rem; }
+    .file-name { font-size: 0.75rem; }
+    pre { padding: 10px; font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="#" class="back-btn" onclick="if(history.length>1){history.back();return false;}return true;" data-fallback="/">← 뒤로</a>
+    <span class="file-name">${fileName}</span>
+  </div>
+  <pre>${escaped}</pre>
+${autoScroll ? '<script>window.scrollTo(0, document.body.scrollHeight);</script>' : ''}
+<script>
+  // history 가 없으면 대시보드로
+  document.querySelector('.back-btn').addEventListener('click', function(e){
+    if (history.length <= 1) { window.location.href = '/'; e.preventDefault(); }
+  });
+</script>
+</body>
+</html>`);
+});
 app.use('/', express.static(path.join(root, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {

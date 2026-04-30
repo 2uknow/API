@@ -111,9 +111,9 @@ function formatHistoryDuration(row) {
 function renderHistory(append = false) {
   const tb = document.getElementById('histTbody');
   if (!append) tb.innerHTML = '';
-  // 모바일 여부 — 같은 탭 이동 / target 결정에 사용
-  const isMobile = window.matchMedia('(max-width: 767px)').matches;
-  const reportTarget = isMobile ? '_self' : '_blank';
+  // 리포트 / stdout 모두 같은 탭에서 열어 브라우저 뒤로가기로 대시보드로 돌아오게 한다.
+  // 새 탭은 history 가 없어 뒤로가기가 의미 없고, 모바일에선 탭 전환 자체가 번거로움.
+  const reportTarget = '_self';
 
   historyView.forEach(row => {
     const ok = row.exitCode === 0;
@@ -334,13 +334,11 @@ function renderPagination() {
   }
 }
 // 로그 자동 스크롤
+// 같은 탭에서 log-viewer 로 이동. viewer 페이지가 자체적으로 뒤로가기 버튼 + 자동 스크롤 처리.
 function openLogWithAutoScroll(logUrl) {
-  const logWindow = window.open(logUrl, '_blank');
-  if (logWindow) {
-    logWindow.addEventListener('load', () => {
-      setTimeout(() => logWindow.scrollTo(0, logWindow.document.body.scrollHeight), 100);
-    });
-  }
+  // logUrl 형식: /logs/stdout_xxx.log → /log-viewer?file=stdout_xxx.log&autoScroll=1
+  const fileName = logUrl.replace(/^\/logs\//, '');
+  window.location.href = `/log-viewer?file=${encodeURIComponent(fileName)}&autoScroll=1`;
 }
 
 // 필터링

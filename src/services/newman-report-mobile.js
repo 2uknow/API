@@ -2,9 +2,13 @@
 // 모바일 가독성 CSS를 주입한다.
 // htmlextra는 Bootstrap 기반이라 .container/.card/.table/.nav-tabs 등을 그대로
 // 사용하므로 보편적 셀렉터로 강제 override 가능하다.
+//
+// 추가로 모든 리포트(htmlextra 외 SClient 자체 리포트, batch summary 포함) 에
+// 좌상단 "← 뒤로" 버튼을 주입해 같은 탭으로 열렸을 때 대시보드로 돌아갈 수 있게 한다.
 import fs from 'fs';
 
 const INJECT_MARKER = '<!-- newman-mobile-injected -->';
+const BACK_BUTTON_MARKER = '<!-- back-button-injected -->';
 
 const NEWMAN_MOBILE_CSS = `
 ${INJECT_MARKER}
@@ -151,9 +155,32 @@ ${INJECT_MARKER}
 </style>
 `;
 
+// 뒤로가기 버튼 (모든 리포트 좌상단 fixed). history 가 비어 있으면 대시보드로.
+const BACK_BUTTON_HTML = `
+${BACK_BUTTON_MARKER}
+<style>
+  #report-back-btn {
+    position: fixed; top: 12px; left: 12px; z-index: 99999;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: #4f46e5; color: #fff; border: none; border-radius: 6px;
+    font-size: 0.85rem; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-decoration: none; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    line-height: 1;
+  }
+  #report-back-btn:hover { background: #4338ca; color: #fff; text-decoration: none; }
+  @media (max-width: 767px) {
+    #report-back-btn { top: 8px; left: 8px; padding: 5px 10px; font-size: 0.8rem; }
+  }
+  @media print { #report-back-btn { display: none !important; } }
+</style>
+<a href="/" id="report-back-btn" onclick="if(history.length>1){history.back();return false;}return true;">← 뒤로</a>
+`;
+
 /**
- * Newman HTMLExtra 리포트 HTML 파일에 모바일 친화 CSS를 주입한다.
- * - 멱등성 보장 (이미 주입된 파일은 재처리 안 함)
+ * Newman HTMLExtra 리포트 HTML 파일에 모바일 친화 CSS와 뒤로가기 버튼을 주입한다.
+ * - 멱등성 보장 (각 marker 별로 개별 체크 — 둘 중 하나만 빠진 옛 파일도 보강)
  * - viewport meta가 없으면 추가
  * - 실패해도 원본 리포트는 보존
  */
@@ -163,8 +190,11 @@ export async function injectNewmanReportMobileStyles(htmlPath) {
   try {
     let html = await fs.promises.readFile(htmlPath, 'utf-8');
 
-    // 멱등성: 이미 처리된 파일은 skip
-    if (html.includes(INJECT_MARKER)) return true;
+    const hasMobile = html.includes(INJECT_MARKER);
+    const hasBack = html.includes(BACK_BUTTON_MARKER);
+
+    // 둘 다 이미 들어 있으면 skip
+    if (hasMobile && hasBack) return true;
 
     // viewport meta 보장
     if (!/<meta\s+[^>]*name=["']viewport["']/i.test(html)) {
@@ -175,11 +205,22 @@ export async function injectNewmanReportMobileStyles(htmlPath) {
     }
 
     // </head> 직전에 모바일 CSS 주입
-    if (/<\/head>/i.test(html)) {
-      html = html.replace(/<\/head>/i, `${NEWMAN_MOBILE_CSS}\n</head>`);
-    } else {
-      // </head>가 없는 비정상 HTML — 본문 앞에 prepend
-      html = NEWMAN_MOBILE_CSS + html;
+    if (!hasMobile) {
+      if (/<\/head>/i.test(html)) {
+        html = html.replace(/<\/head>/i, `${NEWMAN_MOBILE_CSS}\n</head>`);
+      } else {
+        html = NEWMAN_MOBILE_CSS + html;
+      }
+    }
+
+    // <body> 직후 뒤로가기 버튼 주입
+    if (!hasBack) {
+      if (/<body[^>]*>/i.test(html)) {
+        html = html.replace(/<body([^>]*)>/i, `<body$1>${BACK_BUTTON_HTML}`);
+      } else {
+        // <body> 가 없는 비정상 HTML — 그냥 prepend
+        html = BACK_BUTTON_HTML + html;
+      }
     }
 
     await fs.promises.writeFile(htmlPath, html, 'utf-8');
