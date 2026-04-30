@@ -674,6 +674,7 @@ async function runYamlDirectoryBatch(jobName, job, collectionPath, paths) {
       successRate,
       batchReportPath,
       overallSuccess,
+      stamp,
     });
     
     debugLog(`[YAML_BATCH] Adding batch result to history`, {

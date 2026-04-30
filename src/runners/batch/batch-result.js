@@ -48,6 +48,7 @@ export function buildBatchHistoryEntry({
   successRate,
   batchReportPath,
   overallSuccess,
+  stamp,
 }) {
   // batchResults를 요약 정보만 포함하도록 축소 (JSON.stringify 크기 제한 문제 방지)
   const batchResultsSummary = batchResults.map(r => ({
@@ -71,8 +72,11 @@ export function buildBatchHistoryEntry({
     report: batchReportPath,
     htmlReport: batchReportPath,
     reportPath: batchReportPath,
-    stdout: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
-    stderr: `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
+    // 부모 배치 stdout/stderr (개별 파일 상세 로그가 tee 되어 있어 풍부) 을 가리킨다.
+    // 과거에는 batch_execution_YYYY-MM-DD.log (batchLog 누적 파일) 를 가리켰는데,
+    // 그 파일은 [BATCH_ENTRY]/[FILE_FILTER] 같은 디버그 로그만 들어 있어 가독성이 매우 낮았다.
+    stdout: stamp ? `stdout_${jobName}_${stamp}.log` : `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
+    stderr: stamp ? `stderr_${jobName}_${stamp}.log` : `batch_execution_${new Date().toISOString().split('T')[0]}.log`,
     tags: ['binary', 'yaml', 'batch'],
     duration: Math.round(duration / 1000), // ms를 초로 변환 (호환용 유지)
     durationMs: duration,
