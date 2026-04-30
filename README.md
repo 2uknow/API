@@ -516,7 +516,6 @@ pm2 save
 | `GET` | `/api/run/:name` | Job 실행 |
 | `GET` | `/api/running` | 현재 실행 중인 Job 목록 |
 | `POST` | `/api/stop/:name` | 실행 중인 Job 중지 |
-| `POST` | `/api/reset-state` | 상태 강제 초기화 |
 
 ### 이력 및 통계
 

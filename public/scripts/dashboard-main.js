@@ -221,46 +221,6 @@ document.getElementById('closeLogModal').onclick = closeLogModal;
 // 통계 새로고침 버튼 이벤트 추가
 document.getElementById('refreshStats').onclick = fetchTodayStats;
 
-// Reset State 버튼 이벤트 추가
-document.getElementById('resetStateBtn').onclick = async () => {
-  if (!confirm('서버 상태를 강제로 초기화하시겠습니까?\n이 작업은 현재 실행 중인 모든 작업을 중단시킬 수 있습니다.')) {
-    return;
-  }
-  
-  try {
-    console.log('[RESET] Sending reset state request...');
-    const response = await fetch('/api/reset-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    const result = await response.json();
-    
-    if (result.ok) {
-      console.log('[RESET] State reset successful:', result);
-      addLogToConsole('🔄 서버 상태가 강제로 초기화되었습니다.', 'SYSTEM');
-      
-      // 클라이언트 상태도 초기화
-      running = null;
-      setStatusChip();
-      
-      // 데이터 새로고침
-      await Promise.all([
-        fetchHistory(),
-        fetchTodayStats()
-      ]);
-      
-      showNotification('서버 상태가 초기화되었습니다.', 'success');
-    } else {
-      throw new Error(result.message || 'Reset failed');
-    }
-  } catch (error) {
-    console.error('[RESET] Error:', error);
-    addLogToConsole(`❌ 상태 초기화 실패: ${error.message}`, 'ERROR');
-    showNotification('상태 초기화에 실패했습니다.', 'error');
-  }
-};
-
 document.getElementById('scheduleToggle').onclick = () => {
   document.getElementById('scheduleModal').classList.remove('hidden');
   document.getElementById('scheduleModal').classList.add('flex');

@@ -97,3 +97,135 @@ body {
 .glow-on-hover:hover {
   box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
 }
+
+/* ==========================================================================
+   다크모드용 Tailwind 색상 오버라이드
+   - 동적 JS가 사용하는 라이트 전용 색상(bg-green-100, text-red-700 등) 자동 보정
+   - 새 코드가 같은 클래스를 써도 자동으로 다크 대응
+   ========================================================================== */
+
+/* 배경: 50/100 단계 → 다크에서는 같은 hue의 어둡고 투명한 톤 */
+[data-theme="dark"] .bg-green-50,
+[data-theme="dark"] .bg-green-100  { background-color: rgba(34, 197, 94, 0.18) !important; }
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-red-100    { background-color: rgba(239, 68, 68, 0.18) !important; }
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-blue-100   { background-color: rgba(59, 130, 246, 0.18) !important; }
+[data-theme="dark"] .bg-purple-50,
+[data-theme="dark"] .bg-purple-100 { background-color: rgba(168, 85, 247, 0.20) !important; }
+[data-theme="dark"] .bg-orange-50,
+[data-theme="dark"] .bg-orange-100 { background-color: rgba(249, 115, 22, 0.20) !important; }
+[data-theme="dark"] .bg-yellow-50,
+[data-theme="dark"] .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.20) !important; }
+[data-theme="dark"] .bg-indigo-50,
+[data-theme="dark"] .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.20) !important; }
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100,
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100  { background-color: var(--bg-tertiary) !important; }
+[data-theme="dark"] .bg-gray-200,
+[data-theme="dark"] .bg-slate-200  { background-color: rgba(148, 163, 184, 0.18) !important; }
+[data-theme="dark"] .bg-white      { background-color: var(--bg-secondary) !important; }
+
+/* hover 상태도 동일 톤 유지 (조금 더 진하게) */
+[data-theme="dark"] .hover\:bg-green-100:hover  { background-color: rgba(34, 197, 94, 0.30) !important; }
+[data-theme="dark"] .hover\:bg-red-100:hover    { background-color: rgba(239, 68, 68, 0.30) !important; }
+[data-theme="dark"] .hover\:bg-blue-100:hover   { background-color: rgba(59, 130, 246, 0.30) !important; }
+[data-theme="dark"] .hover\:bg-purple-100:hover { background-color: rgba(168, 85, 247, 0.30) !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover,
+[data-theme="dark"] .hover\:bg-slate-100:hover  { background-color: var(--border-color) !important; }
+
+/* 텍스트: 600/700/800/900 단계 → 다크에서는 300/200으로 끌어올려 가독 확보 */
+[data-theme="dark"] .text-green-600,
+[data-theme="dark"] .text-green-700,
+[data-theme="dark"] .text-green-800,
+[data-theme="dark"] .text-green-900   { color: #4ade80 !important; }
+[data-theme="dark"] .text-red-600,
+[data-theme="dark"] .text-red-700,
+[data-theme="dark"] .text-red-800,
+[data-theme="dark"] .text-red-900     { color: #f87171 !important; }
+[data-theme="dark"] .text-blue-600,
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-blue-800,
+[data-theme="dark"] .text-blue-900    { color: #60a5fa !important; }
+[data-theme="dark"] .text-purple-600,
+[data-theme="dark"] .text-purple-700,
+[data-theme="dark"] .text-purple-800  { color: #c084fc !important; }
+[data-theme="dark"] .text-orange-600,
+[data-theme="dark"] .text-orange-700,
+[data-theme="dark"] .text-orange-800  { color: #fb923c !important; }
+[data-theme="dark"] .text-yellow-600,
+[data-theme="dark"] .text-yellow-700,
+[data-theme="dark"] .text-yellow-800  { color: #facc15 !important; }
+[data-theme="dark"] .text-indigo-600,
+[data-theme="dark"] .text-indigo-700,
+[data-theme="dark"] .text-indigo-800  { color: #818cf8 !important; }
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-slate-500   { color: var(--text-muted) !important; }
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-800,
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-black       { color: var(--text-primary) !important; }
+
+/* hover 텍스트 강조도 같이 보정 */
+[data-theme="dark"] .hover\:text-red-800:hover   { color: #fca5a5 !important; }
+[data-theme="dark"] .hover\:text-green-800:hover { color: #86efac !important; }
+[data-theme="dark"] .hover\:text-blue-800:hover  { color: #93c5fd !important; }
+
+/* 보더: 100/200/300 → 다크의 표준 보더 색 */
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-300,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-300 { border-color: var(--border-color) !important; }
+[data-theme="dark"] .border-green-200  { border-color: rgba(34, 197, 94, 0.35) !important; }
+[data-theme="dark"] .border-red-200    { border-color: rgba(239, 68, 68, 0.35) !important; }
+[data-theme="dark"] .border-blue-200   { border-color: rgba(59, 130, 246, 0.35) !important; }
+[data-theme="dark"] .border-purple-200 { border-color: rgba(168, 85, 247, 0.35) !important; }
+[data-theme="dark"] .border-indigo-200 { border-color: rgba(99, 102, 241, 0.35) !important; }
+[data-theme="dark"] .border-orange-200 { border-color: rgba(249, 115, 22, 0.35) !important; }
+
+/* 그라데이션: from-gray-50/100/200 → 다크 톤 */
+[data-theme="dark"] .from-gray-50,
+[data-theme="dark"] .from-gray-100,
+[data-theme="dark"] .from-slate-50,
+[data-theme="dark"] .from-slate-100  { --tw-gradient-from: var(--bg-secondary) !important; }
+[data-theme="dark"] .to-gray-50,
+[data-theme="dark"] .to-gray-100,
+[data-theme="dark"] .to-gray-200,
+[data-theme="dark"] .to-slate-100,
+[data-theme="dark"] .to-slate-200    { --tw-gradient-to: var(--bg-tertiary) !important; }
+
+/* 스케줄 활성 칩 — 라이트/다크 양쪽 가독 */
+.schedule-indicator-active {
+  background: #dcfce7;
+  color: #15803d;
+}
+[data-theme="dark"] .schedule-indicator-active {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+}
+
+/* 스케줄 삭제 버튼 — 라이트/다크 양쪽 가독 */
+.schedule-delete-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.schedule-delete-btn:hover {
+  background: #fecaca;
+  color: #991b1b;
+}
+[data-theme="dark"] .schedule-delete-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+[data-theme="dark"] .schedule-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+}

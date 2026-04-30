@@ -13,6 +13,25 @@ const BACK_BUTTON_MARKER = '<!-- back-button-injected -->';
 const NEWMAN_MOBILE_CSS = `
 ${INJECT_MARKER}
 <style>
+/* 라이트 테마 강제 — htmlextra가 OS의 prefers-color-scheme 따라가는 것 차단 */
+html { color-scheme: light !important; }
+@media (prefers-color-scheme: dark) {
+  html, body { background-color: #fff !important; color: #212529 !important; }
+  .card, .card-body, .card-header, .card-footer,
+  .table, .table thead, .table tbody, .table tr, .table th, .table td,
+  .nav-tabs, .nav-pills, .navbar, .modal-content, pre, code, .pre {
+    background-color: #fff !important;
+    color: #212529 !important;
+    border-color: #dee2e6 !important;
+  }
+  .nav-tabs .nav-link, .nav-pills .nav-link, .nav .nav-link { color: #495057 !important; }
+  .nav-tabs .nav-link.active, .nav-pills .nav-link.active {
+    background-color: #fff !important; color: #0d6efd !important; border-color: #dee2e6 #dee2e6 #fff !important;
+  }
+  .text-muted, .text-secondary { color: #6c757d !important; }
+  a { color: #0d6efd !important; }
+}
+
 @media (max-width: 767px) {
   html, body { overflow-x: hidden !important; }
   body { padding: 0 !important; margin: 0 !important; }
@@ -192,9 +211,11 @@ export async function injectNewmanReportMobileStyles(htmlPath) {
 
     const hasMobile = html.includes(INJECT_MARKER);
     const hasBack = html.includes(BACK_BUTTON_MARKER);
+    // htmlextra는 기본 다크 테마로 <body class="theme-dark">를 박는다
+    const hasDarkBody = /<body[^>]*\bclass\s*=\s*["'][^"']*\btheme-dark\b/i.test(html);
 
-    // 둘 다 이미 들어 있으면 skip
-    if (hasMobile && hasBack) return true;
+    // 모든 처리가 이미 끝났으면 skip
+    if (hasMobile && hasBack && !hasDarkBody) return true;
 
     // viewport meta 보장
     if (!/<meta\s+[^>]*name=["']viewport["']/i.test(html)) {
@@ -202,6 +223,20 @@ export async function injectNewmanReportMobileStyles(htmlPath) {
         /<head([^>]*)>/i,
         '<head$1>\n<meta name="viewport" content="width=device-width, initial-scale=1.0">'
       );
+    }
+
+    // body의 theme-dark 클래스 제거 (htmlextra 기본 다크 테마 강제 해제)
+    if (hasDarkBody) {
+      html = html.replace(/<body\b([^>]*)>/i, (_match, attrs) => {
+        const newAttrs = attrs.replace(/\sclass\s*=\s*"([^"]*)"/i, (_m, cls) => {
+          const cleaned = cls.split(/\s+/).filter(c => c && c !== 'theme-dark').join(' ');
+          return cleaned ? ` class="${cleaned}"` : '';
+        }).replace(/\sclass\s*=\s*'([^']*)'/i, (_m, cls) => {
+          const cleaned = cls.split(/\s+/).filter(c => c && c !== 'theme-dark').join(' ');
+          return cleaned ? ` class='${cleaned}'` : '';
+        });
+        return `<body${newAttrs}>`;
+      });
     }
 
     // </head> 직전에 모바일 CSS 주입

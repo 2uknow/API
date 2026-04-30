@@ -44,7 +44,7 @@ export function registerRunningJob(jobName, startTime, type = 'unknown', proc = 
   return runId;
 }
 
-// unregisterRunningJob — runId 우선 매치, 실패 시 jobName 매치(같은 이름 전체 제거: /api/stop, /reset-state 용도)
+// unregisterRunningJob — runId 우선 매치, 실패 시 jobName 매치(같은 이름 전체 제거: /api/stop 용도)
 export function unregisterRunningJob(runIdOrName) {
   if (state.runningJobs.has(runIdOrName)) {
     state.runningJobs.delete(runIdOrName);

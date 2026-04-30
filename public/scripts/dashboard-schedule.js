@@ -17,11 +17,11 @@ function renderScheduleIndicator(schedules) {
 
   if (schedules.length === 0) {
     indicator.textContent = '활성 스케줄 없음';
-    indicator.className = 'px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 font-medium';
+    indicator.className = 'px-3 py-1 text-sm rounded-full bg-ter-var t-sec font-medium';
     list.innerHTML = '';
   } else {
     indicator.textContent = `${schedules.length}개 활성`;
-    indicator.className = 'px-3 py-1 text-sm rounded-full bg-green-100 text-green-700 font-medium';
+    indicator.className = 'px-3 py-1 text-sm rounded-full schedule-indicator-active font-medium';
 
     // 모든 스케줄 표시 (스크롤로 처리)
     list.innerHTML = schedules.map(s =>
@@ -37,13 +37,13 @@ function renderModalScheduleList(schedules) {
     list.innerHTML = '<p class="text-sm t-sec">등록된 스케줄이 없습니다.</p>';
   } else {
     list.innerHTML = schedules.map(s => `
-      <div class="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+      <div class="flex items-center justify-between p-4 rounded-xl border bg-ter-var bd-c">
         <div>
           <div class="font-semibold t-pri">${s.name}</div>
           <div class="text-sm t-sec">${s.cronExpr}</div>
         </div>
-        <button onclick="removeSchedule('${s.name}')" 
-                class="text-red-600 hover:text-red-800 text-sm px-3 py-1.5 bg-red-50 rounded-lg hover:bg-red-100 transition-all duration-300 font-medium">
+        <button onclick="removeSchedule('${s.name}')"
+                class="schedule-delete-btn text-sm px-3 py-1.5 rounded-lg transition-all duration-300 font-medium">
           삭제
         </button>
       </div>

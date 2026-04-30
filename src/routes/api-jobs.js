@@ -5,7 +5,7 @@ import path from 'path';
 import { root } from '../utils/config.js';
 import { stateClients, logClients, unifiedClients, broadcastLog } from '../utils/sse.js';
 import { scheduledJobNames } from '../state/schedule-state.js';
-import { state, unregisterRunningJob, broadcastRunningJobs } from '../state/running-jobs.js';
+import { state, unregisterRunningJob } from '../state/running-jobs.js';
 import { runJob } from '../runners/job-runner.js';
 
 const router = Router();
@@ -39,31 +39,6 @@ router.get('/jobs', (req, res) => {
     }
     res.json(items);
   } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// 상태 강제 초기화 (디버깅 및 응급 상황용)
-router.post('/reset-state', (req, res) => {
-  console.log('[API] Force reset state requested');
-  const previousState = state.running;
-
-  for (const [, info] of state.runningJobs) {
-    if (info.proc && !info.proc.killed) {
-      try { info.proc.kill('SIGTERM'); } catch (e) { /* ignore */ }
-    }
-  }
-  state.runningJobs.clear();
-  state.running = null;
-  state.batchMode = false;
-  broadcastRunningJobs();
-  broadcastLog('[SYSTEM] State forcefully reset by user', 'SYSTEM');
-
-  res.json({
-    ok: true,
-    message: 'State reset successfully',
-    previousState: previousState
-  });
-
-  console.log('[API] State reset completed, previous state:', previousState);
 });
 
 // 현재 실행 중인 Job 목록 (runId 단위 — 동시 실행 지원)
